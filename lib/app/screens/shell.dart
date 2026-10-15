@@ -7,91 +7,35 @@ import '../nav.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'games.dart';
 import 'lobby.dart';
-import 'profile.dart';
-import 'promotions.dart';
-import 'wallet.dart';
 
-/// The five side-menu pages under one HUD, kept alive so scroll positions and
-/// tab state survive.
-class MainShell extends StatefulWidget {
-  MainShell({this.initial = AppTab.home}) : super(key: shellKey);
-  final AppTab initial;
+/// Home: the lobby under the HUD. Every other section opens over it — the
+/// avatar opens the profile, the balances the wallet, the gift the daily
+/// bonus, and the menu button the rest.
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<MainShell> createState() => _MainShellState();
-}
-
-class _MainShellState extends State<MainShell> implements TabHost {
-  late AppTab tab = widget.initial;
-  final _walletKey = GlobalKey<WalletPageState>();
-
-  @override
-  void setTab(AppTab t, {String? walletTab}) {
-    setState(() => tab = t);
-    if (walletTab != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _walletKey.currentState?.showTab(walletTab));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: tab == AppTab.home,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) setTab(AppTab.home);
-      },
-      child: Scaffold(
-        backgroundColor: Z.inkDeep,
-        resizeToAvoidBottomInset: false,
-        body: Stack(
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Z.inkDeep,
+    resizeToAvoidBottomInset: false,
+    body: Stack(
+      children: [
+        const Positioned.fill(child: CasinoBackdrop()),
+        Column(
           children: [
-            const Positioned.fill(child: CasinoBackdrop()),
-            Column(
-              children: [
-                const Hud(),
-                Expanded(
-                  child: MediaQuery.removePadding(
-                    context: context,
-                    removeTop: true,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SideNav(active: tab, onTap: setTab),
-                        Expanded(
-                          // The rail already keeps clear of the left notch.
-                          child: MediaQuery.removePadding(
-                            context: context,
-                            removeLeft: true,
-                            child: InShell(
-                              child: IndexedStack(
-                                index: tab.index,
-                                children: [
-                                  const LobbyPage(),
-                                  const GamesPage(),
-                                  const PromotionsPage(),
-                                  WalletPage(key: _walletKey),
-                                  const ProfilePage(),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+            const Hud(),
+            Expanded(
+              child: MediaQuery.removePadding(context: context, removeTop: true, child: const LobbyPage()),
             ),
           ],
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
 }
 
-/// Top bar of the shell: player, level, balances and quick actions. What it
+/// Top bar of the lobby: player, level, balances and quick actions. What it
 /// shows follows the width it gets — the level meter and the sound toggle
 /// drop out first on small phones.
 class Hud extends StatelessWidget {
@@ -237,9 +181,9 @@ class Hud extends StatelessWidget {
                 ),
               _HudIcon(
                 extent: iconW,
-                label: 'Settings',
-                onTap: () => Nav.push(R.settings),
-                child: const RawIco(_gearSvg, size: 27),
+                label: 'Menu',
+                onTap: () => showOptionsMenu(context),
+                child: const RawIco(_menuSvg, size: 27),
               ),
             ],
           );
@@ -262,7 +206,129 @@ const _soundOnSvg =
 const _soundOffSvg =
     '<path d="M3 9h4l5-4v14l-5-4H3z" fill="#8f8576"/>'
     '<path d="M16 9.5l5 5M21 9.5l-5 5" fill="none" stroke="#8f8576" stroke-width="2" stroke-linecap="round"/>';
-const _gearSvg = '<path d="${P.gear}" fill="#f2c869"/>';
+const _menuSvg =
+    '<rect x="3" y="3" width="8" height="8" rx="2" fill="#f2c869"/>'
+    '<rect x="13" y="3" width="8" height="8" rx="2" fill="#f2c869"/>'
+    '<rect x="3" y="13" width="8" height="8" rx="2" fill="#f2c869"/>'
+    '<rect x="13" y="13" width="8" height="8" rx="2" fill="#e3242b"/>';
+
+/// The options panel: everything the HUD doesn't already have one tap away,
+/// as tiles in a gold panel that drops from the top-right corner.
+void showOptionsMenu(BuildContext context) {
+  final options = [
+    ('All games', P.games, () => Nav.tab(AppTab.games)),
+    ('Promotions', P.giftPlain, () => Nav.tab(AppTab.promotions)),
+    ('VIP Club', P.crown, () => Nav.push(R.vip)),
+    ('Slots race', P.trophyFull, () => Nav.push(R.leaderboard)),
+    ('Settings', P.gear, () => Nav.push(R.settings)),
+    ('Help & support', P.chat, () => Nav.push(R.chat, 'support')),
+    ('Rules & terms', P.doc, () => Nav.push(R.legal)),
+    ('Log out', P.back, () => Nav.reset(R.welcome)),
+  ];
+  showGeneralDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: 'Close menu',
+    barrierColor: const Color(0x99000000),
+    transitionDuration: const Duration(milliseconds: 180),
+    transitionBuilder: (_, a, __, child) => FadeTransition(
+      opacity: a,
+      child: ScaleTransition(
+        alignment: Alignment.topRight,
+        scale: Tween(begin: .92, end: 1.0).animate(CurvedAnimation(parent: a, curve: Curves.easeOut)),
+        child: child,
+      ),
+    ),
+    pageBuilder: (ctx, _, __) {
+      final mq = MediaQuery.of(ctx);
+      final top = mq.padding.top + (mq.size.height * .13).clamp(46.0, 64.0) + 6;
+      return Stack(
+        children: [
+          Positioned(
+            top: top,
+            right: mq.padding.right + 10,
+            // Two columns of tiles; scrolls if a short phone can't fit them all.
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 340, maxHeight: mq.size.height - top - mq.padding.bottom - 10),
+              child: GoldFrame(
+                radius: 20,
+                shadows: [bs(0, 12, 30, const Color(0xCC000000))],
+                inner: ellipseGradient(
+                  cx: .5,
+                  cy: 0,
+                  rx: .9,
+                  ry: .8,
+                  colors: const [Color(0xFF3A2209), Color(0xFF0E0905)],
+                  stops: const [0, .8],
+                ),
+                padding: const EdgeInsets.all(10),
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: SingleChildScrollView(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final (label, icon, go) in options)
+                          _MenuTile(
+                            label: label,
+                            icon: icon,
+                            danger: label == 'Log out',
+                            onTap: () {
+                              Navigator.of(ctx).pop();
+                              go();
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+class _MenuTile extends StatelessWidget {
+  const _MenuTile({required this.label, required this.icon, required this.onTap, this.danger = false});
+  final String label;
+  final String icon;
+  final VoidCallback onTap;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) => Press(
+    label: label,
+    onTap: onTap,
+    child: Container(
+      width: 152,
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: const Color(0xCC140D07),
+        border: Border.all(color: danger ? const Color(0xFF8A2A2A) : Z.chip, width: 1.5),
+      ),
+      child: Row(
+        children: [
+          Ico(icon, size: 20, color: danger ? Z.coral : Z.gold),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: outfit(14, w: FontWeight.w700, c: danger ? Z.coral : Z.cream),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
 class _FramedAvatar extends StatelessWidget {
   const _FramedAvatar({required this.size});

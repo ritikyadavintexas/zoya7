@@ -8,7 +8,10 @@ import '../widgets.dart';
 import 'promotions.dart' show RaysBurst;
 
 class WalletPage extends StatefulWidget {
-  const WalletPage({super.key});
+  const WalletPage({super.key, this.initialTab = 'buy'});
+
+  /// 'buy', 'redeem' or 'history'.
+  final String initialTab;
 
   @override
   State<WalletPage> createState() => WalletPageState();
@@ -16,10 +19,9 @@ class WalletPage extends StatefulWidget {
 
 class WalletPageState extends State<WalletPage> {
   static const tabs = ['buy', 'redeem', 'history'];
-  int tab = 0;
+  late int tab = tabs.indexOf(widget.initialTab).clamp(0, 2);
   int payout = 0;
 
-  void showTab(String t) => setState(() => tab = tabs.indexOf(t).clamp(0, 2));
 
   @override
   Widget build(BuildContext context) {

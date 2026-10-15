@@ -8,6 +8,10 @@ class R {
   static const signup = '/signup';
   static const forgot = '/forgot-password';
   static const home = '/home';
+  static const games = '/games';
+  static const promotions = '/promotions';
+  static const wallet = '/wallet';
+  static const profile = '/profile';
   static const gold = '/gold';
   static const chat = '/chat';
   static const notifications = '/notifications';
@@ -23,29 +27,35 @@ class R {
   static const offline = '/offline';
 }
 
-/// The five bottom-nav tabs.
+/// The main sections. Home is the lobby; the others open over it
+/// (from the HUD and the options menu).
 enum AppTab { home, games, promotions, wallet, profile }
-
-/// Lets pages switch the bottom-nav tab of the main shell.
-abstract class TabHost {
-  void setTab(AppTab tab, {String? walletTab});
-}
-
-final shellKey = GlobalKey();
 
 class Nav {
   static final navigatorKey = GlobalKey<NavigatorState>();
 
   static NavigatorState get _nav => navigatorKey.currentState!;
 
-  /// Go to a bottom-nav tab: back to the shell if it's open, otherwise start it.
+  /// Open a section: back to the lobby, then the section's page on top of
+  /// it (the wallet on [walletTab] — 'buy', 'redeem' or 'history').
   static void tab(AppTab tab, {String? walletTab}) {
-    final host = shellKey.currentState;
-    if (host != null && host.mounted && host is TabHost) {
-      _nav.popUntil((r) => r.settings.name == R.home);
-      (host as TabHost).setTab(tab, walletTab: walletTab);
-    } else {
-      _nav.pushNamedAndRemoveUntil(R.home, (_) => false, arguments: tab);
+    var home = false;
+    _nav.popUntil((r) {
+      if (r.settings.name == R.home) home = true;
+      return home || r.isFirst;
+    });
+    if (!home) _nav.pushNamedAndRemoveUntil(R.home, (_) => false);
+    switch (tab) {
+      case AppTab.home:
+        break;
+      case AppTab.games:
+        _nav.pushNamed(R.games);
+      case AppTab.promotions:
+        _nav.pushNamed(R.promotions);
+      case AppTab.wallet:
+        _nav.pushNamed(R.wallet, arguments: walletTab);
+      case AppTab.profile:
+        _nav.pushNamed(R.profile);
     }
   }
 
@@ -68,7 +78,7 @@ class Nav {
 
   /// Open the lobby and show the daily-bonus popup over it.
   static void homeWithBonus() {
-    _nav.pushNamedAndRemoveUntil(R.home, (_) => false, arguments: AppTab.home);
+    _nav.pushNamedAndRemoveUntil(R.home, (_) => false);
     _nav.pushNamed(R.dailyBonus);
   }
 }

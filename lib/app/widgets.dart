@@ -69,39 +69,25 @@ class ZPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final inShell = InShell.of(context);
-    final body = SafeArea(
-      top: !inShell,
-      left: !inShell,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1180),
-          // Text fields need a Material ancestor.
-          child: Material(
-            type: MaterialType.transparency,
-            child: DefaultTextStyle(style: outfit(15), child: child),
+    return ColoredBox(
+      color: color,
+      child: DecoratedBox(
+        decoration: BoxDecoration(gradient: gradient ?? Z.pageGlow()),
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1180),
+              // Text fields need a Material ancestor.
+              child: Material(
+                type: MaterialType.transparency,
+                child: DefaultTextStyle(style: outfit(15), child: child),
+              ),
+            ),
           ),
         ),
       ),
     );
-    // Shell tabs sit on the shell's backdrop, under its HUD.
-    if (inShell) return body;
-    return ColoredBox(
-      color: color,
-      child: DecoratedBox(decoration: BoxDecoration(gradient: gradient ?? Z.pageGlow()), child: body),
-    );
   }
-}
-
-/// Marks the main shell's tabs, which share the shell's HUD (balances,
-/// actions) and backdrop instead of drawing their own page header.
-class InShell extends InheritedWidget {
-  const InShell({super.key, required super.child});
-
-  static bool of(BuildContext context) => context.getInheritedWidgetOfExactType<InShell>() != null;
-
-  @override
-  bool updateShouldNotify(InShell oldWidget) => false;
 }
 
 /// Landscape page body: a side pane (summary, filters, controls) next to the
@@ -250,8 +236,6 @@ class TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Inside the shell the rail shows where you are and the HUD has the actions.
-    if (InShell.of(context)) return const SizedBox(height: 4);
     return Container(
         height: 54,
         padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -676,81 +660,6 @@ void showToast(BuildContext context, String text,
 
 OverlayEntry? _toast;
 Timer? _toastTimer;
-
-/// The floating side menu (HOME · GAMES · PROMOS · WALLET · PROFILE).
-class SideNav extends StatelessWidget {
-  const SideNav({super.key, required this.active, required this.onTap});
-  final AppTab active;
-  final ValueChanged<AppTab> onTap;
-
-  static const _items = [
-    (AppTab.home, 'HOME', P.home),
-    (AppTab.games, 'GAMES', P.games),
-    (AppTab.promotions, 'PROMOS', P.trophyFull),
-    (AppTab.wallet, 'WALLET', P.wallet),
-    (AppTab.profile, 'PROFILE', P.profile),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final pad = MediaQuery.of(context).padding;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(pad.left + 8, 8, 0, pad.bottom + 8),
-      child: Container(
-        width: 84,
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xF0161009), Color(0xF00A0704)],
-          ),
-          border: Border.all(color: const Color(0x66C99A3E)),
-          boxShadow: [bs(0, 8, 20, const Color(0x99000000))],
-        ),
-        child: LayoutBuilder(builder: (context, box) {
-          // Up to 76 tall per item; on short phones they share the height.
-          final itemH = (box.maxHeight / _items.length).clamp(0.0, 76.0);
-          return Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            for (final (tab, label, path) in _items)
-              SizedBox(
-                height: itemH,
-                child: Press(
-                  label: label,
-                  selected: tab == active,
-                  onTap: () => onTap(tab),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    width: double.infinity,
-                    margin: const EdgeInsets.symmetric(vertical: 2),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: tab == active ? Z.goldBright : const Color(0x00000000), width: 1.5),
-                      gradient: tab == active
-                          ? const LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Color(0xFF3A2610), Color(0xFF150D06)],
-                            )
-                          : null,
-                      boxShadow: tab == active ? [bs(0, 0, 14, const Color(0x66FFC846))] : null,
-                    ),
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Ico(path, size: (itemH * .36).clamp(16.0, 28.0), color: tab == active ? Z.goldHi : Z.tabOff),
-                      const SizedBox(height: 3),
-                      Text(label,
-                          style: outfit(10, w: FontWeight.w700, ls: .04, c: tab == active ? Z.goldHi : Z.tabOff)),
-                    ]),
-                  ),
-                ),
-              ),
-          ]);
-        }),
-      ),
-    );
-  }
-}
 
 /// Header balance chip: "[GC] 125,000".
 class GcChip extends StatelessWidget {

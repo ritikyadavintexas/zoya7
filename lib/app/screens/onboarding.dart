@@ -168,7 +168,7 @@ class WelcomeScreen extends StatelessWidget {
                           const SizedBox(height: 8),
                           LinkText('Continue as Guest', size: 17, underline: true, onTap: () {
                             AppScope.read(context).signIn(asGuest: true);
-                            Nav.reset(R.home, AppTab.home);
+                            Nav.reset(R.home);
                           }),
                           const SizedBox(height: 18),
                           const ResponsibleFooter(parts: ['Play Responsibly.', 'Terms & Conditions Apply.']),
@@ -327,7 +327,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Center(
                   child: LinkText('Continue as Guest', underline: true, onTap: () {
                     AppScope.read(context).signIn(asGuest: true);
-                    Nav.reset(R.home, AppTab.home);
+                    Nav.reset(R.home);
                   }),
                 ),
               ],

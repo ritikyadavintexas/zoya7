@@ -89,7 +89,15 @@ class Zoya7App extends StatelessWidget {
       case R.forgot:
         page = const ForgotPasswordScreen();
       case R.home:
-        page = MainShell(initial: arg is AppTab ? arg : AppTab.home);
+        page = const HomeScreen();
+      case R.games:
+        page = const GamesPage();
+      case R.promotions:
+        page = const PromotionsPage();
+      case R.wallet:
+        page = WalletPage(initialTab: arg is String ? arg : 'buy');
+      case R.profile:
+        page = const ProfilePage();
       case R.gold:
         page = const GoldScreen();
       case R.chat:
@@ -125,7 +133,7 @@ class Zoya7App extends StatelessWidget {
           transitionsBuilder: (_, a, __, child) => FadeTransition(opacity: a, child: child),
         );
       default:
-        page = MainShell();
+        page = const HomeScreen();
     }
     if (s.name == R.splash || s.name == R.welcome || s.name == R.home) {
       return PageRouteBuilder<void>(

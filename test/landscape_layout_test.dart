@@ -56,11 +56,11 @@ void main() {
     'sign up': () => const LoginScreen(signup: true),
     'forgot password': () => const ForgotPasswordScreen(),
     'offline': () => const OfflineScreen(),
-    'lobby': () => MainShell(),
-    'games': () => MainShell(initial: AppTab.games),
-    'promotions': () => MainShell(initial: AppTab.promotions),
-    'wallet': () => MainShell(initial: AppTab.wallet),
-    'profile': () => MainShell(initial: AppTab.profile),
+    'lobby': () => const HomeScreen(),
+    'games': () => const GamesPage(),
+    'promotions': () => const PromotionsPage(),
+    'wallet': () => const WalletPage(),
+    'profile': () => const ProfilePage(),
     'daily bonus': () => const DailyBonusDialog(),
     'slots race': () => const LeaderboardScreen(),
     'checkout': () => const CheckoutScreen(),
@@ -117,13 +117,20 @@ void main() {
         });
       }
 
-      testWidgets('wallet redeem and history fit', (tester) async {
-        await show(tester, size, MainShell(initial: AppTab.wallet));
-        for (final tab in ['redeem', 'history']) {
-          (shellKey.currentState! as TabHost).setTab(AppTab.wallet, walletTab: tab);
-          await tester.pump(const Duration(milliseconds: 300));
+      for (final tab in ['redeem', 'history']) {
+        testWidgets('wallet $tab fits', (tester) async {
+          await show(tester, size, WalletPage(initialTab: tab));
           expectFits(tester);
-        }
+          await tester.pumpWidget(const SizedBox());
+        });
+      }
+
+      testWidgets('options menu fits', (tester) async {
+        await show(tester, size, const HomeScreen());
+        await tester.tap(find.bySemanticsLabel('Menu'));
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.text('All games'), findsOneWidget);
+        expectFits(tester);
         await tester.pumpWidget(const SizedBox());
       });
     });
@@ -136,7 +143,7 @@ void main() {
   testWidgets('game grids get more columns as the screen gets wider', (tester) async {
     final counts = <int>[];
     for (final size in const [Size(568, 320), Size(844, 390), Size(1366, 1024)]) {
-      await show(tester, size, MainShell(initial: AppTab.games));
+      await show(tester, size, const GamesPage());
       counts.add(columns(tester, find.byType(RoundImage)));
       await tester.pumpWidget(const SizedBox());
     }
@@ -145,12 +152,12 @@ void main() {
   });
 
   testWidgets('two-pane pages fall back to one column when the main pane would be too narrow', (tester) async {
-    // 568 wide: rail + side pane would leave the main pane < 300px → one list.
-    await show(tester, const Size(568, 320), MainShell(initial: AppTab.profile));
+    // A 500px-wide window: the side pane would leave the main pane < 300px → one list.
+    await show(tester, const Size(500, 320), const ProfilePage());
     expect(find.byType(ListView).hitTestable(), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     // 844 wide: both panes fit → two lists side by side.
-    await show(tester, const Size(844, 390), MainShell(initial: AppTab.profile));
+    await show(tester, const Size(844, 390), const ProfilePage());
     expect(find.byType(ListView).hitTestable(), findsNWidgets(2));
     await tester.pumpWidget(const SizedBox());
   });
