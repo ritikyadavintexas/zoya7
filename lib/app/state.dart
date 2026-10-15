@@ -39,6 +39,9 @@ class AppState extends ChangeNotifier {
   /// Player level and progress to the next one (0–1).
   int level = 12;
   double levelProgress = .62;
+
+  /// VIP rewards waiting to be collected (shown on the lobby's VIP icon).
+  int vipRewards = 2;
   bool notificationsRead = false;
   final Set<String> notifyAtLaunch = {};
   final Map<String, bool> settings = {

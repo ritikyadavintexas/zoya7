@@ -12,12 +12,12 @@ class A {
   static const roulette = '$_d/game_roulette.webp';
   static const plinko = '$_d/game_plinko.webp';
 
-  /// Lobby: tall game-card art (no text) and the daily-bonus banner.
+  /// Lobby: tall game-card art (no text) and the daily-bonus icon.
   static String card(String gameId) => '$_d/card_$gameId.webp';
-  static const dailyBonus = '$_d/daily_bonus_banner.webp';
+  static const dailyBonusIcon = '$_d/icon_daily_bonus.webp';
 
   static const all = [
-    logo, welcomeHero, avatar, vipBanner, classic777, fruitSpin, megaReels, blackjack, roulette, plinko, dailyBonus, //
+    logo, welcomeHero, avatar, vipBanner, classic777, fruitSpin, megaReels, blackjack, roulette, plinko, dailyBonusIcon, //
     '$_d/card_classic777.webp', '$_d/card_fruitspin.webp', '$_d/card_megareels.webp',
     '$_d/card_blackjack.webp', '$_d/card_roulette.webp', '$_d/card_plinko.webp',
   ];

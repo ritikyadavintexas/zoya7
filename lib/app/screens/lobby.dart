@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../games/gold/src/assets.dart' show GoldAssets;
-import '../../games/gold/src/math.dart' show JackpotTier;
+import '../../games/gold/src/math.dart' show JackpotTier, Sym;
 import '../assets.dart';
 import '../icons.dart';
 import '../nav.dart';
@@ -40,59 +40,159 @@ class _LobbyPageState extends State<LobbyPage> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppScope.of(context);
     final pad = MediaQuery.paddingOf(context);
     return Padding(
-      padding: EdgeInsets.fromLTRB(10, 8, pad.right + 10, pad.bottom + 8),
+      padding: EdgeInsets.fromLTRB(pad.left + 10, 8, pad.right + 10, pad.bottom + 8),
       child: LayoutBuilder(builder: (context, box) {
-        // Three bands sized from the height the lobby gets: jackpots, the
-        // game cards (scrolling sideways), then the promo banners. On a phone
-        // they fill the screen with no page scrolling; on a tablet they stop
-        // growing and sit centred.
+        // Jackpots on top; the games take everything below, with the reward
+        // shortcuts in a slim column beside them.
         const gap = 10.0;
         final h = box.maxHeight;
         final jackpotH = (h * .22).clamp(54.0, 116.0);
-        final bannerH = (h * .25).clamp(62.0, 150.0);
-        final cardH = (h - jackpotH - bannerH - 2 * gap).clamp(120.0, 330.0);
+        final cardH = (h - jackpotH - gap).clamp(150.0, 340.0);
+        final iconSize = (cardH * .26).clamp(48.0, 72.0);
         final content = Column(mainAxisSize: MainAxisSize.min, children: [
           SizedBox(height: jackpotH, child: _JackpotStrip(tick: tick)),
           const SizedBox(height: gap),
           SizedBox(
             height: cardH,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              clipBehavior: Clip.none,
-              itemCount: games.length,
-              separatorBuilder: (_, __) => const SizedBox(width: gap),
-              itemBuilder: (_, i) => GameCard(games[i], height: cardH),
-            ),
-          ),
-          const SizedBox(height: gap),
-          SizedBox(
-            height: bannerH,
             child: Row(children: [
-              Expanded(
-                child: _Banner(
-                  A.vipBanner,
-                  label: 'VIP Rewards — exclusive benefits, higher status, bigger rewards. Learn more',
-                  onTap: () => Nav.push(R.vip),
-                ),
-              ),
-              const SizedBox(width: gap),
-              Expanded(
-                child: _Banner(
-                  A.dailyBonus,
-                  label: 'Daily bonus — log in every day for free rewards. Claim now',
+              Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                _RewardIcon(
+                  label: 'DAILY',
+                  semantic: s.bonusClaimed ? 'Daily bonus' : 'Daily bonus, 1 to claim',
+                  count: s.bonusClaimed ? 0 : 1,
+                  size: iconSize,
                   onTap: () => Nav.push(R.dailyBonus),
+                  child: Image.asset(A.dailyBonusIcon, fit: BoxFit.cover),
                 ),
-              ),
+                SizedBox(height: iconSize * .3),
+                _RewardIcon(
+                  label: 'VIP',
+                  semantic: 'VIP Club, ${s.vipRewards} rewards waiting',
+                  count: s.vipRewards,
+                  size: iconSize,
+                  onTap: () => Nav.push(R.vip),
+                  child: Padding(
+                    padding: EdgeInsets.all(iconSize * .14),
+                    child: Image.asset(GoldAssets.symbol(Sym.crown), fit: BoxFit.contain),
+                  ),
+                ),
+              ]),
+              const SizedBox(width: 12),
+              Expanded(child: _GameRow(height: cardH, gap: gap)),
             ]),
           ),
         ]);
-        final total = jackpotH + cardH + bannerH + 2 * gap;
+        final total = jackpotH + gap + cardH;
         return total <= h ? Center(child: content) : SingleChildScrollView(child: content);
       }),
     );
   }
+}
+
+/// The game cards, centred when they all fit and scrolling sideways when not.
+class _GameRow extends StatelessWidget {
+  const _GameRow({required this.height, required this.gap});
+  final double height;
+  final double gap;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) {
+        final cardW = height * .84;
+        final fits = games.length * cardW + (games.length - 1) * gap <= box.maxWidth;
+        if (fits) {
+          return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            for (final (i, g) in games.indexed) ...[
+              if (i > 0) SizedBox(width: gap),
+              GameCard(g, height: height),
+            ],
+          ]);
+        }
+        return ListView.separated(
+          scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
+          itemCount: games.length,
+          separatorBuilder: (_, __) => SizedBox(width: gap),
+          itemBuilder: (_, i) => GameCard(games[i], height: height),
+        );
+      });
+}
+
+/// A round-cornered reward shortcut with a red count badge (hidden at 0).
+class _RewardIcon extends StatelessWidget {
+  const _RewardIcon({
+    required this.label,
+    required this.semantic,
+    required this.count,
+    required this.size,
+    required this.onTap,
+    required this.child,
+  });
+  final String label;
+  final String semantic;
+  final int count;
+  final double size;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Press(
+        label: semantic,
+        onTap: onTap,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          SizedBox(
+            width: size + 6,
+            height: size + 6,
+            child: Stack(clipBehavior: Clip.none, children: [
+              Positioned(
+                left: 0,
+                top: 6,
+                child: Container(
+                  width: size,
+                  height: size,
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(size * .26),
+                    gradient: Z.goldFrame,
+                    boxShadow: [bs(0, 6, 14, const Color(0x99000000)), bs(0, 0, 12, const Color(0x55FFC846))],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(size * .26 - 2),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: circleGradient(cx: .5, cy: .35, colors: const [Color(0xFF4A2A0A), Color(0xFF120A05)]),
+                      ),
+                      child: SizedBox.expand(child: child),
+                    ),
+                  ),
+                ),
+              ),
+              if (count > 0)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 22),
+                    height: 22,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Z.red,
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(color: Z.cream, width: 1.5),
+                      boxShadow: [bs(0, 2, 6, const Color(0x99000000))],
+                    ),
+                    child: Text('$count', style: outfit(12, w: FontWeight.w800, c: Z.cream, h: 1)),
+                  ),
+                ),
+            ]),
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: outfit(11, w: FontWeight.w800, ls: .08, c: Z.goldHi)),
+        ]),
+      );
 }
 
 /// The four live jackpot meters on a gold-framed strip.
@@ -277,31 +377,6 @@ class GameCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _Banner extends StatelessWidget {
-  const _Banner(this.asset, {required this.label, required this.onTap});
-  final String asset;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Press(
-        label: label,
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(1.5),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: Z.goldFrame,
-            boxShadow: [bs(0, 6, 18, const Color(0x99000000))],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(14.5),
-            child: SizedBox.expand(child: Image.asset(asset, fit: BoxFit.cover)),
-          ),
-        ),
-      );
 }
 
 /// The player avatar inside a glowing frame. Frame color follows Edit profile.
