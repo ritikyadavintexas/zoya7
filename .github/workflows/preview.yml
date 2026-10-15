@@ -57,7 +57,7 @@ jobs:
         run: |
           name=$(grep -m1 '^name:' pubspec.yaml | awk '{print $2}')
           missing=""
-          # web/ holds only our index.html + manifest.json; create adds icons etc. and keeps those
+          # web/ holds only our index.html, manifest.json, flutter_bootstrap.js; create adds icons etc. and keeps those
           [ -f web/favicon.png ] || missing="$missing,web"
           [ -d android ] || missing="$missing,android"
           if [ -n "$missing" ]; then
