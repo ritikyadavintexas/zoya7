@@ -12,6 +12,7 @@ import 'app/screens/shell.dart';
 import 'app/screens/wallet.dart';
 import 'app/state.dart';
 import 'app/theme.dart';
+import 'app/web_safe_area.dart';
 
 /// Set by CI (`--dart-define=BUILD_SHA=…`) so you can tell which build is on your phone.
 const _buildSha = String.fromEnvironment('BUILD_SHA');
@@ -39,25 +40,33 @@ class Zoya7App extends StatelessWidget {
           useMaterial3: true,
           scaffoldBackgroundColor: Z.ink,
           colorScheme: const ColorScheme.dark(primary: Z.gold, surface: Z.ink),
-          pageTransitionsTheme: const PageTransitionsTheme(builders: {
-            TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-          }),
+          pageTransitionsTheme: const PageTransitionsTheme(
+            builders: {
+              TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+              TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+            },
+          ),
         ),
         initialRoute: R.splash,
         onGenerateRoute: _route,
-        builder: (context, child) => Stack(children: [
-          child!,
-          if (_buildSha.isNotEmpty)
-            const Positioned(
-              left: 8,
-              bottom: 2,
-              child: IgnorePointer(
-                child: Text('build $_buildSha',
-                    style: TextStyle(fontSize: 10, color: Color(0x66FFF4D6), decoration: TextDecoration.none)),
-              ),
-            ),
-        ]),
+        builder: (context, child) => WebSafeArea(
+          child: Stack(
+            children: [
+              child!,
+              if (_buildSha.isNotEmpty)
+                const Positioned(
+                  left: 8,
+                  bottom: 2,
+                  child: IgnorePointer(
+                    child: Text(
+                      'build $_buildSha',
+                      style: TextStyle(fontSize: 10, color: Color(0x66FFF4D6), decoration: TextDecoration.none),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

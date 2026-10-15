@@ -57,16 +57,13 @@ jobs:
         run: |
           name=$(grep -m1 '^name:' pubspec.yaml | awk '{print $2}')
           missing=""
-          [ -d web ] || missing="$missing,web"
+          # web/ holds only our index.html + manifest.json; create adds icons etc. and keeps those
+          [ -f web/favicon.png ] || missing="$missing,web"
           [ -d android ] || missing="$missing,android"
           if [ -n "$missing" ]; then
             flutter create . --project-name "$name" --org com.zoya7 --platforms "${missing#,}"
             # flutter create adds a counter-app test that doesn't belong to this project
             if grep -qs "MyApp" test/widget_test.dart; then rm test/widget_test.dart; fi
-          fi
-          # Installable web app: app pages are portrait, the game turns sideways
-          if [ -f web/manifest.json ]; then
-            sed -i 's/"orientation": *"[^"]*"/"orientation": "any"/; s/"display": *"[^"]*"/"display": "fullscreen"/' web/manifest.json
           fi
 
       - name: Get packages
