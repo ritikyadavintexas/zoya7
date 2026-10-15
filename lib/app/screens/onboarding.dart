@@ -116,12 +116,15 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The hero runs up under the status bar, so there's no empty strip above it.
+    final topInset = MediaQuery.paddingOf(context).top;
     return ZPage(
       color: Z.inkDeep,
+      top: false,
       gradient: ellipseGradient(
           cx: .5, cy: 1, rx: .9, ry: .4, colors: const [Color(0xFF2A1606), Z.inkDeep], stops: const [0, .7]),
       child: LayoutBuilder(builder: (context, box) {
-        final heroH = (box.maxHeight * .6).clamp(320.0, 530.0);
+        final heroH = (box.maxHeight * .6).clamp(320.0, 530.0) + topInset;
         return SingleChildScrollView(
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: box.maxHeight),

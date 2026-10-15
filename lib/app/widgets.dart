@@ -62,10 +62,13 @@ class _PressState extends State<Press> {
 /// A portrait app page: dark background with the top glow, safe-area aware,
 /// and capped at phone width so it also looks right on tablets and desktop.
 class ZPage extends StatelessWidget {
-  const ZPage({super.key, required this.child, this.gradient, this.color = Z.ink});
+  const ZPage({super.key, required this.child, this.gradient, this.color = Z.ink, this.top = true});
   final Widget child;
   final Gradient? gradient;
   final Color color;
+
+  /// False lets the page draw under the status bar (it then pads the top itself).
+  final bool top;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +80,7 @@ class ZPage extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(gradient: gradient ?? Z.pageGlow()),
             child: SafeArea(
+              top: top,
               child: DefaultTextStyle(style: outfit(15), child: child),
             ),
           ),
