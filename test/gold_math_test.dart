@@ -1,0 +1,40 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:zoya7_gold/games/gold/src/math.dart';
+
+void main() {
+  const jp = {
+    JackpotTier.mega: 5000000.0,
+    JackpotTier.major: 500000.0,
+    JackpotTier.minor: 50000.0,
+    JackpotTier.mini: 10000.0,
+  };
+  List<List<Sym>> line(Sym a, Sym b, Sym c) => [
+        [Sym.lemon, a, Sym.plum],
+        [Sym.lemon, b, Sym.plum],
+        [Sym.lemon, c, Sym.plum],
+      ];
+
+  test('three stars pay 30x', () {
+    final o = GoldRules.evaluate(line(Sym.star, Sym.star, Sym.star), 1000, jp);
+    expect(o.multiplier, 30);
+    expect(o.win, 30000);
+    expect(GoldRules.tierFor(o.multiplier, o.jackpot), WinTier.mega);
+  });
+
+  test('two cherries pay 2x', () {
+    final o = GoldRules.evaluate(line(Sym.cherry, Sym.bell, Sym.cherry), 5000, jp);
+    expect(o.win, 10000);
+    expect(GoldRules.tierFor(o.multiplier, o.jackpot), isNull);
+  });
+
+  test('three sevens hit the mega jackpot', () {
+    final o = GoldRules.evaluate(line(Sym.seven, Sym.seven, Sym.seven), 5000, jp);
+    expect(o.jackpot, JackpotTier.mega);
+    expect(o.win, 5000000);
+  });
+
+  test('no match pays nothing', () {
+    final o = GoldRules.evaluate(line(Sym.bell, Sym.plum, Sym.star), 5000, jp);
+    expect(o.win, 0);
+  });
+}

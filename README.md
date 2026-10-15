@@ -1,0 +1,79 @@
+# Zoya7 — Gold (Classic 777)
+
+Flutter build of the **Gold** slot from the Zoya7 design: base game, Big / Super / Mega / Jackpot
+wins, paytable, in-game settings, not-enough-coins and table chat. Android, iPhone and iPad.
+
+## Run
+
+```bash
+flutter create . --platforms=android,ios --org com.zoya7   # generates android/ and ios/ only
+flutter pub get
+flutter run
+```
+
+`flutter create .` keeps the existing `lib/`, `assets/` and `test/`.
+
+**iOS / iPad:** in Xcode → Runner → General, tick only *Landscape Left/Right* and
+*Requires full screen* (iPad otherwise insists on supporting portrait).
+
+## How it matches the design
+
+The whole game is laid out on the design's **1920×1080 canvas** with the design's exact
+pixel sizes, percentages, colors, gradients, shadows and SVG icons, then scaled to fit
+the screen. On 4:3 iPads and tall phones the background glow fills the extra space.
+
+All 28 images were exported 1:1 from the design into `assets/games/gold/`.
+
+Motion added on top of the static design: scrolling reels with motion blur and a landing
+bounce, press feedback on buttons, the win amount counting up, turning light rays and a
+pop-in banner on celebrations, a sliding chat drawer.
+
+## Structure
+
+```
+lib/games/gold/
+  gold_game.dart          ← the one widget your app routes to
+  src/math.dart           ← symbols, paytable rules, GoldOutcomeSource (plug your engine here)
+  src/controller.dart     ← game state: spin/stop/auto, bets, GC/SC, panels, chat
+  src/style.dart          ← design tokens + exact CSS→Flutter conversions
+  src/widgets/            ← header, reels, side panels, footer, modals, chat, win overlay
+```
+
+## Connecting it to Zoya7
+
+```dart
+GoldGame(
+  outcomes: MyServerMath(),                    // implements GoldOutcomeSource
+  initialGc: wallet.gc, initialSc: wallet.sc,
+  onExitToLobby: () => router.go('/lobby'),
+  onBuyCoins: (cur) => router.go('/wallet'),
+  onOpenPlayLimits: () => router.go('/settings/limits'),
+)
+```
+
+- **Math:** `GoldOutcomeSource.spin()` returns the 3×3 grid, win, multiplier and jackpot. Reels keep
+  spinning until it resolves, so a network call works. `LocalGoldMath` is the design prototype's math
+  (≈22.8% line-pay RTP) — for development only.
+- **Jackpots:** meter values are simulated in `GoldController.jackpots()`; feed live values from your server.
+- **Chat:** the auto-reply is the design's demo; connect `chatSend` to your chat service.
+- **Sound:** the design has no audio; implement `GoldAudio` (spin, reel stop, win, music).
+- **Fonts:** Lilita One and Rubik load via `google_fonts`. For offline release builds, bundle the
+  font files and set `GoogleFonts.config.allowRuntimeFetching = false`.
+
+## Preview any design state
+
+```dart
+GoldGame(previewOverlay: WinTier.mega)
+GoldGame(previewOverlay: WinTier.jackpot, currency: Currency.sc)
+GoldGame(previewPanel: GoldPanel.paytable)   // .settings, .noCoins
+```
+
+## See it on your phone (every push)
+
+`.github/workflows/preview.yml` builds on every push to `main`:
+
+- **Any phone (iPhone too):** `https://<your-user>.github.io/<repo>/` — open in the browser,
+  turn sideways, and use *Add to Home Screen* for full screen.
+- **Android app:** Releases → **preview** → `zoya7-preview.apk`.
+
+The build id is shown bottom-left so you can confirm you're on the latest.

@@ -1,0 +1,145 @@
+# Builds the app on every push to main and publishes it for phone testing:
+#   • Web (any phone, incl. iPhone):  https://<user>.github.io/<repo>/
+#   • Android APK:                     Releases → "preview" → zoya7-preview.apk
+name: Phone preview
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      app_dir: ${{ steps.locate.outputs.app_dir }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Works whether the Flutter project is at the repo root or in a subfolder.
+      - name: Find the Flutter app
+        id: locate
+        run: |
+          files=$(find . -name pubspec.yaml -not -path "*/.dart_tool/*" -not -path "*/build/*" -not -path "*/.pub-cache/*")
+          app=""
+          for f in $files; do
+            if grep -q "sdk: flutter" "$f"; then
+              d=$(dirname "$f")
+              if [ -z "$app" ] || [ ${#d} -lt ${#app} ]; then app="$d"; fi
+            fi
+          done
+          if [ -z "$app" ]; then echo "::error::No Flutter pubspec.yaml found in this repo"; exit 1; fi
+          echo "Flutter app found in: $app"
+          echo "app_dir=$app" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Add missing platform folders (web, android)
+        working-directory: ${{ steps.locate.outputs.app_dir }}
+        run: |
+          name=$(grep -m1 '^name:' pubspec.yaml | awk '{print $2}')
+          missing=""
+          [ -d web ] || missing="$missing,web"
+          [ -d android ] || missing="$missing,android"
+          if [ -n "$missing" ]; then
+            flutter create . --project-name "$name" --org com.zoya7 --platforms "${missing#,}"
+            # flutter create adds a counter-app test that doesn't belong to this project
+            if grep -qs "MyApp" test/widget_test.dart; then rm test/widget_test.dart; fi
+          fi
+          # Installable web app should open sideways, full screen
+          if [ -f web/manifest.json ]; then
+            sed -i 's/"orientation": *"[^"]*"/"orientation": "landscape"/; s/"display": *"[^"]*"/"display": "fullscreen"/' web/manifest.json
+          fi
+
+      - name: Get packages
+        working-directory: ${{ steps.locate.outputs.app_dir }}
+        run: flutter pub get
+
+      - name: Analyze (fails only on real errors)
+        working-directory: ${{ steps.locate.outputs.app_dir }}
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Unit tests
+        working-directory: ${{ steps.locate.outputs.app_dir }}
+        run: if [ -d test ] && ls test/*_test.dart >/dev/null 2>&1; then flutter test; else echo "No tests"; fi
+
+      - name: Build web
+        working-directory: ${{ steps.locate.outputs.app_dir }}
+        run: |
+          flutter build web --release \
+            --base-href "/${{ github.event.repository.name }}/" \
+            --dart-define=BUILD_SHA=${GITHUB_SHA::7}
+
+      - name: Upload web for GitHub Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ steps.locate.outputs.app_dir }}/build/web
+
+      # Optional: a fixed signing key so each new APK installs over the old one.
+      # Without the secret, uninstall the previous preview before installing a new one.
+      - name: Use dev signing key (if configured)
+        env:
+          KS: ${{ secrets.ANDROID_DEV_KEYSTORE }}
+        run: |
+          if [ -n "$KS" ]; then
+            mkdir -p ~/.android
+            echo "$KS" | base64 -d > ~/.android/debug.keystore
+            echo "Using fixed dev keystore"
+          else
+            echo "No ANDROID_DEV_KEYSTORE secret — APK gets a fresh key this run"
+          fi
+
+      - name: Build Android APK
+        working-directory: ${{ steps.locate.outputs.app_dir }}
+        run: flutter build apk --release --dart-define=BUILD_SHA=${GITHUB_SHA::7}
+
+      - name: Keep APK with this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: zoya7-apk-${{ github.sha }}
+          path: ${{ steps.locate.outputs.app_dir }}/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Publish APK to the "preview" release (fixed download link)
+        if: github.event_name != 'pull_request'
+        working-directory: ${{ steps.locate.outputs.app_dir }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk zoya7-preview.apk
+          gh release delete preview --yes --cleanup-tag || true
+          gh release create preview zoya7-preview.apk \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Phone preview · ${GITHUB_SHA::7}" \
+            --notes "Built from ${GITHUB_SHA::7}: ${COMMIT_MSG}"
+
+  deploy-web:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
