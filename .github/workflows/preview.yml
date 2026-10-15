@@ -64,9 +64,9 @@ jobs:
             # flutter create adds a counter-app test that doesn't belong to this project
             if grep -qs "MyApp" test/widget_test.dart; then rm test/widget_test.dart; fi
           fi
-          # Installable web app should open sideways, full screen
+          # Installable web app: app pages are portrait, the game turns sideways
           if [ -f web/manifest.json ]; then
-            sed -i 's/"orientation": *"[^"]*"/"orientation": "landscape"/; s/"display": *"[^"]*"/"display": "fullscreen"/' web/manifest.json
+            sed -i 's/"orientation": *"[^"]*"/"orientation": "any"/; s/"display": *"[^"]*"/"display": "fullscreen"/' web/manifest.json
           fi
 
       - name: Get packages

@@ -1,7 +1,18 @@
-# Zoya7 — Gold (Classic 777)
+# Zoya7 — app + Gold (Classic 777)
 
-Flutter build of the **Gold** slot from the Zoya7 design: base game, Big / Super / Mega / Jackpot
-wins, paytable, in-game settings, not-enough-coins and table chat. Android, iPhone and iPad.
+Flutter build of the Zoya7 design: the full portrait app and the landscape **Gold** slot.
+
+**App pages (portrait):** splash, welcome, log in / sign up, forgot password (3 steps), lobby with live
+jackpots, games (search + categories), coming soon (Mega Reels, Blackjack, Roulette, Plinko), promotions
+with the 7-day streak, daily-bonus popup, slots-race leaderboard, wallet (buy / redeem / history),
+checkout, purchase success, profile, edit profile (avatar frames), VIP club, notifications, settings,
+chat (community + support, mute / report), legal (terms / privacy / sweeps rules) and no-connection.
+
+**Game (landscape):** base game, Big / Super / Mega / Jackpot wins, paytable, in-game settings,
+not-enough-coins and table chat. Opening a game turns the phone sideways; leaving it turns it back.
+
+App code lives in `lib/app/` (`screens/` one file per area, `state.dart` holds the prototype balances,
+`nav.dart` the routes). Images from the design are in `assets/app/`.
 
 ## Run
 

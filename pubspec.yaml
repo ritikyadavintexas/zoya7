@@ -1,5 +1,5 @@
 name: zoya7_gold
-description: Zoya7 — Gold (Classic 777) slot game module, built from the Zoya7 design.
+description: Zoya7 — social casino app (lobby, wallet, promotions, chat, profile) with the Gold (Classic 777) slot.
 publish_to: "none"
 version: 1.0.0+1
 
@@ -21,3 +21,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/games/gold/
+    - assets/app/
