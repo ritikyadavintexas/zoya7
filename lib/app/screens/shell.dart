@@ -8,7 +8,7 @@ import 'profile.dart';
 import 'promotions.dart';
 import 'wallet.dart';
 
-/// The five bottom-nav pages, kept alive so scroll positions and tab state survive.
+/// The five side-nav pages, kept alive so scroll positions and tab state survive.
 class MainShell extends StatefulWidget {
   MainShell({this.initial = AppTab.home}) : super(key: shellKey);
   final AppTab initial;
@@ -31,7 +31,6 @@ class _MainShellState extends State<MainShell> implements TabHost {
 
   @override
   Widget build(BuildContext context) {
-    final showFab = tab == AppTab.home || tab == AppTab.games || tab == AppTab.promotions;
     return PopScope(
       canPop: tab == AppTab.home,
       onPopInvokedWithResult: (didPop, _) {
@@ -40,37 +39,23 @@ class _MainShellState extends State<MainShell> implements TabHost {
       child: Scaffold(
         backgroundColor: const Color(0xFF0B0806),
         resizeToAvoidBottomInset: false,
-        body: Stack(children: [
-          Positioned.fill(
-            child: IndexedStack(index: tab.index, children: [
-              const LobbyPage(),
-              const GamesPage(),
-              const PromotionsPage(),
-              WalletPage(key: _walletKey),
-              const ProfilePage(),
-            ]),
-          ),
-          if (showFab)
-            Positioned.fill(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 480),
-                  child: const Align(
-                    alignment: Alignment.bottomRight,
-                    child: Padding(padding: EdgeInsets.only(right: 16, bottom: 16), child: ChatFab()),
-                  ),
-                ),
-              ),
+        body: Row(children: [
+          SideNav(active: tab, onTap: (t) => setTab(t)),
+          Expanded(
+            // The rail already keeps clear of the left notch.
+            child: MediaQuery.removePadding(
+              context: context,
+              removeLeft: true,
+              child: IndexedStack(index: tab.index, children: [
+                const LobbyPage(),
+                const GamesPage(),
+                const PromotionsPage(),
+                WalletPage(key: _walletKey),
+                const ProfilePage(),
+              ]),
             ),
-        ]),
-        bottomNavigationBar: Center(
-          heightFactor: 1,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: BottomNav(active: tab, onTap: (t) => setTab(t)),
           ),
-        ),
+        ]),
       ),
     );
   }

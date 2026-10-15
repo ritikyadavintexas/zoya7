@@ -1,15 +1,20 @@
 # Zoya7 — app + Gold (Classic 777)
 
-Flutter build of the Zoya7 design: the full portrait app and the landscape **Gold** slot.
+Flutter build of the Zoya7 design: the full app and the **Gold** slot, all in landscape.
 
-**App pages (portrait):** splash, welcome, log in / sign up, forgot password (3 steps), lobby with live
+**App pages:** splash, welcome, log in / sign up, forgot password (3 steps), lobby with live
 jackpots, games (search + categories), coming soon (Mega Reels, Blackjack, Roulette, Plinko), promotions
 with the 7-day streak, daily-bonus popup, slots-race leaderboard, wallet (buy / redeem / history),
 checkout, purchase success, profile, edit profile (avatar frames), VIP club, notifications, settings,
 chat (community + support, mute / report), legal (terms / privacy / sweeps rules) and no-connection.
 
 **Game (landscape):** base game, Big / Super / Mega / Jackpot wins, paytable, in-game settings,
-not-enough-coins and table chat. Opening a game turns the phone sideways; leaving it turns it back.
+not-enough-coins and table chat.
+
+**Landscape everywhere.** The Android and iOS builds lock to landscape. Browsers can't lock
+orientation, so when the window is taller than wide (phone held upright) the app draws itself
+turned sideways (`lib/app/landscape.dart`). Pages use a left side rail for navigation and a
+side pane + main pane layout sized for a phone on its side.
 
 App code lives in `lib/app/` (`screens/` one file per area, `state.dart` holds the prototype balances,
 `nav.dart` the routes). Images from the design are in `assets/app/`.
@@ -84,7 +89,7 @@ GoldGame(previewPanel: GoldPanel.paytable)   // .settings, .noCoins
 `.github/workflows/preview.yml` builds on every push to `main`:
 
 - **Any phone (iPhone too):** `https://<your-user>.github.io/<repo>/` — open in the browser,
-  turn sideways, and use *Add to Home Screen* for full screen.
+  hold it sideways, and use *Add to Home Screen* for full screen.
 - **Android app:** Releases → **preview** → `zoya7-preview.apk`.
 
 The build id is shown bottom-left so you can confirm you're on the latest.

@@ -36,90 +36,90 @@ class _GamesPageState extends State<GamesPage> {
           title: 'GAMES',
           backLabel: 'Back to lobby',
           onBack: () => Nav.tab(AppTab.home),
-          right: OverflowBox(
-            maxWidth: 140,
-            alignment: Alignment.centerRight,
-            child: GcChip(onTap: () => Nav.tab(AppTab.wallet, walletTab: 'buy')),
-          ),
+          right: GcChip(onTap: () => Nav.tab(AppTab.wallet, walletTab: 'buy')),
         ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(12, 14, 12, 90),
-            children: [
-              _Featured(onTap: () => Nav.push(R.gold)),
-              const SizedBox(height: 14),
-              TextField(
-                onChanged: (v) => setState(() => query = v),
-                style: outfit(15, c: Z.cream),
-                cursorColor: Z.goldHi,
-                decoration: fieldDeco(hint: 'Search games', radius: 24, left: 0).copyWith(
-                  hintStyle: outfit(15, c: Z.faint),
-                  prefixIcon: const Padding(
-                    padding: EdgeInsets.only(left: 14, right: 10),
-                    child: RawIco(
-                        '<g fill="none" stroke="#c9a35a" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></g>',
-                        size: 18),
+          child: Panes(
+            sideFraction: .36,
+            side: PaneList(
+              padding: const EdgeInsets.fromLTRB(14, 12, 6, 16),
+              children: [
+                _Featured(onTap: () => Nav.push(R.gold)),
+                const SizedBox(height: 12),
+                TextField(
+                  onChanged: (v) => setState(() => query = v),
+                  style: outfit(15, c: Z.cream),
+                  cursorColor: Z.goldHi,
+                  decoration: fieldDeco(hint: 'Search games', radius: 24, left: 0).copyWith(
+                    hintStyle: outfit(15, c: Z.faint),
+                    prefixIcon: const Padding(
+                      padding: EdgeInsets.only(left: 14, right: 10),
+                      child: RawIco(
+                          '<g fill="none" stroke="#c9a35a" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></g>',
+                          size: 18),
+                    ),
+                    prefixIconConstraints: const BoxConstraints(minWidth: 42),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  prefixIconConstraints: const BoxConstraints(minWidth: 42),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 13),
                 ),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                height: 42,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  itemCount: cats.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (_, i) {
-                    final on = cats[i] == cat;
-                    return Press(
-                      selected: on,
-                      onTap: () => setState(() => cat = cats[i]),
+                const SizedBox(height: 12),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  for (final c in cats)
+                    Press(
+                      selected: c == cat,
+                      onTap: () => setState(() => cat = c),
                       child: Container(
-                        height: 38,
-                        padding: const EdgeInsets.symmetric(horizontal: 18),
-                        alignment: Alignment.center,
+                        height: 36,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(20),
-                          gradient: on ? Z.goldTab : null,
-                          color: on ? null : Z.field,
-                          border: on ? null : Border.all(color: Z.chip, width: 1.5),
+                          gradient: c == cat ? Z.goldTab : null,
+                          color: c == cat ? null : Z.field,
+                          border: c == cat ? null : Border.all(color: Z.chip, width: 1.5),
                         ),
-                        child: Text(cats[i],
-                            style: outfit(14, w: FontWeight.w700, ls: .03, c: on ? Z.brown : Z.soft)),
+                        child: Center(
+                          widthFactor: 1,
+                          child: Text(c,
+                              style: outfit(14, w: FontWeight.w700, ls: .03, c: c == cat ? Z.brown : Z.soft)),
+                        ),
                       ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 14),
-              SectionTitle(
-                cat == 'All' ? 'ALL GAMES' : cat.toUpperCase(),
-                trailing: Text('${list.length} ${list.length == 1 ? 'game' : 'games'}',
-                    style: outfit(13, c: Z.muted)),
-              ),
-              const SizedBox(height: 14),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: list.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  mainAxisExtent: 96 + 6 + 18,
-                ),
-                itemBuilder: (_, i) => _GameTile(list[i]),
-              ),
-              if (list.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Text('No games match “$query”.',
-                      textAlign: TextAlign.center, style: outfit(15, c: Z.muted)),
-                ),
-            ],
+                    ),
+                ]),
+              ],
+            ),
+            main: LayoutBuilder(builder: (context, box) {
+              const cols = 3, gap = 10.0, pad = EdgeInsets.fromLTRB(8, 12, 14, 16);
+              final tileW = (box.maxWidth - pad.horizontal - gap * (cols - 1)) / cols;
+              return PaneList(
+                padding: pad,
+                children: [
+                  SectionTitle(
+                    cat == 'All' ? 'ALL GAMES' : cat.toUpperCase(),
+                    trailing: Text('${list.length} ${list.length == 1 ? 'game' : 'games'}',
+                        style: outfit(13, c: Z.muted)),
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: list.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: cols,
+                      mainAxisSpacing: gap,
+                      crossAxisSpacing: gap,
+                      mainAxisExtent: tileW * 96 / 179 + 6 + 18,
+                    ),
+                    itemBuilder: (_, i) => _GameTile(list[i], imageHeight: tileW * 96 / 179),
+                  ),
+                  if (list.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Text('No games match “$query”.',
+                          textAlign: TextAlign.center, style: outfit(15, c: Z.muted)),
+                    ),
+                ],
+              );
+            }),
           ),
         ),
       ]),
@@ -136,7 +136,7 @@ class _Featured extends StatelessWidget {
         label: 'Featured: Classic 777 — play now',
         onTap: onTap,
         child: Container(
-          height: 176,
+          height: 160,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Z.goldEdge, width: 2),
@@ -144,7 +144,7 @@ class _Featured extends StatelessWidget {
           ),
           clipBehavior: Clip.antiAlias,
           child: Stack(fit: StackFit.expand, children: [
-            Image.asset(A.welcomeHero, fit: BoxFit.cover, alignment: const Alignment(0, .4)),
+            Image.asset(A.welcomeHero, fit: BoxFit.cover, alignment: const Alignment(0, .7)),
             const DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -154,7 +154,7 @@ class _Featured extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -189,8 +189,9 @@ class _Featured extends StatelessWidget {
 }
 
 class _GameTile extends StatelessWidget {
-  const _GameTile(this.g);
+  const _GameTile(this.g, {required this.imageHeight});
   final GameInfo g;
+  final double imageHeight;
 
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -199,10 +200,10 @@ class _GameTile extends StatelessWidget {
           onTap: () => openGame(g),
           child: Stack(children: [
             g.playable
-                ? RoundImage(g.image, height: 96)
+                ? RoundImage(g.image, height: imageHeight)
                 : ColorFiltered(
                     colorFilter: ColorFilter.matrix(saturateBrightness(.8, .85)),
-                    child: RoundImage(g.image, height: 96, borderColor: Z.chip),
+                    child: RoundImage(g.image, height: imageHeight, borderColor: Z.chip),
                   ),
             if (!g.playable)
               Positioned(
@@ -225,12 +226,19 @@ class _GameTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 2),
           child: Row(children: [
             Text(g.cat, style: outfit(12, w: FontWeight.w600, ls: .04, c: Z.muted)),
-            const Spacer(),
-            if (g.playable) ...[
-              Container(width: 7, height: 7, decoration: const BoxDecoration(shape: BoxShape.circle, color: Z.green)),
-              const SizedBox(width: 4),
-            ],
-            Text(g.playable ? '${g.players} playing' : 'Coming soon', style: outfit(12, c: Z.muted)),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                if (g.playable) ...[
+                  Container(width: 7, height: 7, decoration: const BoxDecoration(shape: BoxShape.circle, color: Z.green)),
+                  const SizedBox(width: 4),
+                ],
+                Flexible(
+                  child: Text(g.playable ? '${g.players} playing' : 'Coming soon',
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: outfit(12, c: Z.muted)),
+                ),
+              ]),
+            ),
           ]),
         ),
       ]);
@@ -259,33 +267,39 @@ class ComingSoonScreen extends StatelessWidget {
     final on = s.notifyAtLaunch.contains(g.id);
     return ZPage(
       gradient: const LinearGradient(colors: [Z.ink, Z.ink]),
-      child: Column(children: [
-        SizedBox(
-          height: 330,
-          child: Stack(fit: StackFit.expand, children: [
-            ImageFiltered(
-              imageFilter: blur2,
-              child: Image.asset(g.image, fit: BoxFit.cover),
-            ),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0x330B0806), Color(0x590B0806), Z.ink],
-                  stops: [0, .55, 1],
-                ),
+      child: Panes(
+        sideFraction: .46,
+        maxSide: 520,
+        side: Stack(fit: StackFit.expand, children: [
+          ImageFiltered(
+            imageFilter: blur2,
+            child: Image.asset(g.image, fit: BoxFit.cover, alignment: Alignment.topCenter),
+          ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0x330B0806), Color(0x590B0806), Z.ink],
+                stops: [0, .6, 1],
               ),
             ),
-            const Positioned(left: 14, top: 12, child: BackBtn(label: 'Back to games')),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 26,
-              child: Center(
+          ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0x000B0806), Color(0x000B0806), Z.ink],
+                stops: [0, .55, 1],
+              ),
+            ),
+          ),
+          const Positioned(left: 14, top: 10, child: BackBtn(label: 'Back to games')),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
+              child: AspectRatio(
+                aspectRatio: 300 / 162,
                 child: Container(
-                  width: 300,
-                  height: 162,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(color: Z.goldEdge, width: 2),
@@ -296,56 +310,64 @@ class ComingSoonScreen extends StatelessWidget {
                 ),
               ),
             ),
-          ]),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 6, 24, 20),
-            child: Column(children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), gradient: Z.goldBadge),
-                child: Text('COMING SOON', style: outfit(12, w: FontWeight.w800, ls: .12, c: Z.brown)),
-              ),
-              const SizedBox(height: 12),
-              Text(g.name, style: outfit(32, w: FontWeight.w800, c: Z.cream)),
-              const SizedBox(height: 12),
-              Text(g.category, style: outfit(13, w: FontWeight.w700, ls: .1, c: Z.label)),
-              const SizedBox(height: 12),
-              Text(g.blurb, textAlign: TextAlign.center, style: outfit(16, c: Z.body, h: 1.5)),
-              const SizedBox(height: 16),
-              Wrap(alignment: WrapAlignment.center, spacing: 8, runSpacing: 8, children: [
-                for (final t in g.tags)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Z.field,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Z.chipDark),
+          ),
+        ]),
+        main: Column(children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 18, 24, 12),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), gradient: Z.goldBadge),
+                  child: Text('COMING SOON', style: outfit(12, w: FontWeight.w800, ls: .12, c: Z.brown)),
+                ),
+                const SizedBox(height: 10),
+                Text(g.name, style: outfit(30, w: FontWeight.w800, c: Z.cream, h: 1.1)),
+                const SizedBox(height: 6),
+                Text(g.category, style: outfit(13, w: FontWeight.w700, ls: .1, c: Z.label)),
+                const SizedBox(height: 10),
+                Text(g.blurb, style: outfit(15, c: Z.body, h: 1.5)),
+                const SizedBox(height: 12),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  for (final t in g.tags)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Z.field,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Z.chipDark),
+                      ),
+                      child: Text(t, style: outfit(13, w: FontWeight.w600, c: Z.soft)),
                     ),
-                    child: Text(t, style: outfit(13, w: FontWeight.w600, c: Z.soft)),
-                  ),
+                ]),
               ]),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 6, 24, 14),
+            child: Row(children: [
+              Expanded(
+                flex: 3,
+                child: on
+                    ? GreenButton("YOU'LL BE NOTIFIED",
+                        height: 52,
+                        fontSize: 15,
+                        icon: const Ico(P.bell, size: 18, color: Color(0xFF062E14)),
+                        onTap: () => s.toggleNotify(g.id))
+                    : CtaButton('NOTIFY ME AT LAUNCH',
+                        height: 52,
+                        fontSize: 14,
+                        ls: .02,
+                        icon: const Ico(P.bell, size: 18, color: Z.ctaText),
+                        onTap: () => s.toggleNotify(g.id)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(flex: 2, child: GhostButton('Play Classic 777', fontSize: 14, onTap: () => Nav.replace(R.gold))),
             ]),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(22, 12, 22, 26),
-          child: Column(children: [
-            on
-                ? GreenButton("YOU'LL BE NOTIFIED",
-                    fontSize: 17,
-                    icon: const Ico(P.bell, size: 20, color: Color(0xFF062E14)),
-                    onTap: () => s.toggleNotify(g.id))
-                : CtaButton('NOTIFY ME AT LAUNCH',
-                    fontSize: 17,
-                    icon: const Ico(P.bell, size: 20, color: Z.ctaText),
-                    onTap: () => s.toggleNotify(g.id)),
-            const SizedBox(height: 10),
-            GhostButton('Play Classic 777 meanwhile', fontSize: 15, onTap: () => Nav.replace(R.gold)),
-          ]),
-        ),
-      ]),
+        ]),
+      ),
     );
   }
 }

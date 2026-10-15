@@ -37,49 +37,47 @@ class WalletPageState extends State<WalletPage> {
           ),
         ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(12, 14, 12, 24),
-            children: [
-              GoldFrame(
-                inner: ellipseGradient(
-                    cx: 0, cy: 0, rx: 1, ry: .8, colors: const [Color(0xFF3A2209), Color(0xFF0D0906)], stops: const [0, .7]),
-                child: IntrinsicHeight(
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    Expanded(
-                      child: _Balance(
-                        coin: const Coin(size: 26, fontSize: 9),
-                        label: 'GOLD COINS',
-                        labelColor: Z.label,
-                        value: fmtInt(s.gc),
-                        note: 'For fun play',
-                      ),
+          child: Panes(
+            sideFraction: .36,
+            side: PaneList(
+              padding: const EdgeInsets.fromLTRB(14, 12, 6, 16),
+              children: [
+                GoldFrame(
+                  inner: ellipseGradient(
+                      cx: 0, cy: 0, rx: 1, ry: .8, colors: const [Color(0xFF3A2209), Color(0xFF0D0906)], stops: const [0, .7]),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    _Balance(
+                      coin: const Coin(size: 26, fontSize: 9),
+                      label: 'GOLD COINS',
+                      labelColor: Z.label,
+                      value: fmtInt(s.gc),
+                      note: 'For fun play',
                     ),
-                    Container(width: 1, color: Z.line35),
-                    Expanded(
-                      child: _Balance(
-                        coin: const Coin(label: 'SC', size: 26, fontSize: 9, teal: true),
-                        label: 'SWEEPS COINS',
-                        labelColor: Z.teal,
-                        value: fmtSc(s.sc),
-                        note: '${fmtSc(s.redeemableSc)} redeemable',
-                      ),
+                    Container(height: 1, color: Z.line35),
+                    _Balance(
+                      coin: const Coin(label: 'SC', size: 26, fontSize: 9, teal: true),
+                      label: 'SWEEPS COINS',
+                      labelColor: Z.teal,
+                      value: fmtSc(s.sc),
+                      note: '${fmtSc(s.redeemableSc)} redeemable',
                     ),
                   ]),
                 ),
-              ),
-              const SizedBox(height: 14),
-              SegTabs(
-                labels: const ['BUY COINS', 'REDEEM', 'HISTORY'],
-                index: tab,
-                height: 42,
-                ls: .05,
-                onChanged: (i) => setState(() => tab = i),
-              ),
-              const SizedBox(height: 14),
-              if (tab == 0) _buy(s),
-              if (tab == 1) _redeem(s),
-              if (tab == 2) _history(),
-            ],
+                const SizedBox(height: 12),
+                for (final (i, label) in const ['BUY COINS', 'REDEEM', 'HISTORY'].indexed) ...[
+                  _SideTab(label, selected: tab == i, onTap: () => setState(() => tab = i)),
+                  const SizedBox(height: 8),
+                ],
+              ],
+            ),
+            main: PaneList(
+              padding: const EdgeInsets.fromLTRB(8, 12, 14, 18),
+              children: [
+                if (tab == 0) _buy(s),
+                if (tab == 1) _redeem(s),
+                if (tab == 2) _history(),
+              ],
+            ),
           ),
         ),
       ]),
@@ -87,13 +85,17 @@ class WalletPageState extends State<WalletPage> {
   }
 
   Widget _buy(AppState s) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: coinPacks.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2, mainAxisSpacing: 10, crossAxisSpacing: 10, mainAxisExtent: 168),
-          itemBuilder: (_, i) => _PackTile(coinPacks[i], selected: i == s.selectedPack, onTap: () => s.selectPack(i)),
+        const SizedBox(height: 6),
+        LayoutBuilder(
+          builder: (context, box) => GridView.builder(
+            clipBehavior: Clip.none,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: coinPacks.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: box.maxWidth >= 360 ? 3 : 2, mainAxisSpacing: 14, crossAxisSpacing: 10, mainAxisExtent: 172),
+            itemBuilder: (_, i) => _PackTile(coinPacks[i], selected: i == s.selectedPack, onTap: () => s.selectPack(i)),
+          ),
         ),
         const SizedBox(height: 12),
         CtaButton('BUY ${s.pack.gcLabel} GC · ${s.pack.priceLabel}', ls: .03, onTap: () => Nav.push(R.checkout)),
@@ -125,7 +127,7 @@ class WalletPageState extends State<WalletPage> {
           const SizedBox(height: 8),
         ],
         const SizedBox(height: 6),
-        CtaButton('REQUEST REDEMPTION', onTap: () => showToast(context, 'Redemption request submitted', bottom: 96)),
+        CtaButton('REQUEST REDEMPTION', onTap: () => showToast(context, 'Redemption request submitted')),
         const SizedBox(height: 14),
         Text('Identity verification is required before your first redemption.',
             textAlign: TextAlign.center, style: outfit(12, c: Z.muted2, h: 1.45)),
@@ -184,7 +186,7 @@ class _Balance extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             coin,
@@ -194,11 +196,42 @@ class _Balance extends StatelessWidget {
                   child: Text(label, style: outfit(12, w: FontWeight.w700, ls: .1, c: labelColor))),
             ),
           ]),
-          const SizedBox(height: 6),
-          FittedBox(child: Text(value, style: outfit(26, w: FontWeight.w800, c: Z.cream))),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
+          FittedBox(child: Text(value, style: outfit(24, w: FontWeight.w800, c: Z.cream))),
+          const SizedBox(height: 2),
           Text(note, style: outfit(12, c: Z.muted)),
         ]),
+      );
+}
+
+/// One of the wallet's BUY COINS / REDEEM / HISTORY choices in the side pane.
+class _SideTab extends StatelessWidget {
+  const _SideTab(this.label, {required this.selected, required this.onTap});
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Press(
+        onTap: onTap,
+        selected: selected,
+        label: label,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          alignment: Alignment.centerLeft,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            gradient: selected ? Z.goldTab : null,
+            color: selected ? null : const Color(0xFF0D0906),
+            border: selected ? null : Border.all(color: Z.border, width: 1.5),
+          ),
+          child: Row(children: [
+            Expanded(child: Text(label, style: outfit(14, w: FontWeight.w800, ls: .06, c: selected ? Z.brown : Z.tabOff))),
+            StrokeIco(P.forward, size: 14, color: selected ? Z.brown : Z.faint, width: 2.6),
+          ]),
+        ),
       );
 }
 
@@ -345,157 +378,165 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         TopBar(
           title: 'CHECKOUT',
           backLabel: 'Back to wallet',
-          right: OverflowBox(
-            maxWidth: 80,
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              const Ico(P.lock, size: 14, color: Z.greenHi),
-              const SizedBox(width: 4),
-              Text('Secure', style: outfit(12, w: FontWeight.w600, c: Z.greenHi)),
-            ]),
-          ),
+          right: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Ico(P.lock, size: 14, color: Z.greenHi),
+            const SizedBox(width: 4),
+            Text('Secure', style: outfit(12, w: FontWeight.w600, c: Z.greenHi)),
+          ]),
         ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
-            children: [
-              GoldFrame(
-                inner: ellipseGradient(
-                    cx: 0, cy: 0, rx: 1, ry: .8, colors: const [Color(0xFF3A2209), Color(0xFF0D0906)], stops: const [0, .7]),
-                padding: const EdgeInsets.all(16),
-                child: Row(children: [
-                  Coin(size: 64, fontSize: 18, glow: [bs(0, 0, 18, const Color(0x80FFC850))]),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(p.tag == null ? 'GOLD COIN PACKAGE' : '${p.tag} PACKAGE',
-                          style: outfit(12, w: FontWeight.w700, ls: .12, c: Z.label)),
-                      const SizedBox(height: 3),
-                      Text('${fmtInt(p.gc)} GC', style: outfit(22, w: FontWeight.w800, c: Z.cream)),
-                      const SizedBox(height: 3),
-                      Text('+ ${p.sc} SC free', style: outfit(14, w: FontWeight.w700, c: Z.teal)),
-                    ]),
-                  ),
-                  Text(p.priceLabel, style: outfit(22, w: FontWeight.w800, c: Z.cream)),
-                ]),
-              ),
-              const SizedBox(height: 16),
-              Text('PAYMENT METHOD', style: outfit(13, w: FontWeight.w800, ls: .12, c: Z.label)),
-              const SizedBox(height: 8),
-              for (final (i, (label, sub, path)) in methods.indexed) ...[
-                RadioRow(
-                  label: label,
-                  sub: sub,
-                  glow: true,
-                  selected: method == i,
-                  onTap: () => setState(() => method = i),
-                  icon: Container(
-                    width: 44,
-                    height: 30,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Z.iconTile,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Z.chipDark),
+          child: Panes(
+            sideFraction: .44,
+            maxSide: 440,
+            side: Column(children: [
+              Expanded(
+                child: PaneList(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 6, 8),
+                  children: [
+                    GoldFrame(
+                      inner: ellipseGradient(
+                          cx: 0, cy: 0, rx: 1, ry: .8, colors: const [Color(0xFF3A2209), Color(0xFF0D0906)], stops: const [0, .7]),
+                      padding: const EdgeInsets.all(14),
+                      child: Row(children: [
+                        Coin(size: 54, fontSize: 16, glow: [bs(0, 0, 18, const Color(0x80FFC850))]),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(p.tag == null ? 'GOLD COIN PACKAGE' : '${p.tag} PACKAGE',
+                                style: outfit(12, w: FontWeight.w700, ls: .12, c: Z.label)),
+                            const SizedBox(height: 2),
+                            Text('${fmtInt(p.gc)} GC', style: outfit(20, w: FontWeight.w800, c: Z.cream)),
+                            const SizedBox(height: 2),
+                            Text('+ ${p.sc} SC free', style: outfit(14, w: FontWeight.w700, c: Z.teal)),
+                          ]),
+                        ),
+                        Text(p.priceLabel, style: outfit(20, w: FontWeight.w800, c: Z.cream)),
+                      ]),
                     ),
-                    child: Ico(path, size: 22),
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-              Press(
-                onTap: () => showToast(context, 'Card form opens here in the real app'),
-                child: CustomPaint(
-                  painter: _DashedRRect(),
-                  child: SizedBox(
-                    height: 50,
-                    child: Center(child: Text('+ Add new card', style: outfit(15, w: FontWeight.w600, c: Z.gold))),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(children: [
-                Expanded(
-                  child: TextField(
-                    controller: _promo,
-                    textCapitalization: TextCapitalization.characters,
-                    style: outfit(15, c: Z.cream),
-                    cursorColor: Z.goldHi,
-                    onChanged: (_) => setState(() => applied = false),
-                    decoration: fieldDeco(hint: 'Promo code').copyWith(hintStyle: outfit(15, c: Z.faint)),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Press(
-                  onTap: () => setState(() => applied = true),
-                  child: Container(
-                    width: 96,
-                    height: 50,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Z.field,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Z.border, width: 1.5),
-                    ),
-                    child: Text('APPLY', style: outfit(14, w: FontWeight.w800, c: Z.gold)),
-                  ),
-                ),
-              ]),
-              if (applied)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(code.isNotEmpty ? 'Code $code applied — +10% bonus GC' : 'Enter a code first',
-                      style: outfit(13, c: code.isNotEmpty ? Z.greenHi : Z.coral)),
-                ),
-              const SizedBox(height: 16),
-              ZCard(
-                padding: const EdgeInsets.all(14),
-                child: Column(children: [
-                  _line('${fmtInt(p.gc)} Gold Coins', Text(p.priceLabel, style: outfit(15))),
-                  const SizedBox(height: 10),
-                  _line('${p.sc} Sweeps Coins', Text('FREE', style: outfit(15, w: FontWeight.w700, c: Z.teal))),
-                  if (bonus > 0) ...[
                     const SizedBox(height: 10),
-                    _line('Promo bonus', Text('+${fmtInt(bonus)} GC', style: outfit(15, w: FontWeight.w700, c: Z.goldHi))),
+                    ZCard(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(children: [
+                        _line('${fmtInt(p.gc)} Gold Coins', Text(p.priceLabel, style: outfit(15))),
+                        const SizedBox(height: 8),
+                        _line('${p.sc} Sweeps Coins', Text('FREE', style: outfit(15, w: FontWeight.w700, c: Z.teal))),
+                        if (bonus > 0) ...[
+                          const SizedBox(height: 8),
+                          _line('Promo bonus', Text('+${fmtInt(bonus)} GC', style: outfit(15, w: FontWeight.w700, c: Z.goldHi))),
+                        ],
+                        const SizedBox(height: 8),
+                        Container(height: 1, color: Z.divider),
+                        const SizedBox(height: 8),
+                        Row(children: [
+                          Expanded(child: Text('Total', style: outfit(18, w: FontWeight.w800))),
+                          Text(p.priceLabel, style: outfit(18, w: FontWeight.w800, c: Z.goldHi)),
+                        ]),
+                      ]),
+                    ),
                   ],
-                  const SizedBox(height: 10),
-                  Container(height: 1, color: Z.divider),
-                  const SizedBox(height: 10),
-                  Row(children: [
-                    Expanded(child: Text('Total', style: outfit(18, w: FontWeight.w800))),
-                    Text(p.priceLabel, style: outfit(18, w: FontWeight.w800, c: Z.goldHi)),
-                  ]),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 4, 6, 10),
+                child: Column(children: [
+                  CtaButton('PAY ${p.priceLabel}', height: 52, fontSize: 19, onTap: () {
+                    s.completePurchase(p, bonusGc: bonus);
+                    Nav.replace(R.purchaseSuccess, (p, bonus));
+                  }),
+                  const SizedBox(height: 6),
+                  Text.rich(
+                    TextSpan(children: [
+                      const TextSpan(
+                          text: 'Gold Coins have no cash value. Sweeps Coins are a free promotional bonus. By paying you agree to the '),
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.baseline,
+                        baseline: TextBaseline.alphabetic,
+                        child: Press(
+                          onTap: () => Nav.push(R.legal),
+                          child: Text('Terms', style: outfit(11, c: Z.gold, deco: TextDecoration.underline)),
+                        ),
+                      ),
+                      const TextSpan(text: '.'),
+                    ]),
+                    textAlign: TextAlign.center,
+                    style: outfit(11, c: Z.muted2, h: 1.4),
+                  ),
                 ]),
               ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 22),
-          decoration: const BoxDecoration(border: Border(top: BorderSide(color: Z.line)), gradient: Z.footerBar),
-          child: Column(children: [
-            CtaButton('PAY ${p.priceLabel}', fontSize: 19, onTap: () {
-              s.completePurchase(p, bonusGc: bonus);
-              Nav.replace(R.purchaseSuccess, (p, bonus));
-            }),
-            const SizedBox(height: 10),
-            Text.rich(
-              TextSpan(children: [
-                const TextSpan(
-                    text: 'Gold Coins have no cash value. Sweeps Coins are a free promotional bonus. By paying you agree to the '),
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.baseline,
-                  baseline: TextBaseline.alphabetic,
-                  child: Press(
-                    onTap: () => Nav.push(R.legal),
-                    child: Text('Terms', style: outfit(11, c: Z.gold, deco: TextDecoration.underline)),
+            ]),
+            main: PaneList(
+              padding: const EdgeInsets.fromLTRB(8, 12, 14, 18),
+              children: [
+                Text('PAYMENT METHOD', style: outfit(13, w: FontWeight.w800, ls: .12, c: Z.label)),
+                const SizedBox(height: 8),
+                for (final (i, (label, sub, path)) in methods.indexed) ...[
+                  RadioRow(
+                    label: label,
+                    sub: sub,
+                    glow: true,
+                    selected: method == i,
+                    onTap: () => setState(() => method = i),
+                    icon: Container(
+                      width: 44,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Z.iconTile,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Z.chipDark),
+                      ),
+                      child: Ico(path, size: 22),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                Press(
+                  onTap: () => showToast(context, 'Card form opens here in the real app'),
+                  child: CustomPaint(
+                    painter: _DashedRRect(),
+                    child: SizedBox(
+                      height: 48,
+                      child: Center(child: Text('+ Add new card', style: outfit(15, w: FontWeight.w600, c: Z.gold))),
+                    ),
                   ),
                 ),
-                const TextSpan(text: '.'),
-              ]),
-              textAlign: TextAlign.center,
-              style: outfit(11, c: Z.muted2, h: 1.45),
+                const SizedBox(height: 14),
+                Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _promo,
+                      textCapitalization: TextCapitalization.characters,
+                      style: outfit(15, c: Z.cream),
+                      cursorColor: Z.goldHi,
+                      onChanged: (_) => setState(() => applied = false),
+                      decoration: fieldDeco(hint: 'Promo code').copyWith(hintStyle: outfit(15, c: Z.faint)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Press(
+                    onTap: () => setState(() => applied = true),
+                    child: Container(
+                      width: 96,
+                      height: 50,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Z.field,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Z.border, width: 1.5),
+                      ),
+                      child: Text('APPLY', style: outfit(14, w: FontWeight.w800, c: Z.gold)),
+                    ),
+                  ),
+                ]),
+                if (applied)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(code.isNotEmpty ? 'Code $code applied — +10% bonus GC' : 'Enter a code first',
+                        style: outfit(13, c: code.isNotEmpty ? Z.greenHi : Z.coral)),
+                  ),
+              ],
             ),
-          ]),
+          ),
         ),
       ]),
     );
@@ -558,61 +599,76 @@ class _PurchaseSuccessScreenState extends State<PurchaseSuccessScreen> with Tick
       gradient: ellipseGradient(
           cx: .5, cy: .34, rx: .9, ry: .55, colors: const [Color(0xFF4A2A0A), Z.inkDeep], stops: const [0, .75]),
       child: Stack(children: [
-        Positioned.fill(child: RaysBurst(controller: _rays, size: 700, dy: -.36, slice: 8)),
-        Column(children: [
+        Positioned.fill(
+          child: FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: .5,
+            child: RaysBurst(controller: _rays, size: 640, dy: 0, slice: 8),
+          ),
+        ),
+        Row(children: [
           Expanded(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 28),
+                padding: const EdgeInsets.all(16),
                 child: Column(children: [
                   ScaleTransition(
                     scale: CurvedAnimation(parent: _pop, curve: Curves.easeOutBack),
-                    child: Coin(size: 150, fontSize: 46, big: true, glow: [bs(0, 0, 50, const Color(0xBFFFC850))]),
+                    child: Coin(size: 120, fontSize: 38, big: true, glow: [bs(0, 0, 50, const Color(0xBFFFC850))]),
                   ),
-                  const SizedBox(height: 24),
-                  Text('Coins added!', style: outfit(32, w: FontWeight.w800, c: Z.cream)),
                   const SizedBox(height: 14),
+                  Text('Coins added!', style: outfit(28, w: FontWeight.w800, c: Z.cream)),
+                  const SizedBox(height: 8),
                   FittedBox(
                     child: Text('+${fmtInt(p.gc + widget.bonusGc)} GC',
-                        style: outfit(50,
+                        style: outfit(44,
                             w: FontWeight.w800,
                             c: Z.goldHi,
                             h: 1,
                             sh: [ts(0, 3, 0, const Color(0xFF6A3D00)), ts(0, 0, 24, const Color(0x99FFC850))])),
                   ),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0x1F14B38A),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0x806FE0C0)),
-                    ),
-                    child: Text('+ ${p.sc} SC free bonus', style: outfit(16, w: FontWeight.w700, c: Z.teal)),
-                  ),
-                  const SizedBox(height: 26),
-                  ZCard(
-                    color: const Color(0xD9110B06),
-                    padding: const EdgeInsets.all(14),
-                    child: Column(children: [
-                      _row('New GC balance', Text(fmtInt(s.gc), style: outfit(14, w: FontWeight.w800, c: Z.cream))),
-                      const SizedBox(height: 8),
-                      _row('New SC balance', Text(fmtSc(s.sc), style: outfit(14, w: FontWeight.w800, c: Z.cream))),
-                      const SizedBox(height: 8),
-                      _row('Receipt', Text('#Z7-$order', style: outfit(14, c: Z.body))),
-                    ]),
-                  ),
                 ]),
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 30),
-            child: Column(children: [
-              CtaButton('PLAY NOW', fontSize: 19, onTap: () => Nav.replace(R.gold)),
-              const SizedBox(height: 12),
-              GhostButton('BACK TO WALLET', onTap: () => Nav.tab(AppTab.wallet)),
-            ]),
+          Expanded(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(8, 16, 28, 16),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0x1F14B38A),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0x806FE0C0)),
+                        ),
+                        child: Text('+ ${p.sc} SC free bonus', style: outfit(16, w: FontWeight.w700, c: Z.teal)),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    ZCard(
+                      color: const Color(0xD9110B06),
+                      padding: const EdgeInsets.all(14),
+                      child: Column(children: [
+                        _row('New GC balance', Text(fmtInt(s.gc), style: outfit(14, w: FontWeight.w800, c: Z.cream))),
+                        const SizedBox(height: 8),
+                        _row('New SC balance', Text(fmtSc(s.sc), style: outfit(14, w: FontWeight.w800, c: Z.cream))),
+                        const SizedBox(height: 8),
+                        _row('Receipt', Text('#Z7-$order', style: outfit(14, c: Z.body))),
+                      ]),
+                    ),
+                    const SizedBox(height: 16),
+                    CtaButton('PLAY NOW', height: 54, fontSize: 19, onTap: () => Nav.replace(R.gold)),
+                    const SizedBox(height: 10),
+                    GhostButton('BACK TO WALLET', height: 48, onTap: () => Nav.tab(AppTab.wallet)),
+                  ]),
+                ),
+              ),
+            ),
           ),
         ]),
       ]),

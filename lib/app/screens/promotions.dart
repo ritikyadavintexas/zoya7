@@ -59,14 +59,17 @@ class _PromotionsPageState extends State<PromotionsPage> with _Ticker {
       child: Column(children: [
         TopBar(title: 'PROMOTIONS', backLabel: 'Back to lobby', onBack: () => Nav.tab(AppTab.home)),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(12, 14, 12, 90),
-            children: [
+          child: Panes(
+            sideFraction: .5,
+            maxSide: 520,
+            side: PaneList(
+              padding: const EdgeInsets.fromLTRB(14, 12, 6, 16),
+              children: [
               GoldFrame(
                 shadows: [bs(0, 8, 22, const Color(0x80000000))],
                 inner: ellipseGradient(
                     cx: .5, cy: 0, rx: .9, ry: .7, colors: const [Color(0xFF5A1A10), Color(0xFF150B06)], stops: const [0, .7]),
-                padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                   Row(children: [
                     Expanded(
@@ -113,9 +116,13 @@ class _PromotionsPageState extends State<PromotionsPage> with _Ticker {
                   child: AspectRatio(aspectRatio: 366 / 114, child: Image.asset(A.vipBanner, fit: BoxFit.cover)),
                 ),
               ),
-              const SizedBox(height: 18),
+              ],
+            ),
+            main: PaneList(
+              padding: const EdgeInsets.fromLTRB(8, 12, 14, 16),
+              children: [
               const SectionTitle('MORE OFFERS'),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               _Offer(
                 tint: const Color(0xFF2A1A08),
                 icon: Container(
@@ -130,7 +137,7 @@ class _PromotionsPageState extends State<PromotionsPage> with _Ticker {
                     style: outfit(13, c: Z.body, h: 1.35)),
                 action: _PillAction('GET', gold: true, onTap: () => Nav.tab(AppTab.wallet, walletTab: 'buy')),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               _Offer(
                 tint: const Color(0xFF0E2A1A),
                 icon: Container(
@@ -165,7 +172,7 @@ class _PromotionsPageState extends State<PromotionsPage> with _Ticker {
                   ),
                 ]),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               _Offer(
                 tint: const Color(0xFF261040),
                 icon: Container(
@@ -191,7 +198,8 @@ class _PromotionsPageState extends State<PromotionsPage> with _Ticker {
                 ),
                 action: _PillAction('JOIN', onTap: () => Nav.push(R.leaderboard)),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ]),
@@ -311,7 +319,7 @@ class _Offer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Z.chip, width: 1.5),
@@ -390,9 +398,9 @@ class _DailyBonusDialogState extends State<DailyBonusDialog> with TickerProvider
           Positioned.fill(child: RaysBurst(controller: _rays)),
           Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
+              constraints: const BoxConstraints(maxWidth: 640),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 child: ScaleTransition(
                   scale: CurvedAnimation(parent: _pop, curve: Curves.easeOutBack),
                   child: GoldFrame(
@@ -400,34 +408,42 @@ class _DailyBonusDialogState extends State<DailyBonusDialog> with TickerProvider
                     width: 3,
                     shadows: [bs(0, 20, 50, const Color(0xB3000000)), bs(0, 0, 40, const Color(0x4DFFBE46))],
                     inner: ellipseGradient(
-                        cx: .5, cy: 0, rx: .9, ry: .6, colors: const [Color(0xFF5A1A10), Color(0xFF150B06)], stops: const [0, .7]),
+                        cx: .25, cy: .5, rx: .6, ry: 1, colors: const [Color(0xFF5A1A10), Color(0xFF150B06)], stops: const [0, .8]),
                     child: Stack(children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 26, 18, 20),
-                        child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          Text('DAILY BONUS', style: outfit(13, w: FontWeight.w800, ls: .2, c: Z.label)),
-                          const SizedBox(height: 12),
-                          Text('Day ${s.streakDay} streak!', style: outfit(30, w: FontWeight.w800, c: Z.cream)),
-                          const SizedBox(height: 12),
-                          Coin(size: 96, fontSize: 28, big: true, glow: [bs(0, 0, 30, const Color(0xB3FFC850))]),
-                          const SizedBox(height: 12),
-                          Text('+${fmtInt(s.todayBonus)}',
-                              style: outfit(44,
-                                  w: FontWeight.w800,
-                                  c: Z.goldHi,
-                                  h: 1,
-                                  sh: [ts(0, 3, 0, const Color(0xFF6A3D00)), ts(0, 0, 20, const Color(0x99FFC850))])),
-                          const SizedBox(height: 16),
-                          const StreakRow(),
-                          const SizedBox(height: 12),
-                          Text('Come back tomorrow for ${fmtInt(next)} GC. Miss a day and the streak resets.',
-                              textAlign: TextAlign.center, style: outfit(13, c: Z.body)),
-                          const SizedBox(height: 16),
-                          s.bonusClaimed
-                              ? GreenButton("ADDED — LET'S PLAY",
-                                  icon: const StrokeIco(P.check, size: 20, color: Z.cream, width: 3.2),
-                                  onTap: () => Navigator.of(context).pop())
-                              : CtaButton('CLAIM BONUS', fontSize: 19, onTap: s.claimBonus),
+                      SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+                        child: Row(children: [
+                          Column(mainAxisSize: MainAxisSize.min, children: [
+                            Coin(size: 96, fontSize: 28, big: true, glow: [bs(0, 0, 30, const Color(0xB3FFC850))]),
+                            const SizedBox(height: 12),
+                            Text('+${fmtInt(s.todayBonus)}',
+                                style: outfit(40,
+                                    w: FontWeight.w800,
+                                    c: Z.goldHi,
+                                    h: 1,
+                                    sh: [ts(0, 3, 0, const Color(0xFF6A3D00)), ts(0, 0, 20, const Color(0x99FFC850))])),
+                          ]),
+                          const SizedBox(width: 22),
+                          Expanded(
+                            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                              Text('DAILY BONUS', style: outfit(13, w: FontWeight.w800, ls: .2, c: Z.label)),
+                              const SizedBox(height: 6),
+                              Text('Day ${s.streakDay} streak!', style: outfit(28, w: FontWeight.w800, c: Z.cream)),
+                              const SizedBox(height: 12),
+                              const StreakRow(),
+                              const SizedBox(height: 10),
+                              Text('Come back tomorrow for ${fmtInt(next)} GC. Miss a day and the streak resets.',
+                                  style: outfit(13, c: Z.body)),
+                              const SizedBox(height: 14),
+                              s.bonusClaimed
+                                  ? GreenButton("ADDED — LET'S PLAY",
+                                      height: 54,
+                                      fontSize: 17,
+                                      icon: const StrokeIco(P.check, size: 20, color: Z.cream, width: 3.2),
+                                      onTap: () => Navigator.of(context).pop())
+                                  : CtaButton('CLAIM BONUS', height: 54, fontSize: 19, onTap: s.claimBonus),
+                            ]),
+                          ),
                         ]),
                       ),
                       Positioned(
@@ -550,101 +566,105 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with _Ticker {
       gradient: Z.pageGlow(ry: .36, top: const Color(0xFF2E1450)),
       child: Column(children: [
         const TopBar(title: 'SLOTS RACE', backLabel: 'Back to promotions', border: false, titleSize: 19),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-          child: Column(children: [
-            SegTabs(
-              labels: const ['THIS WEEKEND', 'LAST RACE'],
-              index: live ? 0 : 1,
-              onChanged: (i) => setState(() => live = i == 0),
-            ),
-            const SizedBox(height: 10),
-            Row(children: [
-              Text(live ? 'Ends in' : 'Final results', style: outfit(13, c: Z.body)),
-              const Spacer(),
-              Text(live ? _countdown(raceSecondsLeft()) : 'Oct 11 – 12',
-                  style: outfit(13, w: FontWeight.w800, c: Z.goldHi, features: tabular)),
-            ]),
-          ]),
-        ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 16),
-            children: [
-              Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                for (final i in const [1, 0, 2]) ...[
-                  if (i != 1) const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(children: [
-                      _av(i, names[i], i == 0 ? 64 : 52, border: i == 0 ? Z.goldBright : Z.chip),
-                      const SizedBox(height: 6),
-                      Text(names[i],
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: outfit(13, w: FontWeight.w700, c: Z.cream)),
-                      const SizedBox(height: 6),
-                      Container(
-                        height: const [120.0, 96.0, 82.0][i],
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(14), bottom: Radius.circular(6)),
-                          gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: medals[i],
-                              stops: const [0, .6, 1]),
+          child: Panes(
+            sideFraction: .45,
+            maxSide: 460,
+            side: PaneList(
+              padding: const EdgeInsets.fromLTRB(14, 0, 6, 12),
+              children: [
+                SegTabs(
+                  labels: const ['THIS WEEKEND', 'LAST RACE'],
+                  index: live ? 0 : 1,
+                  onChanged: (i) => setState(() => live = i == 0),
+                ),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Text(live ? 'Ends in' : 'Final results', style: outfit(13, c: Z.body)),
+                  const Spacer(),
+                  Text(live ? _countdown(raceSecondsLeft()) : 'Oct 11 – 12',
+                      style: outfit(13, w: FontWeight.w800, c: Z.goldHi, features: tabular)),
+                ]),
+                const SizedBox(height: 10),
+                Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  for (final i in const [1, 0, 2]) ...[
+                    if (i != 1) const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(children: [
+                        _av(i, names[i], i == 0 ? 52 : 44, border: i == 0 ? Z.goldBright : Z.chip),
+                        const SizedBox(height: 4),
+                        Text(names[i],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: outfit(13, w: FontWeight.w700, c: Z.cream)),
+                        const SizedBox(height: 4),
+                        Container(
+                          height: const [100.0, 82.0, 70.0][i],
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(14), bottom: Radius.circular(6)),
+                            gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: medals[i],
+                                stops: const [0, .6, 1]),
+                          ),
+                          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Text('${i + 1}', style: outfit(24, w: FontWeight.w800, c: const Color(0xFF2A1605), h: 1.1)),
+                            Text(fmtInt(pts[i]), style: outfit(12, w: FontWeight.w700, c: const Color(0xFF2A1605))),
+                            Text(prizes[i], style: outfit(11, w: FontWeight.w600, c: const Color(0xD92A1605))),
+                          ]),
                         ),
-                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          Text('${i + 1}', style: outfit(26, w: FontWeight.w800, c: const Color(0xFF2A1605))),
-                          Text(fmtInt(pts[i]), style: outfit(12, w: FontWeight.w700, c: const Color(0xFF2A1605))),
-                          Text(prizes[i], style: outfit(11, w: FontWeight.w600, c: const Color(0xD92A1605))),
-                        ]),
-                      ),
-                    ]),
-                  ),
-                ],
-              ]),
-              const SizedBox(height: 14),
-              ZCard(
-                child: Column(children: [
-                  for (var k = 3; k < names.length; k++)
-                    Container(
-                      constraints: const BoxConstraints(minHeight: 52),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Z.divider))),
-                      child: Row(children: [
-                        SizedBox(width: 26, child: Text('${k + 1}', style: outfit(15, w: FontWeight.w800, c: Z.muted))),
-                        const SizedBox(width: 12),
-                        _av(k, names[k], 34),
-                        const SizedBox(width: 12),
-                        Expanded(child: Text(names[k], style: outfit(15, w: FontWeight.w600, c: Z.cream))),
-                        Text(fmtInt(pts[k]), style: outfit(14, w: FontWeight.w700, c: Z.goldHi)),
                       ]),
                     ),
+                  ],
                 ]),
-              ),
-              const SizedBox(height: 14),
-              Text.rich(
-                TextSpan(children: [
-                  const TextSpan(text: 'Points = GC wagered on slots during the race. Prizes are paid in Gold Coins. Full rules in '),
-                  WidgetSpan(
-                    alignment: PlaceholderAlignment.baseline,
-                    baseline: TextBaseline.alphabetic,
-                    child: Press(
-                      onTap: () => Nav.push(R.legal, 'rules'),
-                      child: Text('Sweeps rules',
-                          style: outfit(12, c: Z.gold, h: 1.5, deco: TextDecoration.underline)),
+              ],
+            ),
+            main: PaneList(
+              padding: const EdgeInsets.fromLTRB(8, 0, 14, 12),
+              children: [
+                ZCard(
+                  child: Column(children: [
+                    for (var k = 3; k < names.length; k++)
+                      Container(
+                        constraints: const BoxConstraints(minHeight: 46),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Z.divider))),
+                        child: Row(children: [
+                          SizedBox(width: 26, child: Text('${k + 1}', style: outfit(15, w: FontWeight.w800, c: Z.muted))),
+                          const SizedBox(width: 12),
+                          _av(k, names[k], 30),
+                          const SizedBox(width: 12),
+                          Expanded(child: Text(names[k], style: outfit(15, w: FontWeight.w600, c: Z.cream))),
+                          Text(fmtInt(pts[k]), style: outfit(14, w: FontWeight.w700, c: Z.goldHi)),
+                        ]),
+                      ),
+                  ]),
+                ),
+                const SizedBox(height: 12),
+                Text.rich(
+                  TextSpan(children: [
+                    const TextSpan(text: 'Points = GC wagered on slots during the race. Prizes are paid in Gold Coins. Full rules in '),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.baseline,
+                      baseline: TextBaseline.alphabetic,
+                      child: Press(
+                        onTap: () => Nav.push(R.legal, 'rules'),
+                        child: Text('Sweeps rules',
+                            style: outfit(12, c: Z.gold, h: 1.5, deco: TextDecoration.underline)),
+                      ),
                     ),
-                  ),
-                  const TextSpan(text: '.'),
-                ]),
-                style: outfit(12, c: Z.muted2, h: 1.5),
-              ),
-            ],
+                    const TextSpan(text: '.'),
+                  ]),
+                  style: outfit(12, c: Z.muted2, h: 1.5),
+                ),
+              ],
+            ),
           ),
         ),
         Container(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 22),
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
           decoration: const BoxDecoration(
             border: Border(top: BorderSide(color: Z.border, width: 1.5)),
             gradient: LinearGradient(

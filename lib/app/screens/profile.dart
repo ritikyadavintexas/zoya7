@@ -24,8 +24,8 @@ class ListRow extends StatelessWidget {
         onTap: onTap,
         label: label,
         child: Container(
-          constraints: const BoxConstraints(minHeight: 56),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          constraints: const BoxConstraints(minHeight: 50),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(border: last ? null : const Border(bottom: BorderSide(color: Z.divider))),
           child: Row(children: [
             if (leading != null) ...[leading!, const SizedBox(width: 14)],
@@ -95,103 +95,114 @@ class ProfilePage extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
-            children: [
-              Center(
-                child: SizedBox(
-                  width: 110,
-                  height: 108,
-                  child: Stack(children: [
-                    const Avatar(size: 104, border: 3),
-                    Positioned(
-                      right: 2,
-                      bottom: 4,
-                      child: Press(
-                        label: 'Edit profile',
-                        onTap: () => Nav.push(R.editProfile),
-                        child: Container(
-                          width: 34,
-                          height: 34,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: Z.goldBadge,
-                            border: Border.all(color: Z.ink, width: 2),
+          child: Panes(
+            sideFraction: .4,
+            side: PaneList(
+              padding: const EdgeInsets.fromLTRB(14, 0, 6, 16),
+              children: [
+                Row(children: [
+                  SizedBox(
+                    width: 84,
+                    height: 84,
+                    child: Stack(children: [
+                      const Avatar(size: 80, border: 3),
+                      Positioned(
+                        right: 0,
+                        bottom: 2,
+                        child: Press(
+                          label: 'Edit profile',
+                          onTap: () => Nav.push(R.editProfile),
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: Z.goldBadge,
+                              border: Border.all(color: Z.ink, width: 2),
+                            ),
+                            child: const Ico(P.pencil, size: 14, color: Z.brown),
                           ),
-                          child: const Ico(P.pencil, size: 16, color: Z.brown),
                         ),
                       ),
-                    ),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Center(child: Text(s.name, style: outfit(22, w: FontWeight.w800, c: Z.cream))),
-              const SizedBox(height: 6),
-              Center(child: Text('ID 7700 1234 · Member since 2026', style: outfit(13, c: Z.muted))),
-              const SizedBox(height: 16),
-              Press(
-                onTap: () => Nav.push(R.vip),
-                label: 'VIP Bronze — VIP Club',
-                child: GoldFrame(
-                  radius: 16,
-                  inner: ellipseGradient(
-                      cx: 0, cy: 0, rx: 1, ry: .8, colors: const [Color(0xFF4A2A0A), Z.field], stops: const [0, .7]),
-                  padding: const EdgeInsets.all(14),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      const Ico(P.crown, size: 22, color: Color(0xFFD9915A)),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text('VIP BRONZE', style: outfit(16, w: FontWeight.w800, c: const Color(0xFFE8B878)))),
-                      Text('VIP Club ›', style: outfit(13, w: FontWeight.w600, c: Z.gold)),
                     ]),
-                    const SizedBox(height: 10),
-                    const GoldBar(value: .62),
-                    const SizedBox(height: 10),
-                    Text.rich(
-                      TextSpan(children: [
-                        const TextSpan(text: '6,200 / 10,000 points to '),
-                        TextSpan(text: 'Silver', style: outfit(13, w: FontWeight.w700, c: const Color(0xFFE6E6F0))),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: outfit(22, w: FontWeight.w800, c: Z.cream)),
+                      const SizedBox(height: 4),
+                      Text('ID 7700 1234 · Member since 2026', style: outfit(13, c: Z.muted)),
+                    ]),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                Press(
+                  onTap: () => Nav.push(R.vip),
+                  label: 'VIP Bronze — VIP Club',
+                  child: GoldFrame(
+                    radius: 16,
+                    inner: ellipseGradient(
+                        cx: 0, cy: 0, rx: 1, ry: .8, colors: const [Color(0xFF4A2A0A), Z.field], stops: const [0, .7]),
+                    padding: const EdgeInsets.all(12),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [
+                        const Ico(P.crown, size: 22, color: Color(0xFFD9915A)),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text('VIP BRONZE', style: outfit(16, w: FontWeight.w800, c: const Color(0xFFE8B878)))),
+                        Text('VIP Club ›', style: outfit(13, w: FontWeight.w600, c: Z.gold)),
                       ]),
-                      style: outfit(13, c: Z.body),
+                      const SizedBox(height: 10),
+                      const GoldBar(value: .62),
+                      const SizedBox(height: 8),
+                      Text.rich(
+                        TextSpan(children: [
+                          const TextSpan(text: '6,200 / 10,000 points to '),
+                          TextSpan(text: 'Silver', style: outfit(13, w: FontWeight.w700, c: const Color(0xFFE6E6F0))),
+                        ]),
+                        style: outfit(13, c: Z.body),
+                      ),
+                    ]),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(children: [
+                  for (final (i, (v, l)) in const [('248', 'SPINS'), ('75K', 'BIGGEST WIN'), ('4', 'DAY STREAK')].indexed) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    Expanded(
+                      child: ZCard(
+                        radius: 14,
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                        child: Column(children: [
+                          Text(v, style: outfit(20, w: FontWeight.w800, c: Z.goldHi)),
+                          const SizedBox(height: 2),
+                          FittedBox(child: Text(l, style: outfit(11, w: FontWeight.w600, ls: .06, c: Z.muted))),
+                        ]),
+                      ),
                     ),
+                  ],
+                ]),
+              ],
+            ),
+            main: PaneList(
+              padding: const EdgeInsets.fromLTRB(8, 0, 14, 16),
+              children: [
+                ZCard(
+                  child: Column(children: [
+                    for (final (i, (label, path, onTap, badge)) in rows.indexed)
+                      ListRow(
+                        label: label,
+                        leading: _tile(path),
+                        badge: badge,
+                        onTap: onTap,
+                        last: i == rows.length - 1,
+                      ),
                   ]),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Row(children: [
-                for (final (i, (v, l)) in const [('248', 'SPINS'), ('75K', 'BIGGEST WIN'), ('4', 'DAY STREAK')].indexed) ...[
-                  if (i > 0) const SizedBox(width: 8),
-                  Expanded(
-                    child: ZCard(
-                      radius: 14,
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-                      child: Column(children: [
-                        Text(v, style: outfit(20, w: FontWeight.w800, c: Z.goldHi)),
-                        const SizedBox(height: 2),
-                        FittedBox(child: Text(l, style: outfit(11, w: FontWeight.w600, ls: .06, c: Z.muted))),
-                      ]),
-                    ),
-                  ),
-                ],
-              ]),
-              const SizedBox(height: 16),
-              ZCard(
-                child: Column(children: [
-                  for (final (i, (label, path, onTap, badge)) in rows.indexed)
-                    ListRow(
-                      label: label,
-                      leading: _tile(path),
-                      badge: badge,
-                      onTap: onTap,
-                      last: i == rows.length - 1,
-                    ),
-                ]),
-              ),
-              const SizedBox(height: 16),
-              GhostButton('LOG OUT', color: Z.coral, borderColor: const Color(0xFF8A2A2A), onTap: () => Nav.reset(R.welcome)),
-            ],
+                const SizedBox(height: 12),
+                GhostButton('LOG OUT', color: Z.coral, borderColor: const Color(0xFF8A2A2A), onTap: () => Nav.reset(R.welcome)),
+              ],
+            ),
           ),
         ),
       ]),
@@ -210,89 +221,114 @@ class EditProfileScreen extends StatelessWidget {
     final cur = Avatar.frames[s.avatarFrame].$2;
     return ZPage(
       child: Column(children: [
-        const TopBar(title: 'EDIT PROFILE', backLabel: 'Back to profile'),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-            children: [
-              Center(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 110,
-                  height: 110,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: cur, width: 4),
-                    boxShadow: [bs(0, 0, 26, cur)],
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: const Avatar(size: 110, border: 0),
-                ),
+        TopBar(
+          title: 'EDIT PROFILE',
+          backLabel: 'Back to profile',
+          right: Press(
+            label: 'Save changes',
+            onTap: () => showToast(context, 'Profile saved', border: Z.green, color: Z.greenHi),
+            child: Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Z.rimBright, width: 1.5),
+                gradient: Z.red3,
               ),
-              const SizedBox(height: 12),
-              Center(child: Text('AVATAR FRAME', style: outfit(13, w: FontWeight.w700, ls: .12, c: Z.label))),
-              const SizedBox(height: 12),
-              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                for (final (i, (label, c)) in Avatar.frames.indexed) ...[
-                  if (i > 0) const SizedBox(width: 10),
-                  Press(
-                    label: label,
-                    selected: i == s.avatarFrame,
-                    onTap: () => s.setAvatarFrame(i),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: Z.darkWell(),
-                        border: Border.all(color: c, width: 4),
-                        boxShadow: i == s.avatarFrame
-                            ? const [BoxShadow(color: Z.ink, spreadRadius: 3), BoxShadow(color: Z.cream, spreadRadius: 5)]
-                            : null,
+              child: Text('SAVE', style: outfit(14, w: FontWeight.w800, ls: .06, c: Z.ctaText)),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Panes(
+            sideFraction: .34,
+            minSide: 240,
+            maxSide: 320,
+            side: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+                child: Column(children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 104,
+                    height: 104,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: cur, width: 4),
+                      boxShadow: [bs(0, 0, 26, cur)],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: const Avatar(size: 104, border: 0),
+                  ),
+                  const SizedBox(height: 12),
+                  Text('AVATAR FRAME', style: outfit(13, w: FontWeight.w700, ls: .12, c: Z.label)),
+                  const SizedBox(height: 12),
+                  Wrap(alignment: WrapAlignment.center, spacing: 10, runSpacing: 12, children: [
+                    for (final (i, (label, c)) in Avatar.frames.indexed)
+                      Press(
+                        label: label,
+                        selected: i == s.avatarFrame,
+                        onTap: () => s.setAvatarFrame(i),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: Z.darkWell(),
+                            border: Border.all(color: c, width: 4),
+                            boxShadow: i == s.avatarFrame
+                                ? const [BoxShadow(color: Z.ink, spreadRadius: 3), BoxShadow(color: Z.cream, spreadRadius: 5)]
+                                : null,
+                          ),
+                        ),
+                      ),
+                  ]),
+                ]),
+              ),
+            ),
+            main: PaneList(
+              padding: const EdgeInsets.fromLTRB(8, 12, 14, 18),
+              children: [
+                ZField(label: 'USERNAME', initial: s.name, helper: 'Shown in chat and on leaderboards.'),
+                const SizedBox(height: 12),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(
+                    child: ZField(
+                      label: 'EMAIL',
+                      initial: '${s.name.toLowerCase()}@example.com',
+                      keyboard: TextInputType.emailAddress,
+                      badge: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0x243FD17A),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0x803FD17A)),
+                        ),
+                        child: Text('VERIFIED', style: outfit(11, w: FontWeight.w700, c: Z.greenHi)),
                       ),
                     ),
                   ),
-                ],
-              ]),
-              const SizedBox(height: 16),
-              ZField(label: 'USERNAME', initial: s.name, helper: 'Shown in chat and on leaderboards.'),
-              const SizedBox(height: 16),
-              ZField(
-                label: 'EMAIL',
-                initial: '${s.name.toLowerCase()}@example.com',
-                keyboard: TextInputType.emailAddress,
-                badge: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0x243FD17A),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0x803FD17A)),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: ZField(label: 'PHONE', hint: 'Add a phone number', keyboard: TextInputType.phone),
                   ),
-                  child: Text('VERIFIED', style: outfit(11, w: FontWeight.w700, c: Z.greenHi)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const ZField(label: 'PHONE', hint: 'Add a phone number', keyboard: TextInputType.phone),
-              const SizedBox(height: 16),
-              ZCard(
-                child: Column(children: [
-                  ListRow(label: 'Change password', onTap: () => Nav.push(R.forgot)),
-                  ListRow(
-                      label: 'Identity verification',
-                      value: 'Start',
-                      valueColor: Z.gold,
-                      onTap: () => Nav.tab(AppTab.wallet, walletTab: 'redeem')),
-                  ListRow(label: 'Close my account', color: Z.coral, last: true, onTap: () => Nav.push(R.chat, 'support')),
                 ]),
-              ),
-            ],
+                const SizedBox(height: 14),
+                ZCard(
+                  child: Column(children: [
+                    ListRow(label: 'Change password', onTap: () => Nav.push(R.forgot)),
+                    ListRow(
+                        label: 'Identity verification',
+                        value: 'Start',
+                        valueColor: Z.gold,
+                        onTap: () => Nav.tab(AppTab.wallet, walletTab: 'redeem')),
+                    ListRow(label: 'Close my account', color: Z.coral, last: true, onTap: () => Nav.push(R.chat, 'support')),
+                  ]),
+                ),
+              ],
+            ),
           ),
-        ),
-        Container(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
-          decoration: const BoxDecoration(border: Border(top: BorderSide(color: Z.line))),
-          child: CtaButton('SAVE CHANGES',
-              onTap: () => showToast(context, 'Profile saved', border: Z.green, color: Z.greenHi, bottom: 110)),
         ),
       ]),
     );
@@ -335,55 +371,62 @@ class _VipScreenState extends State<VipScreen> {
           ),
         ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 28),
-            children: [
-              GoldFrame(
-                radius: 20,
-                shadows: [bs(0, 10, 26, const Color(0x8C000000)), bs(0, 0, 30, const Color(0x33E2B04F))],
-                inner: ellipseGradient(
-                    cx: .5, cy: 0, rx: .9, ry: .8, colors: const [Color(0xFF4A2A0A), Z.field], stops: const [0, .75]),
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 18),
-                child: Column(children: [
-                  const RawIco('<path d="${P.crown}" fill="#d9915a"/><rect x="3" y="19" width="18" height="2" rx="1" fill="#d9915a"/>',
-                      size: 56),
-                  const SizedBox(height: 8),
-                  Text('YOUR STATUS', style: outfit(12, w: FontWeight.w700, ls: .2, c: Z.label)),
-                  const SizedBox(height: 8),
-                  Text('Bronze', style: playfair(34, w: FontWeight.w800, c: const Color(0xFFE8B878), h: 1)),
-                  const SizedBox(height: 14),
-                  const GoldBar(value: .62),
-                  const SizedBox(height: 8),
-                  Text.rich(
-                    TextSpan(children: [
-                      const TextSpan(text: '3,800 points until '),
-                      TextSpan(text: 'Silver', style: outfit(14, w: FontWeight.w800, c: const Color(0xFFE6E6F0))),
-                    ]),
-                    style: outfit(14, c: Z.body),
-                  ),
-                ]),
-              ),
-              const SizedBox(height: 16),
-              const SectionTitle('TIERS & PERKS'),
-              const SizedBox(height: 16),
-              for (final (name, color, pts, perks) in tiers) ...[
-                _tier(name, color, pts, perks),
-                const SizedBox(height: 8),
+          child: Panes(
+            sideFraction: .4,
+            side: PaneList(
+              padding: const EdgeInsets.fromLTRB(14, 0, 6, 16),
+              children: [
+                GoldFrame(
+                  radius: 20,
+                  shadows: [bs(0, 10, 26, const Color(0x8C000000)), bs(0, 0, 30, const Color(0x33E2B04F))],
+                  inner: ellipseGradient(
+                      cx: .5, cy: 0, rx: .9, ry: .8, colors: const [Color(0xFF4A2A0A), Z.field], stops: const [0, .75]),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                  child: Column(children: [
+                    const RawIco('<path d="${P.crown}" fill="#d9915a"/><rect x="3" y="19" width="18" height="2" rx="1" fill="#d9915a"/>',
+                        size: 48),
+                    const SizedBox(height: 6),
+                    Text('YOUR STATUS', style: outfit(12, w: FontWeight.w700, ls: .2, c: Z.label)),
+                    const SizedBox(height: 6),
+                    Text('Bronze', style: playfair(32, w: FontWeight.w800, c: const Color(0xFFE8B878), h: 1)),
+                    const SizedBox(height: 12),
+                    const GoldBar(value: .62),
+                    const SizedBox(height: 8),
+                    Text.rich(
+                      TextSpan(children: [
+                        const TextSpan(text: '3,800 points until '),
+                        TextSpan(text: 'Silver', style: outfit(14, w: FontWeight.w800, c: const Color(0xFFE6E6F0))),
+                      ]),
+                      style: outfit(14, c: Z.body),
+                    ),
+                  ]),
+                ),
+                const SizedBox(height: 12),
+                ZCard(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('HOW TO EARN POINTS', style: outfit(15, w: FontWeight.w800, ls: .06, c: Z.gold)),
+                    const SizedBox(height: 8),
+                    Text(
+                        'Every spin earns VIP points. Daily logins and completed promotions add bonus points. Your tier is reviewed monthly.',
+                        style: outfit(14, c: Z.body, h: 1.5)),
+                    const SizedBox(height: 4),
+                    LinkText('Play to earn points ›', size: 14, w: FontWeight.w700, onTap: () => Nav.tab(AppTab.games)),
+                  ]),
+                ),
               ],
-              const SizedBox(height: 8),
-              ZCard(
-                padding: const EdgeInsets.all(14),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('HOW TO EARN POINTS', style: outfit(15, w: FontWeight.w800, ls: .06, c: Z.gold)),
+            ),
+            main: PaneList(
+              padding: const EdgeInsets.fromLTRB(8, 0, 14, 16),
+              children: [
+                const SectionTitle('TIERS & PERKS'),
+                const SizedBox(height: 10),
+                for (final (name, color, pts, perks) in tiers) ...[
+                  _tier(name, color, pts, perks),
                   const SizedBox(height: 8),
-                  Text(
-                      'Every spin earns VIP points. Daily logins and completed promotions add bonus points. Your tier is reviewed monthly.',
-                      style: outfit(14, c: Z.body, h: 1.5)),
-                  const SizedBox(height: 4),
-                  LinkText('Play to earn points ›', size: 14, w: FontWeight.w700, onTap: () => Nav.tab(AppTab.games)),
-                ]),
-              ),
-            ],
+                ],
+              ],
+            ),
           ),
         ),
       ]),
@@ -405,10 +448,10 @@ class _VipScreenState extends State<VipScreen> {
           onTap: () => setState(() => open = isOpen ? '' : name),
           label: '$name tier',
           child: Container(
-            constraints: const BoxConstraints(minHeight: 60),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            constraints: const BoxConstraints(minHeight: 54),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             child: Row(children: [
-              Ico(P.crown, size: 28, color: color),
+              Ico(P.crown, size: 26, color: color),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -502,17 +545,26 @@ class SettingsScreen extends StatelessWidget {
         const TopBar(title: 'SETTINGS', backLabel: 'Back to profile'),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 28),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),
             children: [
-              for (final (title, rows) in sections) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(title, style: outfit(13, w: FontWeight.w800, ls: .14, c: Z.label)),
-                ),
-                const SizedBox(height: 8),
-                ZCard(child: Column(children: rows)),
-                const SizedBox(height: 16),
-              ],
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                for (final (c, col) in [sections.sublist(0, 2), sections.sublist(2)].indexed) ...[
+                  if (c > 0) const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      for (final (title, rows) in col) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(title, style: outfit(13, w: FontWeight.w800, ls: .14, c: Z.label)),
+                        ),
+                        const SizedBox(height: 8),
+                        ZCard(child: Column(children: rows)),
+                        const SizedBox(height: 14),
+                      ],
+                    ]),
+                  ),
+                ],
+              ]),
               Text('Zoya7 · version 1.0.0 · 18+ · Play responsibly',
                   textAlign: TextAlign.center, style: outfit(12, c: Z.faint)),
             ],
@@ -538,8 +590,8 @@ class _ToggleRow extends StatelessWidget {
         child: Press(
           onTap: onTap,
           child: Container(
-            constraints: const BoxConstraints(minHeight: 58),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            constraints: const BoxConstraints(minHeight: 54),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(border: last ? null : const Border(bottom: BorderSide(color: Z.divider))),
             child: Row(children: [
               Expanded(
@@ -613,14 +665,14 @@ class NotificationsScreen extends StatelessWidget {
         const TopBar(title: 'NOTIFICATIONS', backLabel: 'Back to lobby', titleSize: 19),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),
             children: [
               Row(children: [
                 Expanded(child: Text(unread > 0 ? '$unread unread' : 'All caught up', style: outfit(14, c: Z.muted))),
                 Press(
                   onTap: s.markAllRead,
                   child: Container(
-                    height: 36,
+                    height: 34,
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
@@ -632,22 +684,29 @@ class NotificationsScreen extends StatelessWidget {
                   ),
                 ),
               ]),
-              for (final (title, items) in groups) ...[
-                const SizedBox(height: 16),
-                Text(title, style: outfit(13, w: FontWeight.w800, ls: .14, c: Z.label)),
-                for (final (t, b, at, path, color, onTap, u) in items) ...[
-                  const SizedBox(height: 8),
-                  _Note(
-                    title: t,
-                    body: b,
-                    when: at,
-                    path: path,
-                    color: color,
-                    unread: u && !s.notificationsRead,
-                    onTap: onTap,
+              const SizedBox(height: 10),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                for (final (g, (title, items)) in groups.indexed) ...[
+                  if (g > 0) const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      Text(title, style: outfit(13, w: FontWeight.w800, ls: .14, c: Z.label)),
+                      for (final (t, b, at, path, color, onTap, u) in items) ...[
+                        const SizedBox(height: 8),
+                        _Note(
+                          title: t,
+                          body: b,
+                          when: at,
+                          path: path,
+                          color: color,
+                          unread: u && !s.notificationsRead,
+                          onTap: onTap,
+                        ),
+                      ],
+                    ]),
                   ),
                 ],
-              ],
+              ]),
             ],
           ),
         ),
@@ -753,70 +812,78 @@ class _LegalScreenState extends State<LegalScreen> {
   Widget build(BuildContext context) {
     final (_, title, sections) = docs[doc];
     return ZPage(
-      child: Column(children: [
-        Container(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Z.line))),
-          child: Column(children: [
+      child: Panes(
+        sideFraction: .3,
+        minSide: 220,
+        maxSide: 300,
+        divider: true,
+        side: PaneList(
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
+          children: [
             Row(children: [
               const BackBtn(label: 'Back to settings'),
-              Expanded(
-                child: Text('LEGAL',
-                    textAlign: TextAlign.center, style: outfit(21, w: FontWeight.w800, ls: .1, c: Z.gold)),
-              ),
-              const SizedBox(width: 40),
+              const SizedBox(width: 12),
+              Text('LEGAL', style: outfit(21, w: FontWeight.w800, ls: .1, c: Z.gold)),
             ]),
-            const SizedBox(height: 12),
-            SegTabs(
-              labels: [for (final d in docs) d.$1],
-              index: doc,
-              fontSize: 12,
-              ls: .04,
-              onChanged: (i) => setState(() => doc = i),
-            ),
-          ]),
-        ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
-            children: [
-              Text(title, style: outfit(24, w: FontWeight.w800, c: Z.cream)),
-              const SizedBox(height: 4),
-              Text('Last updated [DATE] · Version [X.X]', style: outfit(13, c: Z.muted2)),
-              if (doc == 2) ...[
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.all(14),
+            const SizedBox(height: 14),
+            for (final (i, d) in docs.indexed) ...[
+              Press(
+                onTap: () => setState(() => doc = i),
+                selected: i == doc,
+                label: d.$2,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  height: 42,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  alignment: Alignment.centerLeft,
                   decoration: BoxDecoration(
-                    color: const Color(0x14E2B04F),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Z.goldEdge, width: 2),
+                    borderRadius: BorderRadius.circular(21),
+                    gradient: i == doc ? Z.goldTab : null,
+                    color: i == doc ? null : const Color(0xFF0D0906),
+                    border: i == doc ? null : Border.all(color: Z.border, width: 1.5),
                   ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('NO PURCHASE NECESSARY', style: outfit(15, w: FontWeight.w800, ls: .06, c: Z.goldHi)),
-                    const SizedBox(height: 6),
-                    Text(
-                        'A purchase does not increase your chances of winning. Free Sweeps Coins are available through [FREE ENTRY METHOD — e.g. mail-in request, daily bonus].',
-                        style: outfit(14, c: Z.soft, h: 1.5)),
-                  ]),
+                  child: Text(d.$1, style: outfit(13, w: FontWeight.w800, ls: .06, c: i == doc ? Z.brown : Z.tabOff)),
                 ),
-              ],
-              for (final (h, b) in sections) ...[
-                const SizedBox(height: 14),
-                Text(h, style: outfit(16, w: FontWeight.w800, c: Z.gold)),
-                const SizedBox(height: 6),
-                Text(b, style: outfit(14, c: Z.body, h: 1.6)),
-              ],
-              const SizedBox(height: 20),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: LinkText('Questions? Contact support ›',
-                    size: 14, w: FontWeight.w700, onTap: () => Nav.push(R.chat, 'support')),
+              ),
+              const SizedBox(height: 8),
+            ],
+            const SizedBox(height: 6),
+            LinkText('Questions? Contact support ›', size: 14, w: FontWeight.w700, onTap: () => Nav.push(R.chat, 'support')),
+          ],
+        ),
+        main: PaneList(
+          padding: const EdgeInsets.fromLTRB(20, 14, 24, 24),
+          children: [
+            Text(title, style: outfit(24, w: FontWeight.w800, c: Z.cream)),
+            const SizedBox(height: 4),
+            Text('Last updated [DATE] · Version [X.X]', style: outfit(13, c: Z.muted2)),
+            if (doc == 2) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0x14E2B04F),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Z.goldEdge, width: 2),
+                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('NO PURCHASE NECESSARY', style: outfit(15, w: FontWeight.w800, ls: .06, c: Z.goldHi)),
+                  const SizedBox(height: 6),
+                  Text(
+                      'A purchase does not increase your chances of winning. Free Sweeps Coins are available through [FREE ENTRY METHOD — e.g. mail-in request, daily bonus].',
+                      style: outfit(14, c: Z.soft, h: 1.5)),
+                ]),
               ),
             ],
-          ),
+            for (final (h, b) in sections) ...[
+              const SizedBox(height: 14),
+              Text(h, style: outfit(16, w: FontWeight.w800, c: Z.gold)),
+              const SizedBox(height: 6),
+              Text(b, style: outfit(14, c: Z.body, h: 1.6)),
+            ],
+          ],
         ),
-      ]),
+      ),
     );
   }
 }

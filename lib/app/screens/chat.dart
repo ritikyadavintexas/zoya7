@@ -94,6 +94,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _openMenu(String name) {
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: const Color(0xB3060301),
       builder: (ctx) => _MessageMenu(
@@ -124,124 +125,126 @@ class _ChatScreenState extends State<ChatScreen> {
     return ZPage(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: Column(children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Z.line))),
-            child: Column(children: [
+        body: Panes(
+          sideFraction: .3,
+          minSide: 230,
+          maxSide: 300,
+          divider: true,
+          side: PaneList(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+            children: [
               Row(children: [
                 const BackBtn(label: 'Back'),
-                Expanded(
-                  child: Column(children: [
-                    Text('CHAT', style: outfit(21, w: FontWeight.w800, ls: .1, c: Z.gold)),
-                    const SizedBox(height: 1),
-                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(shape: BoxShape.circle, color: Z.green, boxShadow: [bs(0, 0, 6, Z.green)]),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(support ? 'Support online' : '1,284 players online', style: outfit(12, c: Z.muted)),
-                    ]),
-                  ]),
-                ),
+                const SizedBox(width: 12),
+                Expanded(child: Text('CHAT', style: outfit(21, w: FontWeight.w800, ls: .1, c: Z.gold))),
                 RoundBtn(
                   label: 'Notifications',
                   onTap: () => Nav.push(R.notifications),
                   child: const Ico(P.bell, size: 18),
                 ),
               ]),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
+              Row(children: [
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: Z.green, boxShadow: [bs(0, 0, 6, Z.green)]),
+                ),
+                const SizedBox(width: 6),
+                Text(support ? 'Support online' : '1,284 players online', style: outfit(12, c: Z.muted)),
+              ]),
+              const SizedBox(height: 12),
               SegTabs(
                 labels: const ['COMMUNITY', 'SUPPORT'],
                 index: support ? 1 : 0,
+                fontSize: 12,
+                ls: .04,
                 onChanged: (i) => setState(() {
                   support = i == 1;
                   if (!support) typing = false;
                 }),
               ),
-            ]),
-          ),
-          Expanded(
-            child: ListView.separated(
-              reverse: true,
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-              itemCount: list.length + (typing && support ? 1 : 0),
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) {
-                if (typing && support && i == 0) return const _Typing();
-                final m = list[i - (typing && support ? 1 : 0)];
-                return switch (m.kind) {
-                  _Kind.system => _SystemBubble(m.text),
-                  _Kind.mine => _MineBubble(m),
-                  _Kind.other => _OtherBubble(m, onMore: support ? null : () => _openMenu(m.name)),
-                };
-              },
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 18),
-            decoration: const BoxDecoration(border: Border(top: BorderSide(color: Z.line)), gradient: Z.footerBar),
-            child: Column(children: [
-              SizedBox(
-                height: 34,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: quick.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 6),
-                  itemBuilder: (_, i) => Press(
-                    onTap: () => _post(quick[i]),
+              const SizedBox(height: 14),
+              Text('QUICK REPLIES', style: outfit(12, w: FontWeight.w800, ls: .14, c: Z.label)),
+              const SizedBox(height: 8),
+              Wrap(spacing: 6, runSpacing: 6, children: [
+                for (final q in quick)
+                  Press(
+                    onTap: () => _post(q),
                     child: Container(
+                      height: 34,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
-                      alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: Z.field,
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(color: Z.chip),
                       ),
-                      child: Text(quick[i], style: outfit(13, w: FontWeight.w600, c: Z.gold)),
+                      child: Center(widthFactor: 1, child: Text(q, style: outfit(13, w: FontWeight.w600, c: Z.gold))),
                     ),
                   ),
+              ]),
+            ],
+          ),
+          main: LayoutBuilder(builder: (context, box) {
+            return Column(children: [
+              Expanded(
+                child: ListView.separated(
+                  reverse: true,
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+                  itemCount: list.length + (typing && support ? 1 : 0),
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) {
+                    if (typing && support && i == 0) return const _Typing();
+                    final m = list[i - (typing && support ? 1 : 0)];
+                    return switch (m.kind) {
+                      _Kind.system => _SystemBubble(m.text),
+                      _Kind.mine => _MineBubble(m, maxWidth: box.maxWidth * .7),
+                      _Kind.other =>
+                        _OtherBubble(m, maxWidth: box.maxWidth * .75, onMore: support ? null : () => _openMenu(m.name)),
+                    };
+                  },
                 ),
               ),
-              const SizedBox(height: 8),
-              Row(children: [
-                Expanded(
-                  child: TextField(
-                    controller: _draft,
-                    style: outfit(15, c: Z.cream),
-                    cursorColor: Z.goldHi,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: _post,
-                    decoration: fieldDeco(
-                      hint: support ? 'Describe your issue…' : 'Say something to the room…',
-                      radius: 24,
-                    ).copyWith(hintStyle: outfit(15, c: Z.faint)),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Press(
-                  label: 'Send message',
-                  onTap: () => _post(_draft.text),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Z.rimBright, width: 2),
-                      gradient: const LinearGradient(
-                          begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFE0303B), Color(0xFF9A0A14)]),
-                      boxShadow: [bs(0, 0, 12, const Color(0x59FFAA3C))],
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+                decoration: const BoxDecoration(border: Border(top: BorderSide(color: Z.line)), gradient: Z.footerBar),
+                child: Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _draft,
+                      style: outfit(15, c: Z.cream),
+                      cursorColor: Z.goldHi,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: _post,
+                      decoration: fieldDeco(
+                        hint: support ? 'Describe your issue…' : 'Say something to the room…',
+                        radius: 24,
+                      ).copyWith(hintStyle: outfit(15, c: Z.faint), contentPadding: const EdgeInsets.fromLTRB(16, 13, 16, 13)),
                     ),
-                    child: const Ico(P.send, size: 20, color: Z.goldHi),
                   ),
-                ),
-              ]),
-            ]),
-          ),
-        ]),
+                  const SizedBox(width: 8),
+                  Press(
+                    label: 'Send message',
+                    onTap: () => _post(_draft.text),
+                    child: Container(
+                      width: 46,
+                      height: 46,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Z.rimBright, width: 2),
+                        gradient: const LinearGradient(
+                            begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFE0303B), Color(0xFF9A0A14)]),
+                        boxShadow: [bs(0, 0, 12, const Color(0x59FFAA3C))],
+                      ),
+                      child: const Ico(P.send, size: 20, color: Z.goldHi),
+                    ),
+                  ),
+                ]),
+              ),
+            ]);
+          }),
+        ),
       ),
     );
   }
@@ -272,7 +275,7 @@ class _SystemBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
         child: FractionallySizedBox(
-          widthFactor: .92,
+          widthFactor: .8,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
@@ -287,14 +290,15 @@ class _SystemBubble extends StatelessWidget {
 }
 
 class _MineBubble extends StatelessWidget {
-  const _MineBubble(this.m);
+  const _MineBubble(this.m, {required this.maxWidth});
   final _Msg m;
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) => Align(
         alignment: Alignment.centerRight,
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width.clamp(0, 480) * .78),
+          constraints: BoxConstraints(maxWidth: maxWidth),
           child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -319,15 +323,16 @@ class _MineBubble extends StatelessWidget {
 }
 
 class _OtherBubble extends StatelessWidget {
-  const _OtherBubble(this.m, {this.onMore});
+  const _OtherBubble(this.m, {required this.maxWidth, this.onMore});
   final _Msg m;
+  final double maxWidth;
   final VoidCallback? onMore;
 
   @override
   Widget build(BuildContext context) => Align(
         alignment: Alignment.centerLeft,
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width.clamp(0, 480) * .84),
+          constraints: BoxConstraints(maxWidth: maxWidth),
           child: Row(crossAxisAlignment: CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
             Container(
               width: 32,
@@ -414,7 +419,8 @@ class _MessageMenuState extends State<_MessageMenu> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
           child: Container(
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 26),
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * .92),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
             decoration: const BoxDecoration(
               color: Color(0xFF150D07),
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -422,7 +428,8 @@ class _MessageMenuState extends State<_MessageMenu> {
             ),
             child: SafeArea(
               top: false,
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 Center(
                   child: Container(
                     width: 44,
@@ -447,7 +454,8 @@ class _MessageMenuState extends State<_MessageMenu> {
                 ],
                 const SizedBox(height: 10),
                 GhostButton('Cancel', height: 50, color: Z.gold, borderColor: Z.chip, onTap: () => Navigator.pop(context)),
-              ]),
+                ]),
+              ),
             ),
           ),
         ),

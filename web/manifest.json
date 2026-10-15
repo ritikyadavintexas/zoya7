@@ -8,7 +8,7 @@
     "background_color": "#0B0806",
     "theme_color": "#0B0806",
     "description": "Zoya7 — social casino.",
-    "orientation": "any",
+    "orientation": "landscape",
     "prefer_related_applications": false,
     "icons": [
         {

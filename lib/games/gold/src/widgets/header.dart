@@ -46,7 +46,8 @@ class GoldHeader extends StatelessWidget {
                   onMore: () => onGetMore(Currency.gc),
                   moreLabel: 'Get more Gold Coins',
                 ),
-                const SizedBox(height: 10),
+                // 94 + 1 + 89 fills the 184px under the header's top padding exactly.
+                const SizedBox(height: 1),
                 _BalanceBar(
                   asset: GoldAssets.balanceSc,
                   imgH: 89,

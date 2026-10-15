@@ -1,6 +1,9 @@
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import 'app/landscape.dart';
 import 'app/nav.dart';
 import 'app/screens/chat.dart';
 import 'app/screens/game.dart';
@@ -19,7 +22,11 @@ const _buildSha = String.fromEnvironment('BUILD_SHA');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await usePortrait();
+  // The whole app is landscape. Browsers can't lock it, so ForceLandscape turns it there.
+  if (!kIsWeb) {
+    await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
   runApp(Zoya7App(state: AppState()));
 }
 
@@ -48,18 +55,20 @@ class Zoya7App extends StatelessWidget {
         initialRoute: R.splash,
         onGenerateRoute: _route,
         builder: (context, child) => WebSafeArea(
-          child: Stack(children: [
-            child!,
-            if (_buildSha.isNotEmpty)
-              const Positioned(
-                left: 8,
-                bottom: 2,
-                child: IgnorePointer(
-                  child: Text('build $_buildSha',
-                      style: TextStyle(fontSize: 10, color: Color(0x66FFF4D6), decoration: TextDecoration.none)),
+          child: ForceLandscape(
+            child: Stack(children: [
+              child!,
+              if (_buildSha.isNotEmpty)
+                const Positioned(
+                  left: 8,
+                  bottom: 2,
+                  child: IgnorePointer(
+                    child: Text('build $_buildSha',
+                        style: TextStyle(fontSize: 10, color: Color(0x66FFF4D6), decoration: TextDecoration.none)),
+                  ),
                 ),
-              ),
-          ]),
+            ]),
+          ),
         ),
       ),
     );
