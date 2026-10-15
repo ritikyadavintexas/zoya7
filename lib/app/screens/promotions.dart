@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../assets.dart';
 import '../icons.dart';
 import '../nav.dart';
 import '../state.dart';
@@ -55,145 +54,140 @@ class _PromotionsPageState extends State<PromotionsPage> with _Ticker {
   @override
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
+    final claim = s.bonusClaimed
+        ? Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Z.chipDark, width: 1.5),
+              color: Z.field,
+            ),
+            child: Text('CLAIMED — BACK TOMORROW', style: outfit(14, w: FontWeight.w800, ls: .04, c: Z.muted)),
+          )
+        : CtaButton('CLAIM ${fmtInt(s.todayBonus)} GC', height: 46, fontSize: 16, onTap: () {
+            s.claimBonus();
+            showToast(context, '+${fmtInt(s.todayBonus)} GC added to your balance');
+          });
+    final title = Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+      Text('DAILY BONUS', style: outfit(12, w: FontWeight.w700, ls: .14, c: Z.label)),
+      const SizedBox(height: 2),
+      Text('Day ${s.streakDay} streak', style: outfit(20, w: FontWeight.w800, c: Z.cream, h: 1.1)),
+      const SizedBox(height: 2),
+      Text('Resets in 07:12:44', style: outfit(12, c: Z.body)),
+    ]);
+    Widget daily({required bool strip}) => GoldFrame(
+          shadows: [bs(0, 8, 22, const Color(0x80000000))],
+          inner: ellipseGradient(
+              cx: .5, cy: 0, rx: .9, ry: .9, colors: const [Color(0xFF5A1A10), Color(0xFF150B06)], stops: const [0, .8]),
+          padding: const EdgeInsets.all(12),
+          child: strip
+              // Wide: title · streak · claim in one strip.
+              ? Row(children: [
+                  title,
+                  const SizedBox(width: 16),
+                  const Expanded(child: StreakRow(tall: true)),
+                  const SizedBox(width: 16),
+                  SizedBox(width: 200, child: claim),
+                ])
+              // Narrower: a card — title, streak, claim.
+              : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  title,
+                  const Spacer(),
+                  const StreakRow(tall: true),
+                  const Spacer(),
+                  claim,
+                ]),
+        );
+    final offers = [
+      _OfferCard(
+        tint: const Color(0xFF2A1A08),
+        iconGradient: Z.coinGold(),
+        icon: const Ico(P.gift, size: 24, color: Z.coinInk),
+        title: 'Welcome Pack',
+        body: Text('Bonus Gold Coins plus free Sweeps Coins on your first package.', style: outfit(13, c: Z.body, h: 1.3)),
+        action: _PillAction('GET PACK', gold: true, onTap: () => Nav.tab(AppTab.wallet, walletTab: 'buy')),
+      ),
+      _OfferCard(
+        tint: const Color(0xFF0E2A1A),
+        iconGradient: Z.coinTeal(),
+        icon: const Ico(P.addFriend, size: 24, color: Z.tealInk),
+        title: 'Refer a Friend',
+        body: Text('You both get a bonus when they sign up and play.', style: outfit(13, c: Z.body, h: 1.3)),
+        action: Row(children: [
+          Expanded(
+            child: DottedBox(
+              child: Text(s.name.toUpperCase(),
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: outfit(14, w: FontWeight.w800, ls: .1, c: Z.goldHi)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Press(
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: s.name.toUpperCase()));
+              setState(() => copied = true);
+              showToast(context, 'Referral code copied');
+            },
+            child: Container(
+              width: 72,
+              height: 38,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), gradient: Z.green3),
+              child: Text(copied ? 'COPIED' : 'COPY', style: outfit(13, w: FontWeight.w800, c: Z.cream)),
+            ),
+          ),
+        ]),
+      ),
+      _OfferCard(
+        tint: const Color(0xFF261040),
+        iconGradient: circleGradient(
+            cx: .4, cy: .3, colors: const [Color(0xFFE3C2FF), Color(0xFF9B4FE0), Color(0xFF4E1A85)], stops: const [0, .6, 1]),
+        icon: const Ico(P.trophyFull, size: 24, color: Color(0xFF24083F)),
+        title: 'Weekend Slots Race',
+        body: Text.rich(
+          TextSpan(children: [
+            const TextSpan(text: 'Climb the leaderboard for Gold Coin prizes. Ends in '),
+            TextSpan(
+                text: _countdown(raceSecondsLeft()), style: outfit(13, w: FontWeight.w800, c: Z.goldHi, features: tabular)),
+          ]),
+          style: outfit(13, c: Z.body, h: 1.3),
+        ),
+        action: _PillAction('JOIN RACE', onTap: () => Nav.push(R.leaderboard)),
+      ),
+    ];
+    // Offers: side by side, scrolling sideways when they don't all fit.
+    Widget offerRow() => LayoutBuilder(builder: (context, box) {
+          const gap = 10.0;
+          final w = ((box.maxWidth - 2 * gap) / 3).clamp(220.0, 320.0);
+          return ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: offers.length,
+            separatorBuilder: (_, __) => const SizedBox(width: gap),
+            itemBuilder: (_, i) => SizedBox(width: w, child: offers[i]),
+          );
+        });
     return ZPage(
       child: Column(children: [
         TopBar(title: 'PROMOTIONS', backLabel: 'Back to lobby', onBack: () => Nav.tab(AppTab.home)),
         Expanded(
-          child: PaneLists(
-            sideFraction: .5,
-            maxSide: 520,
-            side: [
-              GoldFrame(
-                shadows: [bs(0, 8, 22, const Color(0x80000000))],
-                inner: ellipseGradient(
-                    cx: .5, cy: 0, rx: .9, ry: .7, colors: const [Color(0xFF5A1A10), Color(0xFF150B06)], stops: const [0, .7]),
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  Row(children: [
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('DAILY BONUS', style: outfit(12, w: FontWeight.w700, ls: .14, c: Z.label)),
-                        const SizedBox(height: 2),
-                        Text('Day ${s.streakDay} streak', style: outfit(22, w: FontWeight.w800, c: Z.cream)),
-                      ]),
-                    ),
-                    Text('Resets in 07:12:44', style: outfit(13, c: Z.body)),
-                  ]),
-                  const SizedBox(height: 14),
-                  const StreakRow(tall: true),
-                  const SizedBox(height: 14),
-                  s.bonusClaimed
-                      ? Container(
-                          height: 54,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(color: Z.chipDark, width: 1.5),
-                            color: Z.field,
-                          ),
-                          child: Text('CLAIMED — COME BACK TOMORROW',
-                              style: outfit(17, w: FontWeight.w800, ls: .04, c: Z.muted)),
-                        )
-                      : CtaButton('CLAIM ${fmtInt(s.todayBonus)} GC', height: 54, fontSize: 17, onTap: () {
-                          s.claimBonus();
-                          showToast(context, '+${fmtInt(s.todayBonus)} GC added to your balance');
-                        }),
-                ]),
-              ),
-              const SizedBox(height: 14),
-              Press(
-                label: 'Exclusive VIP Rewards — higher status, bigger rewards. Learn more',
-                onTap: () => Nav.push(R.vip),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Z.border, width: 1.5),
-                    boxShadow: [bs(0, 6, 18, const Color(0x80000000))],
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: AspectRatio(aspectRatio: 366 / 114, child: Image.asset(A.vipBanner, fit: BoxFit.cover)),
-                ),
-              ),
-              ],
-            main: [
-              const SectionTitle('MORE OFFERS'),
-              const SizedBox(height: 12),
-              _Offer(
-                tint: const Color(0xFF2A1A08),
-                icon: Container(
-                  width: 58,
-                  height: 58,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), gradient: Z.coinGold()),
-                  child: const Ico(P.gift, size: 30, color: Z.coinInk),
-                ),
-                title: 'Welcome Pack',
-                body: Text('Bonus Gold Coins plus free Sweeps Coins on your first package.',
-                    style: outfit(13, c: Z.body, h: 1.35)),
-                action: _PillAction('GET', gold: true, onTap: () => Nav.tab(AppTab.wallet, walletTab: 'buy')),
-              ),
-              const SizedBox(height: 10),
-              _Offer(
-                tint: const Color(0xFF0E2A1A),
-                icon: Container(
-                  width: 58,
-                  height: 58,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), gradient: Z.coinTeal()),
-                  child: const Ico(P.addFriend, size: 30, color: Z.tealInk),
-                ),
-                title: 'Refer a Friend',
-                body: Text('You both get a bonus when they sign up and play.', style: outfit(13, c: Z.body, h: 1.35)),
-                footer: Row(children: [
-                  Expanded(
-                    child: DottedBox(
-                      child: Text(s.name.toUpperCase(), style: outfit(16, w: FontWeight.w800, ls: .14, c: Z.goldHi)),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Press(
-                    onTap: () {
-                      Clipboard.setData(ClipboardData(text: s.name.toUpperCase()));
-                      setState(() => copied = true);
-                      showToast(context, 'Referral code copied');
-                    },
-                    child: Container(
-                      width: 96,
-                      height: 42,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), gradient: Z.green3),
-                      child: Text(copied ? 'COPIED' : 'COPY', style: outfit(14, w: FontWeight.w800, c: Z.cream)),
-                    ),
-                  ),
-                ]),
-              ),
-              const SizedBox(height: 10),
-              _Offer(
-                tint: const Color(0xFF261040),
-                icon: Container(
-                  width: 58,
-                  height: 58,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: circleGradient(
-                        cx: .4, cy: .3, colors: const [Color(0xFFE3C2FF), Color(0xFF9B4FE0), Color(0xFF4E1A85)], stops: const [0, .6, 1]),
-                  ),
-                  child: const Ico(P.trophyFull, size: 30, color: Color(0xFF24083F)),
-                ),
-                title: 'Weekend Slots Race',
-                body: Text.rich(
-                  TextSpan(children: [
-                    const TextSpan(text: 'Ends in '),
-                    TextSpan(
-                        text: _countdown(raceSecondsLeft()),
-                        style: outfit(13, w: FontWeight.w800, c: Z.goldHi, features: tabular)),
-                  ]),
-                  style: outfit(13, c: Z.body),
-                ),
-                action: _PillAction('JOIN', onTap: () => Nav.push(R.leaderboard)),
-              ),
-              ],
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+            child: LayoutBuilder(
+              builder: (context, box) => box.maxWidth >= 760
+                  // Wide: the daily bonus strip on top, the offers below.
+                  ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      daily(strip: true),
+                      const SizedBox(height: 12),
+                      Expanded(child: offerRow()),
+                    ])
+                  // Narrower: the daily bonus card beside the offers.
+                  : Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      SizedBox(width: (box.maxWidth * .44).clamp(250.0, 320.0), child: daily(strip: false)),
+                      const SizedBox(width: 12),
+                      Expanded(child: offerRow()),
+                    ]),
+            ),
           ),
         ),
       ]),
@@ -241,7 +235,7 @@ class StreakRow extends StatelessWidget {
     }
     final last = n == 7;
     return Container(
-      height: 62,
+      height: 54,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         gradient: today
@@ -266,7 +260,7 @@ class StreakRow extends StatelessWidget {
       ),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         FittedBox(child: Text('DAY $n', style: outfit(10, w: FontWeight.w700, ls: .04, c: Z.soft))),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         done
             ? Semantics(label: 'Claimed', child: const StrokeIco(P.check, size: 18, color: Z.green, width: 3.2))
             : FittedBox(child: Text(_short(s.streakAmounts[n - 1]), style: outfit(12, w: FontWeight.w800, c: Z.goldHi))),
@@ -305,14 +299,23 @@ class _DashPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _Offer extends StatelessWidget {
-  const _Offer({required this.tint, required this.icon, required this.title, required this.body, this.action, this.footer});
+/// An offer card: icon and title, a short description, and its action at
+/// the bottom (the card fills the height it's given).
+class _OfferCard extends StatelessWidget {
+  const _OfferCard({
+    required this.tint,
+    required this.iconGradient,
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.action,
+  });
   final Color tint;
+  final Gradient iconGradient;
   final Widget icon;
   final String title;
   final Widget body;
-  final Widget? action;
-  final Widget? footer;
+  final Widget action;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -321,22 +324,24 @@ class _Offer extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Z.chip, width: 1.5),
           gradient: LinearGradient(
-              begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [tint, Z.field], stops: const [0, .6]),
+              begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [tint, Z.field], stops: const [0, .7]),
         ),
-        child: Column(children: [
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Row(children: [
-            icon,
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: outfit(16, w: FontWeight.w800, c: Z.cream)),
-                const SizedBox(height: 3),
-                body,
-              ]),
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), gradient: iconGradient),
+              child: icon,
             ),
-            if (action != null) ...[const SizedBox(width: 14), action!],
+            const SizedBox(width: 10),
+            Expanded(child: Text(title, style: outfit(16, w: FontWeight.w800, c: Z.cream, h: 1.15))),
           ]),
-          if (footer != null) ...[const SizedBox(height: 12), footer!],
+          const SizedBox(height: 8),
+          Expanded(child: body),
+          const SizedBox(height: 8),
+          action,
         ]),
       );
 }
@@ -564,95 +569,117 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with _Ticker {
       child: Column(children: [
         const TopBar(title: 'SLOTS RACE', backLabel: 'Back to promotions', border: false, titleSize: 19),
         Expanded(
-          child: PaneLists(
-            top: 0,
+          child: Panes(
             sideFraction: .45,
             maxSide: 460,
-            side: [
+            minMain: 260,
+            // Tabs, countdown and the podium on the left…
+            side: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 6, 8),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 SegTabs(
                   labels: const ['THIS WEEKEND', 'LAST RACE'],
                   index: live ? 0 : 1,
+                  height: 34,
+                  fontSize: 12,
                   onChanged: (i) => setState(() => live = i == 0),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Row(children: [
                   Text(live ? 'Ends in' : 'Final results', style: outfit(13, c: Z.body)),
                   const Spacer(),
                   Text(live ? _countdown(raceSecondsLeft()) : 'Oct 11 – 12',
                       style: outfit(13, w: FontWeight.w800, c: Z.goldHi, features: tabular)),
                 ]),
-                const SizedBox(height: 10),
-                Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  for (final i in const [1, 0, 2]) ...[
-                    if (i != 1) const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(children: [
-                        _av(i, names[i], i == 0 ? 52 : 44, border: i == 0 ? Z.goldBright : Z.chip),
-                        const SizedBox(height: 4),
-                        Text(names[i],
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: outfit(13, w: FontWeight.w700, c: Z.cream)),
-                        const SizedBox(height: 4),
-                        Container(
-                          height: const [100.0, 82.0, 70.0][i],
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(14), bottom: Radius.circular(6)),
-                            gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: medals[i],
-                                stops: const [0, .6, 1]),
-                          ),
-                          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            Text('${i + 1}', style: outfit(24, w: FontWeight.w800, c: const Color(0xFF2A1605), h: 1.1)),
-                            Text(fmtInt(pts[i]), style: outfit(12, w: FontWeight.w700, c: const Color(0xFF2A1605))),
-                            Text(prizes[i], style: outfit(11, w: FontWeight.w600, c: const Color(0xD92A1605))),
+                const SizedBox(height: 6),
+                Expanded(
+                  child: LayoutBuilder(builder: (context, box) {
+                    // Podium blocks share whatever height is left under the names.
+                    final first = (box.maxHeight - 72).clamp(30.0, 120.0);
+                    return Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      for (final i in const [1, 0, 2]) ...[
+                        if (i != 1) const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+                            _av(i, names[i], i == 0 ? 48 : 40, border: i == 0 ? Z.goldBright : Z.chip),
+                            const SizedBox(height: 3),
+                            Text(names[i],
+                                maxLines: 1, overflow: TextOverflow.ellipsis, style: outfit(13, w: FontWeight.w700, c: Z.cream)),
+                            const SizedBox(height: 3),
+                            Container(
+                              height: first * const [1.0, .82, .7][i],
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(14), bottom: Radius.circular(6)),
+                                gradient: LinearGradient(
+                                    begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: medals[i], stops: const [0, .6, 1]),
+                              ),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                                  Text('${i + 1}', style: outfit(22, w: FontWeight.w800, c: const Color(0xFF2A1605), h: 1.1)),
+                                  Text(fmtInt(pts[i]), style: outfit(12, w: FontWeight.w700, c: const Color(0xFF2A1605))),
+                                  Text(prizes[i], style: outfit(11, w: FontWeight.w600, c: const Color(0xD92A1605))),
+                                ]),
+                              ),
+                            ),
                           ]),
                         ),
-                      ]),
-                    ),
-                  ],
-                ]),
-              ],
-            main: [
-                ZCard(
-                  child: Column(children: [
-                    for (var k = 3; k < names.length; k++)
-                      Container(
-                        constraints: const BoxConstraints(minHeight: 46),
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Z.divider))),
-                        child: Row(children: [
-                          SizedBox(width: 26, child: Text('${k + 1}', style: outfit(15, w: FontWeight.w800, c: Z.muted))),
-                          const SizedBox(width: 12),
-                          _av(k, names[k], 30),
-                          const SizedBox(width: 12),
-                          Expanded(child: Text(names[k], style: outfit(15, w: FontWeight.w600, c: Z.cream))),
-                          Text(fmtInt(pts[k]), style: outfit(14, w: FontWeight.w700, c: Z.goldHi)),
-                        ]),
-                      ),
-                  ]),
+                      ],
+                    ]);
+                  }),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
                 Text.rich(
                   TextSpan(children: [
-                    const TextSpan(text: 'Points = GC wagered on slots during the race. Prizes are paid in Gold Coins. Full rules in '),
+                    const TextSpan(text: 'Points = GC wagered on slots. '),
                     WidgetSpan(
                       alignment: PlaceholderAlignment.baseline,
                       baseline: TextBaseline.alphabetic,
                       child: Press(
                         onTap: () => Nav.push(R.legal, 'rules'),
-                        child: Text('Sweeps rules',
-                            style: outfit(12, c: Z.gold, h: 1.5, deco: TextDecoration.underline)),
+                        child: Text('Full rules', style: outfit(11, c: Z.gold, deco: TextDecoration.underline)),
                       ),
                     ),
-                    const TextSpan(text: '.'),
                   ]),
-                  style: outfit(12, c: Z.muted2, h: 1.5),
+                  style: outfit(11, c: Z.muted2),
                 ),
-              ],
+              ]),
+            ),
+            // …places 4–10 on the right, in two columns when they fit.
+            main: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 14, 8),
+              child: LayoutBuilder(builder: (context, box) {
+                const gap = 6.0;
+                final entries = [for (var k = 3; k < names.length; k++) k];
+                final cols = box.maxWidth >= 440 ? 2 : 1;
+                final rows = (entries.length / cols).ceil();
+                final rowH = ((box.maxHeight - gap * (rows - 1)) / rows).clamp(24.0, 46.0);
+                final avatar = rowH >= 36;
+                return GridView.count(
+                  crossAxisCount: cols,
+                  mainAxisSpacing: gap,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: ((box.maxWidth - 8 * (cols - 1)) / cols) / rowH,
+                  children: [
+                    for (final k in entries)
+                      ZCard(
+                        radius: 12,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Row(children: [
+                          SizedBox(width: 22, child: Text('${k + 1}', style: outfit(14, w: FontWeight.w800, c: Z.muted))),
+                          if (avatar) ...[_av(k, names[k], rowH - 14), const SizedBox(width: 8)],
+                          Expanded(
+                            child: Text(names[k],
+                                maxLines: 1, overflow: TextOverflow.ellipsis, style: outfit(14, w: FontWeight.w600, c: Z.cream)),
+                          ),
+                          Text(fmtInt(pts[k]), style: outfit(13, w: FontWeight.w700, c: Z.goldHi)),
+                        ]),
+                      ),
+                  ],
+                );
+              }),
+            ),
           ),
         ),
         Container(
@@ -665,7 +692,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with _Ticker {
           child: Row(children: [
             SizedBox(width: 40, child: Text('#27', style: outfit(18, w: FontWeight.w800, c: Z.goldHi))),
             const SizedBox(width: 12),
-            const Avatar(size: 38),
+            const Avatar(size: 34),
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

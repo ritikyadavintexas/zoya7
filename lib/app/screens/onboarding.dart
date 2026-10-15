@@ -212,128 +212,124 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final password = ZField(
+      label: 'PASSWORD',
+      hint: '••••••••',
+      obscure: !showPw,
+      suffix: Semantics(
+        label: showPw ? 'Hide password' : 'Show password',
+        button: true,
+        child: IconButton(
+          onPressed: () => setState(() => showPw = !showPw),
+          icon: const RawIco(
+              '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" fill="none" stroke="#c9a35a" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="#c9a35a" stroke-width="2"/>',
+              size: 22),
+        ),
+      ),
+    );
+    const email = ZField(label: 'EMAIL', hint: 'you@example.com', keyboard: TextInputType.emailAddress);
+    const username = ZField(label: 'USERNAME', hint: 'Player name');
     return ZPage(
       gradient: Z.pageGlow(ry: .5, rx: .7),
       child: Panes(
         sideFraction: .4,
-        side: Column(children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(14, 8, 14, 0),
-            child: Align(alignment: Alignment.centerLeft, child: BackBtn()),
-          ),
-          Expanded(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 22),
-                child: Column(children: [
-                  Image.asset(A.logo, width: 200, height: 82, fit: BoxFit.contain, semanticLabel: 'Zoya7'),
-                  const SizedBox(height: 10),
+        minSide: 210,
+        // Brand, quick sign-in and help on the left; the form on the right.
+        side: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 10, 10),
+          child: Column(children: [
+            const Align(alignment: Alignment.centerLeft, child: BackBtn()),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, box) => Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Image.asset(A.logo,
+                      height: (box.maxHeight * .3).clamp(40.0, 82.0), fit: BoxFit.contain, semanticLabel: 'Zoya7'),
+                  const SizedBox(height: 6),
                   Text(
                     signup ? 'Create your account and claim your welcome bonus' : 'Welcome back — your seat is waiting',
                     textAlign: TextAlign.center,
-                    style: outfit(15, c: Z.body),
+                    style: outfit(14, c: Z.body),
                   ),
-                  const SizedBox(height: 14),
-                  Press(
-                    onTap: () => Nav.push(R.chat, 'support'),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Ico(P.chat, size: 18),
-                      const SizedBox(width: 6),
-                      Text('Need help?', style: outfit(13, w: FontWeight.w600, c: Z.gold)),
-                    ]),
-                  ),
-                ]),
-              ),
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(14, 0, 14, 12),
-            child: ResponsibleFooter(parts: ['Play Responsibly.', 'No purchase necessary.'], badge: 26),
-          ),
-        ]),
-        main: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(10, 14, 22, 18),
-              children: [
-                SegTabs(
-                  labels: const ['LOG IN', 'SIGN UP'],
-                  index: signup ? 1 : 0,
-                  height: 42,
-                  fontSize: 15,
-                  onChanged: (i) => setState(() => signup = i == 1),
-                ),
-                const SizedBox(height: 14),
-                if (signup) ...[
-                  const ZField(label: 'USERNAME', hint: 'Choose a player name'),
-                  const SizedBox(height: 12),
-                ],
-                const ZField(label: 'EMAIL', hint: 'you@example.com', keyboard: TextInputType.emailAddress),
-                const SizedBox(height: 12),
-                ZField(
-                  label: 'PASSWORD',
-                  hint: '••••••••',
-                  obscure: !showPw,
-                  suffix: Semantics(
-                    label: showPw ? 'Hide password' : 'Show password',
-                    button: true,
-                    child: IconButton(
-                      onPressed: () => setState(() => showPw = !showPw),
-                      icon: const RawIco(
-                          '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" fill="none" stroke="#c9a35a" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="#c9a35a" stroke-width="2"/>',
-                          size: 22),
-                    ),
-                  ),
-                ),
-                if (!signup)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: LinkText('Forgot password?', size: 14, onTap: () => Nav.push(R.forgot)),
-                  ),
-                if (signup) ...[
-                  const SizedBox(height: 12),
-                  Press(
-                    onTap: () => setState(() => agreed = !agreed),
-                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      _Check(on: agreed),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text('I am 18 or older and agree to the Terms & Conditions and Privacy Policy.',
-                            style: outfit(13, c: Z.body, h: 1.4)),
-                      ),
-                    ]),
-                  ),
-                ],
-                const SizedBox(height: 14),
-                CtaButton(signup ? 'CREATE ACCOUNT' : 'LOG IN', height: 56, fontSize: 20, ls: .03, onTap: _submit),
-                const SizedBox(height: 14),
-                Row(children: [
-                  const Expanded(child: Divider(color: Z.line35, height: 1)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('OR CONTINUE WITH', style: outfit(12, c: Z.muted2, ls: .08)),
-                  ),
-                  const Expanded(child: Divider(color: Z.line35, height: 1)),
-                ]),
-                const SizedBox(height: 14),
-                Row(children: [
-                  Expanded(child: _SocialBtn('Google', onTap: _socialIn)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _SocialBtn('Apple', onTap: _socialIn)),
-                ]),
-                const SizedBox(height: 8),
-                Center(
-                  child: LinkText('Continue as Guest', underline: true, onTap: () {
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    Expanded(child: _SocialBtn('Google', onTap: _socialIn)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _SocialBtn('Apple', onTap: _socialIn)),
+                  ]),
+                  LinkText('Continue as Guest', size: 14, underline: true, onTap: () {
                     AppScope.read(context).signIn(asGuest: true);
                     Nav.reset(R.home);
                   }),
-                ),
-              ],
+                ]),
+              ),
             ),
-          ),
+            const ResponsibleFooter(parts: ['Play Responsibly.', 'No purchase necessary.'], badge: 24),
+          ]),
         ),
+        main: LayoutBuilder(builder: (context, box) {
+          // Fields pair up when there's room for two side by side.
+          final pairs = box.maxWidth >= 300;
+          Widget row(Widget a, Widget b) => pairs
+              ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(child: a),
+                  const SizedBox(width: 10),
+                  Expanded(child: b),
+                ])
+              : Column(children: [a, const SizedBox(height: 10), b]);
+          return Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(6, 6, 20, 6),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+                  Row(children: [
+                    Expanded(
+                      child: SegTabs(
+                        labels: const ['LOG IN', 'SIGN UP'],
+                        index: signup ? 1 : 0,
+                        height: 36,
+                        fontSize: 14,
+                        onChanged: (i) => setState(() => signup = i == 1),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Press(
+                      label: 'Need help? Chat with support',
+                      onTap: () => Nav.push(R.chat, 'support'),
+                      child: const Padding(padding: EdgeInsets.all(6), child: Ico(P.chat, size: 22)),
+                    ),
+                  ]),
+                  const SizedBox(height: 10),
+                  if (signup) ...[
+                    row(username, email),
+                    const SizedBox(height: 10),
+                    password,
+                    const SizedBox(height: 10),
+                    Press(
+                      onTap: () => setState(() => agreed = !agreed),
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        _Check(on: agreed),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text('I am 18 or older and agree to the Terms & Conditions and Privacy Policy.',
+                              style: outfit(12, c: Z.body, h: 1.35)),
+                        ),
+                      ]),
+                    ),
+                  ] else ...[
+                    row(email, password),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: LinkText('Forgot password?', size: 13, onTap: () => Nav.push(R.forgot)),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  CtaButton(signup ? 'CREATE ACCOUNT' : 'LOG IN', height: 46, fontSize: 18, ls: .03, onTap: _submit),
+                ]),
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
@@ -374,7 +370,7 @@ class _SocialBtn extends StatelessWidget {
         onTap: onTap,
         label: 'Continue with $label',
         child: Container(
-          height: 50,
+          height: 42,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),

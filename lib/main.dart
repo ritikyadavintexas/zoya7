@@ -105,7 +105,7 @@ class Zoya7App extends StatelessWidget {
       case R.notifications:
         page = const NotificationsScreen();
       case R.settings:
-        page = const SettingsScreen();
+        page = SettingsScreen(section: arg is String ? arg : 'gameplay');
       case R.vip:
         page = const VipScreen();
       case R.checkout:

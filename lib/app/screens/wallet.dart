@@ -26,6 +26,8 @@ class WalletPageState extends State<WalletPage> {
   @override
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
+    // Small phones: shorter labels in the top strip.
+    final narrow = MediaQuery.sizeOf(context).width < 700;
     return ZPage(
       child: Column(children: [
         TopBar(
@@ -39,95 +41,134 @@ class WalletPageState extends State<WalletPage> {
           ),
         ),
         Expanded(
-          child: PaneLists(
-            sideFraction: .36,
-            side: [
-                GoldFrame(
-                  inner: ellipseGradient(
-                      cx: 0, cy: 0, rx: 1, ry: .8, colors: const [Color(0xFF3A2209), Color(0xFF0D0906)], stops: const [0, .7]),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    _Balance(
-                      coin: const Coin(size: 26, fontSize: 9),
-                      label: 'GOLD COINS',
-                      labelColor: Z.label,
-                      value: fmtInt(s.gc),
-                      note: 'For fun play',
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              // Balances and the three sections in one strip.
+              SizedBox(
+                height: 50,
+                child: Row(children: [
+                  _BalanceChip(
+                    coin: const Coin(size: 30, fontSize: 10),
+                    label: 'GOLD COINS',
+                    labelColor: Z.label,
+                    value: fmtInt(s.gc),
+                  ),
+                  const SizedBox(width: 8),
+                  _BalanceChip(
+                    coin: const Coin(label: 'SC', size: 30, fontSize: 10, teal: true),
+                    label: narrow ? 'SWEEPS COINS' : 'SWEEPS · ${fmtSc(s.redeemableSc)} REDEEMABLE',
+                    labelColor: Z.teal,
+                    value: fmtSc(s.sc),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 380),
+                        child: SegTabs(
+                          labels: narrow ? const ['BUY', 'REDEEM', 'HISTORY'] : const ['BUY COINS', 'REDEEM', 'HISTORY'],
+                          index: tab,
+                          height: 36,
+                          fontSize: 12,
+                          ls: .04,
+                          onChanged: (i) => setState(() => tab = i),
+                        ),
+                      ),
                     ),
-                    Container(height: 1, color: Z.line35),
-                    _Balance(
-                      coin: const Coin(label: 'SC', size: 26, fontSize: 9, teal: true),
-                      label: 'SWEEPS COINS',
-                      labelColor: Z.teal,
-                      value: fmtSc(s.sc),
-                      note: '${fmtSc(s.redeemableSc)} redeemable',
-                    ),
-                  ]),
-                ),
-                const SizedBox(height: 12),
-                for (final (i, label) in const ['BUY COINS', 'REDEEM', 'HISTORY'].indexed) ...[
-                  _SideTab(label, selected: tab == i, onTap: () => setState(() => tab = i)),
-                  const SizedBox(height: 8),
-                ],
-              ],
-            main: [
-                if (tab == 0) _buy(s),
-                if (tab == 1) _redeem(s),
-                if (tab == 2) _history(),
-              ],
+                  ),
+                ]),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: switch (tab) {
+                  0 => _buy(s),
+                  1 => _redeem(s),
+                  _ => _history(),
+                },
+              ),
+            ]),
           ),
         ),
       ]),
     );
   }
 
+  // Packs in one row (sideways scroll when they don't fit), buy button below.
   Widget _buy(AppState s) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const SizedBox(height: 6),
-        // As many columns as fit packs up to 190 wide.
-        GridView.builder(
-          clipBehavior: Clip.none,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: coinPacks.length,
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 190, mainAxisSpacing: 14, crossAxisSpacing: 10, mainAxisExtent: 172),
-          itemBuilder: (_, i) => _PackTile(coinPacks[i], selected: i == s.selectedPack, onTap: () => s.selectPack(i)),
+        Expanded(
+          child: LayoutBuilder(builder: (context, box) {
+            const gap = 10.0;
+            final w = ((box.maxWidth - gap * (coinPacks.length - 1)) / coinPacks.length).clamp(118.0, 180.0);
+            return ListView.separated(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              padding: const EdgeInsets.only(top: 8),
+              itemCount: coinPacks.length,
+              separatorBuilder: (_, __) => const SizedBox(width: gap),
+              itemBuilder: (_, i) => SizedBox(
+                width: w,
+                child: _PackTile(coinPacks[i], selected: i == s.selectedPack, onTap: () => s.selectPack(i)),
+              ),
+            );
+          }),
         ),
-        const SizedBox(height: 12),
-        CtaButton('BUY ${s.pack.gcLabel} GC · ${s.pack.priceLabel}', ls: .03, onTap: () => Nav.push(R.checkout)),
-        const SizedBox(height: 12),
-        Text('Sweeps Coins are a free bonus with Gold Coin packages. No purchase necessary.',
-            textAlign: TextAlign.center, style: outfit(12, c: Z.muted2, h: 1.45)),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(
+            child: Text('Sweeps Coins are a free bonus with Gold Coin packages. No purchase necessary.',
+                style: outfit(12, c: Z.muted2, h: 1.35)),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 290,
+            child: CtaButton('BUY ${s.pack.gcLabel} GC · ${s.pack.priceLabel}',
+                height: 46, fontSize: 16, ls: .03, onTap: () => Nav.push(R.checkout)),
+          ),
+        ]),
       ]);
 
-  Widget _redeem(AppState s) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF2F6E5A), width: 1.5),
-            color: const Color(0x1414B38A),
-          ),
-          child: Row(children: [
-            Expanded(child: Text('Redeemable SC', style: outfit(14, c: Z.body))),
-            Text(fmtSc(s.redeemableSc), style: outfit(22, w: FontWeight.w800, c: Z.teal)),
+  // Amount on the left, how to be paid on the right.
+  Widget _redeem(AppState s) => Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF2F6E5A), width: 1.5),
+                color: const Color(0x1414B38A),
+              ),
+              child: Row(children: [
+                Expanded(child: Text('Redeemable SC', style: outfit(14, c: Z.body))),
+                Text(fmtSc(s.redeemableSc), style: outfit(20, w: FontWeight.w800, c: Z.teal)),
+              ]),
+            ),
+            const SizedBox(height: 10),
+            const ZField(label: 'AMOUNT TO REDEEM', hint: 'Minimum [MIN] SC', keyboard: TextInputType.number),
+            const SizedBox(height: 8),
+            Text('Identity verification is required before your first redemption.',
+                style: outfit(12, c: Z.muted2, h: 1.35)),
           ]),
         ),
-        const SizedBox(height: 14),
-        const ZField(label: 'AMOUNT TO REDEEM', hint: 'Minimum [MIN] SC', keyboard: TextInputType.number),
-        const SizedBox(height: 14),
-        Text('PAYOUT METHOD', style: outfit(13, w: FontWeight.w600, c: Z.label)),
-        const SizedBox(height: 8),
-        for (final (i, m) in const ['Bank transfer', 'Gift card'].indexed) ...[
-          RadioRow(label: m, selected: payout == i, onTap: () => setState(() => payout = i)),
-          const SizedBox(height: 8),
-        ],
-        const SizedBox(height: 6),
-        CtaButton('REQUEST REDEMPTION', onTap: () => showToast(context, 'Redemption request submitted')),
-        const SizedBox(height: 14),
-        Text('Identity verification is required before your first redemption.',
-            textAlign: TextAlign.center, style: outfit(12, c: Z.muted2, h: 1.45)),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text('PAYOUT METHOD', style: outfit(13, w: FontWeight.w600, c: Z.label)),
+            const SizedBox(height: 6),
+            for (final (i, m) in const ['Bank transfer', 'Gift card'].indexed) ...[
+              RadioRow(label: m, selected: payout == i, onTap: () => setState(() => payout = i)),
+              const SizedBox(height: 6),
+            ],
+            const SizedBox(height: 4),
+            CtaButton('REQUEST REDEMPTION',
+                height: 46, fontSize: 16, onTap: () => showToast(context, 'Redemption request submitted')),
+          ]),
+        ),
       ]);
 
+  // Two columns of compact entries.
   Widget _history() {
     const hist = [
       ('GC', 'Daily bonus', 'Today · 9:41 AM', '+5,000 GC', true),
@@ -137,96 +178,65 @@ class WalletPageState extends State<WalletPage> {
       ('SC', 'Redemption — bank', 'Oct 12 · Pending', '−50.00 SC', false),
       ('GC', 'Referral bonus', 'Oct 10', '+10,000 GC', true),
     ];
-    return Column(children: [
-      for (final (icon, title, at, amount, plus) in hist)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: ZCard(
+    return GridView(
+      padding: EdgeInsets.zero,
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 420, mainAxisExtent: 58, mainAxisSpacing: 8, crossAxisSpacing: 10),
+      children: [
+        for (final (icon, title, at, amount, plus) in hist)
+          ZCard(
             radius: 14,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Row(children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 36,
+                height: 36,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   gradient: icon == 'SC' ? Z.coinTeal() : Z.coinGold(),
                 ),
-                child: Text(icon, style: outfit(12, w: FontWeight.w800, c: icon == 'SC' ? Z.tealInk : Z.coinInk)),
+                child: Text(icon, style: outfit(11, w: FontWeight.w800, c: icon == 'SC' ? Z.tealInk : Z.coinInk)),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(title, style: outfit(15, w: FontWeight.w700, c: Z.cream)),
-                  const SizedBox(height: 2),
-                  Text(at, style: outfit(12, c: Z.muted2)),
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: outfit(14, w: FontWeight.w700, c: Z.cream)),
+                  Text(at, style: outfit(11, c: Z.muted2)),
                 ]),
               ),
-              Text(amount, style: outfit(15, w: FontWeight.w800, c: plus ? Z.green : Z.coral)),
+              Text(amount, style: outfit(14, w: FontWeight.w800, c: plus ? Z.green : Z.coral)),
             ]),
           ),
-        ),
-    ]);
+      ],
+    );
   }
 }
 
-class _Balance extends StatelessWidget {
-  const _Balance({required this.coin, required this.label, required this.labelColor, required this.value, required this.note});
+class _BalanceChip extends StatelessWidget {
+  const _BalanceChip({required this.coin, required this.label, required this.labelColor, required this.value});
   final Widget coin;
   final String label;
   final Color labelColor;
   final String value;
-  final String note;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            coin,
-            const SizedBox(width: 8),
-            Flexible(
-              child: FittedBox(
-                  child: Text(label, style: outfit(12, w: FontWeight.w700, ls: .1, c: labelColor))),
-            ),
-          ]),
-          const SizedBox(height: 4),
-          FittedBox(child: Text(value, style: outfit(24, w: FontWeight.w800, c: Z.cream))),
-          const SizedBox(height: 2),
-          Text(note, style: outfit(12, c: Z.muted)),
-        ]),
-      );
-}
-
-/// One of the wallet's BUY COINS / REDEEM / HISTORY choices in the side pane.
-class _SideTab extends StatelessWidget {
-  const _SideTab(this.label, {required this.selected, required this.onTap});
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Press(
-        onTap: onTap,
-        selected: selected,
-        label: label,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          alignment: Alignment.centerLeft,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            gradient: selected ? Z.goldTab : null,
-            color: selected ? null : const Color(0xFF0D0906),
-            border: selected ? null : Border.all(color: Z.border, width: 1.5),
-          ),
-          child: Row(children: [
-            Expanded(child: Text(label, style: outfit(14, w: FontWeight.w800, ls: .06, c: selected ? Z.brown : Z.tabOff))),
-            StrokeIco(P.forward, size: 14, color: selected ? Z.brown : Z.faint, width: 2.6),
-          ]),
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.fromLTRB(8, 0, 14, 0),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Z.border, width: 1.5),
+          gradient: ellipseGradient(
+              cx: 0, cy: 0, rx: 1, ry: 1, colors: const [Color(0xFF3A2209), Color(0xFF0D0906)], stops: const [0, .8]),
         ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          coin,
+          const SizedBox(width: 8),
+          Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: outfit(9, w: FontWeight.w700, ls: .08, c: labelColor)),
+            Text(value, style: outfit(18, w: FontWeight.w800, c: Z.cream, h: 1.1)),
+          ]),
+        ]),
       );
 }
 
@@ -243,7 +253,7 @@ class _PackTile extends StatelessWidget {
         label: '${p.gcLabel} Gold Coins plus ${p.sc} Sweeps Coins, ${p.priceLabel}',
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             gradient: ellipseGradient(
@@ -251,36 +261,43 @@ class _PackTile extends StatelessWidget {
             border: Border.all(color: selected ? Z.goldBright : Z.chip, width: selected ? 2 : 1.5),
             boxShadow: selected ? [bs(0, 0, 16, const Color(0x73FFC846))] : null,
           ),
-          child: Stack(clipBehavior: Clip.none, alignment: Alignment.topCenter, children: [
-            Column(children: [
-              const SizedBox(height: 8),
-              Coin(size: 44, fontSize: 13, glow: [bs(0, 0, 14, const Color(0x73FFC850))]),
-              const SizedBox(height: 4),
-              Text(p.gcLabel, style: outfit(20, w: FontWeight.w800, c: Z.cream)),
-              const SizedBox(height: 4),
-              Text('+ ${p.sc} SC FREE', style: outfit(12, w: FontWeight.w700, c: Z.teal)),
-              const Spacer(),
-              Container(
-                height: 34,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), gradient: Z.green3),
-                child: Text(p.priceLabel, style: outfit(15, w: FontWeight.w800, c: Z.cream)),
-              ),
-            ]),
-            if (p.tag != null)
-              Positioned(
-                top: -13,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  decoration: const BoxDecoration(
-                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(10)),
-                    gradient: LinearGradient(
-                        begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFE0303B), Color(0xFF9A0A14)]),
+          child: LayoutBuilder(
+            builder: (context, box) {
+              // The coin grows with the tile; the price button stays put.
+              final coin = (box.maxHeight * .3).clamp(26.0, 50.0);
+              return Stack(clipBehavior: Clip.none, alignment: Alignment.topCenter, children: [
+                Column(children: [
+                  const Spacer(),
+                  Coin(size: coin, fontSize: coin * .3, glow: [bs(0, 0, 14, const Color(0x73FFC850))]),
+                  const SizedBox(height: 4),
+                  Text(p.gcLabel, style: outfit(19, w: FontWeight.w800, c: Z.cream, h: 1.1)),
+                  Text('+ ${p.sc} SC FREE', style: outfit(11, w: FontWeight.w700, c: Z.teal)),
+                  const Spacer(),
+                  Container(
+                    height: 32,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), gradient: Z.green3),
+                    child: Text(p.priceLabel, style: outfit(15, w: FontWeight.w800, c: Z.cream)),
                   ),
-                  child: Text(p.tag!, style: outfit(10, w: FontWeight.w800, ls: .08, c: Z.cream)),
-                ),
-              ),
-          ]),
+                ]),
+                if (p.tag != null)
+                  Positioned(
+                    top: -19,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                      decoration: const BoxDecoration(
+                        borderRadius: BorderRadius.vertical(bottom: Radius.circular(10)),
+                        gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Color(0xFFE0303B), Color(0xFF9A0A14)]),
+                      ),
+                      child: Text(p.tag!, style: outfit(10, w: FontWeight.w800, ls: .08, c: Z.cream)),
+                    ),
+                  ),
+              ]);
+            },
+          ),
         ),
       );
 }
@@ -302,7 +319,7 @@ class RadioRow extends StatelessWidget {
         label: label,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          constraints: BoxConstraints(minHeight: sub == null ? 54 : 62),
+          constraints: BoxConstraints(minHeight: sub == null ? 46 : 56),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
@@ -386,14 +403,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             side: Column(children: [
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 6, 8),
+                  padding: const EdgeInsets.fromLTRB(14, 8, 6, 4),
                   children: [
                     GoldFrame(
                       inner: ellipseGradient(
                           cx: 0, cy: 0, rx: 1, ry: .8, colors: const [Color(0xFF3A2209), Color(0xFF0D0906)], stops: const [0, .7]),
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.all(12),
                       child: Row(children: [
-                        Coin(size: 54, fontSize: 16, glow: [bs(0, 0, 18, const Color(0x80FFC850))]),
+                        Coin(size: 46, fontSize: 14, glow: [bs(0, 0, 18, const Color(0x80FFC850))]),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -409,22 +426,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ]),
                     ),
                     const SizedBox(height: 10),
-                    ZCard(
-                      padding: const EdgeInsets.all(14),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Column(children: [
-                        _line('${fmtInt(p.gc)} Gold Coins', Text(p.priceLabel, style: outfit(15))),
-                        const SizedBox(height: 8),
-                        _line('${p.sc} Sweeps Coins', Text('FREE', style: outfit(15, w: FontWeight.w700, c: Z.teal))),
                         if (bonus > 0) ...[
-                          const SizedBox(height: 8),
-                          _line('Promo bonus', Text('+${fmtInt(bonus)} GC', style: outfit(15, w: FontWeight.w700, c: Z.goldHi))),
+                          _line('Promo bonus', Text('+${fmtInt(bonus)} GC', style: outfit(14, w: FontWeight.w700, c: Z.goldHi))),
+                          const SizedBox(height: 6),
                         ],
-                        const SizedBox(height: 8),
-                        Container(height: 1, color: Z.divider),
-                        const SizedBox(height: 8),
                         Row(children: [
-                          Expanded(child: Text('Total', style: outfit(18, w: FontWeight.w800))),
-                          Text(p.priceLabel, style: outfit(18, w: FontWeight.w800, c: Z.goldHi)),
+                          Expanded(child: Text('Total', style: outfit(17, w: FontWeight.w800))),
+                          Text(p.priceLabel, style: outfit(17, w: FontWeight.w800, c: Z.goldHi)),
                         ]),
                       ]),
                     ),
@@ -434,15 +445,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 4, 6, 10),
                 child: Column(children: [
-                  CtaButton('PAY ${p.priceLabel}', height: 52, fontSize: 19, onTap: () {
+                  CtaButton('PAY ${p.priceLabel}', height: 48, fontSize: 18, onTap: () {
                     s.completePurchase(p, bonusGc: bonus);
                     Nav.replace(R.purchaseSuccess, (p, bonus));
                   }),
                   const SizedBox(height: 6),
                   Text.rich(
                     TextSpan(children: [
-                      const TextSpan(
-                          text: 'Gold Coins have no cash value. Sweeps Coins are a free promotional bonus. By paying you agree to the '),
+                      const TextSpan(text: 'GC have no cash value; SC are a free bonus. By paying you agree to the '),
                       WidgetSpan(
                         alignment: PlaceholderAlignment.baseline,
                         baseline: TextBaseline.alphabetic,
@@ -464,39 +474,49 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               children: [
                 Text('PAYMENT METHOD', style: outfit(13, w: FontWeight.w800, ls: .12, c: Z.label)),
                 const SizedBox(height: 8),
-                for (final (i, (label, sub, path)) in methods.indexed) ...[
-                  RadioRow(
-                    label: label,
-                    sub: sub,
-                    glow: true,
-                    selected: method == i,
-                    onTap: () => setState(() => method = i),
-                    icon: Container(
-                      width: 44,
-                      height: 30,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: Z.iconTile,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Z.chipDark),
+                // Methods side by side (stacked when the pane is narrow).
+                LayoutBuilder(builder: (context, box) {
+                  final across = box.maxWidth >= 420;
+                  final cards = [
+                    for (final (i, (label, sub, path)) in methods.indexed)
+                      _MethodCard(
+                        label: label,
+                        sub: sub,
+                        icon: path,
+                        selected: method == i,
+                        compact: !across,
+                        onTap: () => setState(() => method = i),
                       ),
-                      child: Ico(path, size: 22),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                Press(
-                  onTap: () => showToast(context, 'Card form opens here in the real app'),
-                  child: CustomPaint(
-                    painter: _DashedRRect(),
-                    child: SizedBox(
-                      height: 48,
-                      child: Center(child: Text('+ Add new card', style: outfit(15, w: FontWeight.w600, c: Z.gold))),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
+                  ];
+                  return across
+                      ? IntrinsicHeight(
+                          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                            for (final (i, c) in cards.indexed) ...[if (i > 0) const SizedBox(width: 8), Expanded(child: c)],
+                          ]),
+                        )
+                      : Column(children: [
+                          for (final (i, c) in cards.indexed) ...[if (i > 0) const SizedBox(height: 6), c],
+                        ]);
+                }),
+                const SizedBox(height: 10),
                 Row(children: [
+                  Press(
+                    onTap: () => showToast(context, 'Card form opens here in the real app'),
+                    child: CustomPaint(
+                      painter: _DashedRRect(),
+                      child: SizedBox(
+                        height: 44,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: Center(
+                            widthFactor: 1,
+                            child: Text('+ Add card', style: outfit(14, w: FontWeight.w600, c: Z.gold)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
                       controller: _promo,
@@ -511,8 +531,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   Press(
                     onTap: () => setState(() => applied = true),
                     child: Container(
-                      width: 96,
-                      height: 50,
+                      width: 80,
+                      height: 44,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: Z.field,
@@ -541,6 +561,60 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         Expanded(child: Text(label, style: outfit(15, c: Z.tabOff))),
         value,
       ]);
+}
+
+class _MethodCard extends StatelessWidget {
+  const _MethodCard({
+    required this.label,
+    required this.sub,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    this.compact = false,
+  });
+  final String label;
+  final String sub;
+  final String icon;
+  final bool selected;
+  final bool compact;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tile = Container(
+      width: 40,
+      height: 28,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Z.iconTile,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Z.chipDark),
+      ),
+      child: Ico(icon, size: 20),
+    );
+    final text = Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+      Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: outfit(14, w: FontWeight.w700, c: Z.cream)),
+      Text(sub, maxLines: 2, overflow: TextOverflow.ellipsis, style: outfit(11, c: Z.muted2, h: 1.25)),
+    ]);
+    return Press(
+      onTap: onTap,
+      selected: selected,
+      label: label,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: EdgeInsets.all(compact ? 7 : 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: Z.field,
+          border: Border.all(color: selected ? Z.goldBright : Z.chipDark, width: selected ? 2 : 1.5),
+          boxShadow: selected ? [bs(0, 0, 12, const Color(0x4DFFC846))] : null,
+        ),
+        child: compact
+            ? Row(children: [tile, const SizedBox(width: 10), Expanded(child: text)])
+            : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [tile, const SizedBox(height: 6), text]),
+      ),
+    );
+  }
 }
 
 class _DashedRRect extends CustomPainter {

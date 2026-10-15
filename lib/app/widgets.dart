@@ -236,8 +236,9 @@ class TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 44–54 tall: shorter on short phones so the page below gets the room.
     return Container(
-        height: 54,
+        height: (MediaQuery.sizeOf(context).height * .14).clamp(44.0, 54.0),
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(border: border ? const Border(bottom: BorderSide(color: Z.line)) : null),
         // Keeps the title centred on the bar while it fits between the ends,
@@ -422,7 +423,7 @@ InputDecoration fieldDeco({String? hint, Widget? suffix, double radius = 14, dou
       isDense: true,
       filled: true,
       fillColor: Z.field,
-      contentPadding: EdgeInsets.fromLTRB(left, 15, right ?? 16, 15),
+      contentPadding: EdgeInsets.fromLTRB(left, 12, right ?? 16, 12),
       suffixIcon: suffix,
       enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radius), borderSide: const BorderSide(color: Z.chip, width: 1.5)),

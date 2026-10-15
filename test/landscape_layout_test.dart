@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:zoya7_gold/app/assets.dart';
 import 'package:zoya7_gold/app/landscape.dart';
 import 'package:zoya7_gold/app/nav.dart';
 import 'package:zoya7_gold/app/screens/chat.dart';
@@ -106,12 +107,27 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
   }
 
+  // Only these may scroll vertically: a conversation and long documents.
+  const mayScroll = {'chat', 'support chat', 'legal'};
+
+  /// Vertical scrollables on screen that actually have something to scroll.
+  List<double> verticalOverflow(WidgetTester tester) => [
+        for (final e in find.byType(Scrollable).hitTestable().evaluate())
+          if (((e as StatefulElement).state as ScrollableState).position case final p
+              when p.axis == Axis.vertical && p.maxScrollExtent > .5)
+            p.maxScrollExtent,
+      ];
+
   for (final MapEntry(key: sizeName, value: size) in sizes.entries) {
     group(sizeName, () {
       for (final MapEntry(key: name, value: page) in pages.entries) {
         testWidgets('$name fits', (tester) async {
           await show(tester, size, page());
           expectFits(tester);
+          // Phones (and up) show the whole page without vertical scrolling.
+          if (!mayScroll.contains(name) && size.width >= 568 && size.width > size.height) {
+            expect(verticalOverflow(tester), isEmpty, reason: '$name scrolls vertically at $size');
+          }
           // Leave the page so its timers stop before the test ends.
           await tester.pumpWidget(const SizedBox());
         });
@@ -136,29 +152,39 @@ void main() {
     });
   }
 
+  int verticalLists(WidgetTester tester) => find
+      .byType(Scrollable)
+      .hitTestable()
+      .evaluate()
+      .where((e) => ((e as StatefulElement).state as ScrollableState).position.axis == Axis.vertical)
+      .length;
+
   /// Number of distinct x positions among the widgets [finder] finds.
   int columns(WidgetTester tester, Finder finder) =>
       finder.evaluate().map((e) => tester.getTopLeft(find.byWidget(e.widget)).dx.round()).toSet().length;
 
-  testWidgets('game grids get more columns as the screen gets wider', (tester) async {
-    final counts = <int>[];
+  testWidgets('the games grid shows every game without scrolling, using the columns the space needs', (tester) async {
+    final cols = <int>[];
     for (final size in const [Size(568, 320), Size(844, 390), Size(1366, 1024)]) {
       await show(tester, size, const GamesPage());
-      counts.add(columns(tester, find.byType(RoundImage)));
+      final screen = Offset.zero & size;
+      final tiles = find.byType(RoundImage).evaluate().map((e) => tester.getRect(find.byWidget(e.widget)));
+      expect(tiles.where((r) => screen.intersect(r) == r), hasLength(games.length), reason: 'all games on screen at $size');
+      cols.add(columns(tester, find.byType(RoundImage)));
       await tester.pumpWidget(const SizedBox());
     }
-    expect(counts[0], lessThan(counts[1]));
-    expect(counts[1], lessThanOrEqualTo(counts[2]));
+    // Short phone: more, smaller columns; tall tablet: fewer, bigger tiles.
+    expect(cols.first, greaterThan(cols.last));
   });
 
   testWidgets('two-pane pages fall back to one column when the main pane would be too narrow', (tester) async {
     // A 500px-wide window: the side pane would leave the main pane < 300px → one list.
-    await show(tester, const Size(500, 320), const ProfilePage());
-    expect(find.byType(ListView).hitTestable(), findsOneWidget);
+    await show(tester, const Size(500, 320), const EditProfileScreen());
+    expect(verticalLists(tester), 1);
     await tester.pumpWidget(const SizedBox());
     // 844 wide: both panes fit → two lists side by side.
-    await show(tester, const Size(844, 390), const ProfilePage());
-    expect(find.byType(ListView).hitTestable(), findsNWidgets(2));
+    await show(tester, const Size(844, 390), const EditProfileScreen());
+    expect(verticalLists(tester), 2);
     await tester.pumpWidget(const SizedBox());
   });
 
