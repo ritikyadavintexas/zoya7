@@ -12,7 +12,15 @@ class A {
   static const roulette = '$_d/game_roulette.webp';
   static const plinko = '$_d/game_plinko.webp';
 
-  static const all = [logo, welcomeHero, avatar, vipBanner, classic777, fruitSpin, megaReels, blackjack, roulette, plinko];
+  /// Lobby: tall game-card art (no text) and the daily-bonus banner.
+  static String card(String gameId) => '$_d/card_$gameId.webp';
+  static const dailyBonus = '$_d/daily_bonus_banner.webp';
+
+  static const all = [
+    logo, welcomeHero, avatar, vipBanner, classic777, fruitSpin, megaReels, blackjack, roulette, plinko, dailyBonus, //
+    '$_d/card_classic777.webp', '$_d/card_fruitspin.webp', '$_d/card_megareels.webp',
+    '$_d/card_blackjack.webp', '$_d/card_roulette.webp', '$_d/card_plinko.webp',
+  ];
 }
 
 /// A game tile in the lobby and on the Games page.
@@ -45,16 +53,6 @@ class GameInfo {
 
 const games = [
   GameInfo(id: 'classic777', name: 'Classic 777', cat: 'SLOTS', image: A.classic777, playable: true, players: '1.2k'),
-  GameInfo(id: 'fruitspin', name: 'Fruit Spin', cat: 'SLOTS', image: A.fruitSpin, playable: true, players: '864'),
-  GameInfo(
-    id: 'megareels',
-    name: 'Mega Reels',
-    cat: 'SLOTS',
-    image: A.megaReels,
-    category: 'SLOTS · 5 REELS',
-    blurb: 'Gem-packed 5-reel slots with expanding wilds and a free-spins bonus round.',
-    tags: ['Free spins', 'Wilds', 'Jackpot eligible'],
-  ),
   GameInfo(
     id: 'blackjack',
     name: 'Blackjack',
@@ -73,6 +71,7 @@ const games = [
     blurb: 'Spin the golden wheel — bet on numbers, colors and columns.',
     tags: ['Inside & outside bets', 'Hot numbers', 'Racetrack'],
   ),
+  GameInfo(id: 'fruitspin', name: 'Fruit Spin', cat: 'SLOTS', image: A.fruitSpin, playable: true, players: '864'),
   GameInfo(
     id: 'plinko',
     name: 'Plinko',
@@ -81,6 +80,15 @@ const games = [
     category: 'INSTANT WIN',
     blurb: 'Drop the ruby ball and watch it bounce to a multiplier.',
     tags: ['Instant results', 'Risk levels', 'Auto drop'],
+  ),
+  GameInfo(
+    id: 'megareels',
+    name: 'Mega Reels',
+    cat: 'SLOTS',
+    image: A.megaReels,
+    category: 'SLOTS · 5 REELS',
+    blurb: 'Gem-packed 5-reel slots with expanding wilds and a free-spins bonus round.',
+    tags: ['Free spins', 'Wilds', 'Jackpot eligible'],
   ),
 ];
 

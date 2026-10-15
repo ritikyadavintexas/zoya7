@@ -69,25 +69,39 @@ class ZPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: color,
-      child: DecoratedBox(
-        decoration: BoxDecoration(gradient: gradient ?? Z.pageGlow()),
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1180),
-              // Text fields need a Material ancestor.
-              child: Material(
-                type: MaterialType.transparency,
-                child: DefaultTextStyle(style: outfit(15), child: child),
-              ),
-            ),
+    final inShell = InShell.of(context);
+    final body = SafeArea(
+      top: !inShell,
+      left: !inShell,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1180),
+          // Text fields need a Material ancestor.
+          child: Material(
+            type: MaterialType.transparency,
+            child: DefaultTextStyle(style: outfit(15), child: child),
           ),
         ),
       ),
     );
+    // Shell tabs sit on the shell's backdrop, under its HUD.
+    if (inShell) return body;
+    return ColoredBox(
+      color: color,
+      child: DecoratedBox(decoration: BoxDecoration(gradient: gradient ?? Z.pageGlow()), child: body),
+    );
   }
+}
+
+/// Marks the main shell's tabs, which share the shell's HUD (balances,
+/// actions) and backdrop instead of drawing their own page header.
+class InShell extends InheritedWidget {
+  const InShell({super.key, required super.child});
+
+  static bool of(BuildContext context) => context.getInheritedWidgetOfExactType<InShell>() != null;
+
+  @override
+  bool updateShouldNotify(InShell oldWidget) => false;
 }
 
 /// Landscape page body: a side pane (summary, filters, controls) next to the
@@ -235,7 +249,10 @@ class TopBar extends StatelessWidget {
   final double titleSize;
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) {
+    // Inside the shell the rail shows where you are and the HUD has the actions.
+    if (InShell.of(context)) return const SizedBox(height: 4);
+    return Container(
         height: 54,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(border: border ? const Border(bottom: BorderSide(color: Z.line)) : null),
@@ -254,6 +271,7 @@ class TopBar extends StatelessWidget {
           trailing: right,
         ),
       );
+  }
 }
 
 /// The red, gold-rimmed primary button.
@@ -659,66 +677,7 @@ void showToast(BuildContext context, String text,
 OverlayEntry? _toast;
 Timer? _toastTimer;
 
-/// Red chat button with unread count (at the foot of the side rail).
-class ChatFab extends StatelessWidget {
-  const ChatFab({super.key, this.unread = 3, this.size = 58});
-  final int unread;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) => Press(
-        label: 'Open chat, $unread unread',
-        onTap: () => Nav.push(R.chat),
-        child: SizedBox(
-          width: size + 2,
-          height: size + 2,
-          child: Stack(clipBehavior: Clip.none, children: [
-            Container(
-              width: size,
-              height: size,
-              padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFFFFF0B3), Color(0xFFE0A52E), Color(0xFF9A6512)],
-                ),
-                boxShadow: [bs(0, 8, 20, const Color(0x99000000)), bs(0, 0, 16, const Color(0x66FFAA3C))],
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: circleGradient(cx: .5, cy: .3, colors: const [Color(0xFFE0303B), Color(0xFF9A0A14)]),
-                ),
-                alignment: Alignment.center,
-                child: Ico(P.chat, size: size * .45, color: Z.goldHi),
-              ),
-            ),
-            if (unread > 0)
-              Positioned(
-                top: -2,
-                right: -2,
-                child: Container(
-                  constraints: const BoxConstraints(minWidth: 20),
-                  height: 20,
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: Z.green,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Z.ink, width: 2),
-                  ),
-                  child: Text('$unread', style: outfit(11, w: FontWeight.w800, c: const Color(0xFF062E14))),
-                ),
-              ),
-          ]),
-        ),
-      );
-}
-
-/// Side navigation rail (HOME · GAMES · PROMOTIONS · WALLET · PROFILE) on
-/// the left of the landscape app.
+/// The floating side menu (HOME · GAMES · PROMOS · WALLET · PROFILE).
 class SideNav extends StatelessWidget {
   const SideNav({super.key, required this.active, required this.onTap});
   final AppTab active;
@@ -727,7 +686,7 @@ class SideNav extends StatelessWidget {
   static const _items = [
     (AppTab.home, 'HOME', P.home),
     (AppTab.games, 'GAMES', P.games),
-    (AppTab.promotions, 'PROMOS', P.gift),
+    (AppTab.promotions, 'PROMOS', P.trophyFull),
     (AppTab.wallet, 'WALLET', P.wallet),
     (AppTab.profile, 'PROFILE', P.profile),
   ];
@@ -735,57 +694,60 @@ class SideNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pad = MediaQuery.of(context).padding;
-    return Container(
-      width: 84 + pad.left,
-      padding: EdgeInsets.fromLTRB(pad.left, 6 + pad.top, 0, 6 + pad.bottom),
-      decoration: const BoxDecoration(
-        border: Border(right: BorderSide(color: Z.border, width: 1.5)),
-        gradient: LinearGradient(colors: [Color(0xFF0A0704), Color(0xFF1A120A)]),
-      ),
-      child: LayoutBuilder(builder: (context, box) {
-        // Items are 72 tall when there's room (tablets), sharing the height
-        // equally on short phones; the chat button sits under them.
-        const chat = 4 + 48.0 + 4; // ChatFab(size: 46) plus its padding
-        final itemH = ((box.maxHeight - chat) / _items.length).clamp(0.0, 72.0);
-        return Column(children: [
-          for (final (tab, label, path) in _items)
-            SizedBox(
-              height: itemH,
-              child: Press(
-                label: label,
-                selected: tab == active,
-                onTap: () => onTap(tab),
-                child: Stack(alignment: Alignment.center, children: [
-                  Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Ico(path, size: 24, color: tab == active ? Z.gold : Z.tabOff),
-                    const SizedBox(height: 3),
-                    FittedBox(
-                      child: Text(label,
-                          style: outfit(10,
-                              w: tab == active ? FontWeight.w700 : FontWeight.w600,
-                              ls: .04,
-                              c: tab == active ? Z.gold : Z.tabOff)),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(pad.left + 8, 8, 0, pad.bottom + 8),
+      child: Container(
+        width: 84,
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xF0161009), Color(0xF00A0704)],
+          ),
+          border: Border.all(color: const Color(0x66C99A3E)),
+          boxShadow: [bs(0, 8, 20, const Color(0x99000000))],
+        ),
+        child: LayoutBuilder(builder: (context, box) {
+          // Up to 76 tall per item; on short phones they share the height.
+          final itemH = (box.maxHeight / _items.length).clamp(0.0, 76.0);
+          return Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            for (final (tab, label, path) in _items)
+              SizedBox(
+                height: itemH,
+                child: Press(
+                  label: label,
+                  selected: tab == active,
+                  onTap: () => onTap(tab),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: double.infinity,
+                    margin: const EdgeInsets.symmetric(vertical: 2),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: tab == active ? Z.goldBright : const Color(0x00000000), width: 1.5),
+                      gradient: tab == active
+                          ? const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Color(0xFF3A2610), Color(0xFF150D06)],
+                            )
+                          : null,
+                      boxShadow: tab == active ? [bs(0, 0, 14, const Color(0x66FFC846))] : null,
                     ),
-                  ]),
-                  if (tab == active)
-                    Positioned(
-                      left: 0,
-                      child: Container(
-                        width: 3,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Z.gold,
-                          borderRadius: BorderRadius.circular(2),
-                          boxShadow: [bs(0, 0, 8, Z.gold)],
-                        ),
-                      ),
-                    ),
-                ]),
+                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Ico(path, size: (itemH * .36).clamp(16.0, 28.0), color: tab == active ? Z.goldHi : Z.tabOff),
+                      const SizedBox(height: 3),
+                      Text(label,
+                          style: outfit(10, w: FontWeight.w700, ls: .04, c: tab == active ? Z.goldHi : Z.tabOff)),
+                    ]),
+                  ),
+                ),
               ),
-            ),
-          const Padding(padding: EdgeInsets.only(top: 4, bottom: 4), child: ChatFab(size: 46)),
-        ]);
-      }),
+          ]);
+        }),
+      ),
     );
   }
 }

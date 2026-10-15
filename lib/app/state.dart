@@ -35,6 +35,10 @@ class AppState extends ChangeNotifier {
   bool bonusClaimed = false;
 
   int avatarFrame = 0;
+
+  /// Player level and progress to the next one (0–1).
+  int level = 12;
+  double levelProgress = .62;
   bool notificationsRead = false;
   final Set<String> notifyAtLaunch = {};
   final Map<String, bool> settings = {

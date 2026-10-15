@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../games/gold/src/assets.dart' show GoldAssets;
+import '../../games/gold/src/math.dart' show JackpotTier;
 import '../assets.dart';
 import '../icons.dart';
 import '../nav.dart';
@@ -37,162 +40,269 @@ class _LobbyPageState extends State<LobbyPage> {
 
   @override
   Widget build(BuildContext context) {
-    final s = AppScope.of(context);
-    return ZPage(
-      child: Column(children: [
-        // Header: player · logo · notifications
-        SizedBox(
-          height: 58,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Stack(alignment: Alignment.center, children: [
-              Image.asset(A.logo, width: 108, height: 44, fit: BoxFit.contain, semanticLabel: 'Zoya7'),
-              Row(children: [
-                Press(
-                  label: 'Your profile',
-                  onTap: () => Nav.tab(AppTab.profile),
-                  child: const Avatar(size: 42),
+    final pad = MediaQuery.paddingOf(context);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(10, 8, pad.right + 10, pad.bottom + 8),
+      child: LayoutBuilder(builder: (context, box) {
+        // Three bands sized from the height the lobby gets: jackpots, the
+        // game cards (scrolling sideways), then the promo banners. On a phone
+        // they fill the screen with no page scrolling; on a tablet they stop
+        // growing and sit centred.
+        const gap = 10.0;
+        final h = box.maxHeight;
+        final jackpotH = (h * .22).clamp(54.0, 116.0);
+        final bannerH = (h * .25).clamp(62.0, 150.0);
+        final cardH = (h - jackpotH - bannerH - 2 * gap).clamp(120.0, 330.0);
+        final content = Column(mainAxisSize: MainAxisSize.min, children: [
+          SizedBox(height: jackpotH, child: _JackpotStrip(tick: tick)),
+          const SizedBox(height: gap),
+          SizedBox(
+            height: cardH,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              itemCount: games.length,
+              separatorBuilder: (_, __) => const SizedBox(width: gap),
+              itemBuilder: (_, i) => GameCard(games[i], height: cardH),
+            ),
+          ),
+          const SizedBox(height: gap),
+          SizedBox(
+            height: bannerH,
+            child: Row(children: [
+              Expanded(
+                child: _Banner(
+                  A.vipBanner,
+                  label: 'VIP Rewards — exclusive benefits, higher status, bigger rewards. Learn more',
+                  onTap: () => Nav.push(R.vip),
                 ),
-                const SizedBox(width: 8),
-                Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: outfit(14, w: FontWeight.w700, c: Z.cream)),
-                  const SizedBox(height: 2),
-                  Row(children: [
-                    const Ico(P.crown, size: 12, color: Z.goldEdge),
-                    const SizedBox(width: 3),
-                    Text(s.guest ? 'GUEST' : 'VIP BRONZE', style: outfit(10, w: FontWeight.w600, ls: .04, c: Z.goldEdge)),
-                  ]),
-                ]),
-                const Spacer(),
-                Press(
-                  label: 'Notifications, ${s.unreadNotifications} new',
-                  onTap: () => Nav.push(R.notifications),
-                  child: Stack(children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Z.goldEdge, width: 1.5),
-                        gradient: Z.darkKnob(),
-                      ),
-                      child: const Ico(P.bell, size: 20),
-                    ),
-                    if (s.unreadNotifications > 0)
-                      Positioned(
-                        top: 2,
-                        right: 2,
-                        child: Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Z.red,
-                            border: Border.all(color: Z.ink, width: 1.5),
-                          ),
-                        ),
-                      ),
-                  ]),
+              ),
+              const SizedBox(width: gap),
+              Expanded(
+                child: _Banner(
+                  A.dailyBonus,
+                  label: 'Daily bonus — log in every day for free rewards. Claim now',
+                  onTap: () => Nav.push(R.dailyBonus),
                 ),
-              ]),
+              ),
             ]),
           ),
-        ),
-        Expanded(
-          child: PaneLists(
-            top: 2,
-            side: [
-              // Balances: side by side when there's room, stacked otherwise.
-              LayoutBuilder(builder: (context, box) {
-                final gc = _BalanceBar(
-                  coin: const Coin(size: 28, fontSize: 10),
-                  value: fmtInt(s.gc),
-                  plus: Press(
-                    label: 'Buy Gold Coins',
-                    onTap: () => Nav.tab(AppTab.wallet, walletTab: 'buy'),
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(shape: BoxShape.circle, gradient: Z.coinGold()),
-                      child: const StrokeIco(P.plus, size: 13, color: Z.coinInk, width: 3.5),
-                    ),
-                  ),
-                );
-                final sc = _BalanceBar(coin: const Coin(label: 'SC', size: 28, fontSize: 10, teal: true), value: fmtSc(s.sc));
-                return box.maxWidth >= 400
-                    ? Row(children: [Expanded(child: gc), const SizedBox(width: 8), Expanded(child: sc)])
-                    : Column(children: [gc, const SizedBox(height: 8), sc]);
-              }),
-              const SizedBox(height: 10),
-              _Jackpots(tick: tick),
-              const SizedBox(height: 12),
-              const _QuickActions(),
-              const SizedBox(height: 12),
-              // VIP banner
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: Press(
-                    label: 'Exclusive VIP Rewards — higher status, bigger rewards. Learn more',
-                    onTap: () => Nav.push(R.vip),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Z.border, width: 1.5),
-                        color: Z.field,
-                        boxShadow: [bs(0, 6, 18, const Color(0x80000000))],
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: AspectRatio(aspectRatio: 366 / 114, child: Image.asset(A.vipBanner, fit: BoxFit.cover)),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            main: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: SectionTitle(
-                  'POPULAR GAMES',
-                  size: 16,
-                  trailing: Press(
-                    onTap: () => Nav.tab(AppTab.games),
-                    child: Text('See all ›', style: outfit(13, w: FontWeight.w700, c: Z.gold)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // As many columns as fit tiles up to 230 wide.
-              GridView(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 230,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 179 / 96,
-                ),
-                children: [
-                  for (final g in games)
-                    Press(
-                      label: '${g.name} — ${g.playable ? 'play' : 'coming soon'}',
-                      onTap: () => openGame(g),
-                      child: RoundImage(g.image),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ]),
+        ]);
+        final total = jackpotH + cardH + bannerH + 2 * gap;
+        return total <= h ? Center(child: content) : SingleChildScrollView(child: content);
+      }),
     );
   }
 }
 
-const _gearSvg =
-    '<g fill="none" stroke="#f2c869" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="${P.gearSpokes}"/></g>';
+/// The four live jackpot meters on a gold-framed strip.
+class _JackpotStrip extends StatelessWidget {
+  const _JackpotStrip({required this.tick});
+  final int tick;
+
+  // Plaque art (from the Gold game) and its width / height.
+  static const _plaques = [
+    (JackpotTier.mega, 243 / 176),
+    (JackpotTier.major, 232 / 175),
+    (JackpotTier.minor, 216 / 159),
+    (JackpotTier.mini, 205 / 154),
+  ];
+
+  int _value(JackpotTier t) => switch (t) {
+        JackpotTier.mega => 1234567 + tick * 7,
+        JackpotTier.major => 234567 + tick * 3,
+        JackpotTier.minor => 56789 + tick ~/ 2,
+        JackpotTier.mini => 12345 + tick ~/ 5,
+      };
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) {
+        final h = box.maxHeight;
+        const gap = 10.0;
+        // Plaques as tall as the strip allows, smaller if four don't fit across.
+        final ratios = _plaques.fold<double>(0, (a, p) => a + p.$2);
+        final plaqueH = math.min(h * .9, (box.maxWidth - h * .6 - 3 * gap) / ratios);
+        return Container(
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(h / 2),
+            gradient: Z.goldFrame,
+            boxShadow: [bs(0, 6, 18, const Color(0x99000000)), bs(0, 0, 18, const Color(0x40FFC846))],
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(h / 2),
+              gradient: ellipseGradient(
+                  cx: .5, cy: .5, rx: .7, ry: 1.2, colors: const [Color(0xFF4A260C), Color(0xFF120A05)], stops: const [0, 1]),
+            ),
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+              for (final (tier, ratio) in _plaques)
+                _Plaque(tier: tier, value: _value(tier), height: plaqueH, width: plaqueH * ratio),
+            ]),
+          ),
+        );
+      });
+}
+
+class _Plaque extends StatelessWidget {
+  const _Plaque({required this.tier, required this.value, required this.height, required this.width});
+  final JackpotTier tier;
+  final int value;
+  final double height;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: '${tier.name.toUpperCase()} jackpot ${fmtInt(value)} Gold Coins',
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: Stack(children: [
+            Positioned.fill(child: Image.asset(GoldAssets.jackpot(tier), fit: BoxFit.fill)),
+            // The plaque's dark value slot.
+            Positioned(
+              left: width * .12,
+              right: width * .12,
+              top: height * .6,
+              bottom: height * .13,
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(fmtInt(value),
+                      style: outfit(height * .2, w: FontWeight.w800, c: Z.cream, features: tabular, sh: [
+                        ts(0, 1, 0, const Color(0xFF000000)),
+                        ts(0, 0, 8, const Color(0x80FFC850)),
+                      ])),
+                ),
+              ),
+            ),
+          ]),
+        ),
+      );
+}
+
+/// A tall game card: art, name and a PLAY button, scaled to [height].
+class GameCard extends StatelessWidget {
+  const GameCard(this.g, {super.key, required this.height});
+  final GameInfo g;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final w = height * .84;
+    final nameSize = (height * .085).clamp(12.0, 26.0);
+    final buttonH = (height * .14).clamp(24.0, 46.0);
+    return Press(
+      label: '${g.name} — ${g.playable ? 'play' : 'coming soon'}',
+      onTap: () => openGame(g),
+      child: Container(
+        width: w,
+        height: height,
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: Z.goldFrame,
+          boxShadow: [bs(0, 8, 18, const Color(0xB3000000)), bs(0, 0, 12, const Color(0x40FFC846))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Stack(fit: StackFit.expand, children: [
+            const ColoredBox(color: Color(0xFF120A05)),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: AspectRatio(aspectRatio: 229 / 178, child: Image.asset(A.card(g.id), fit: BoxFit.cover)),
+            ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0x00120A05), Color(0x00120A05), Color(0xF2120A05)],
+                  stops: [0, .45, .72],
+                ),
+              ),
+            ),
+            if (!g.playable)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xD90A0603),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Z.border),
+                  ),
+                  child: Text('SOON', style: outfit(10, w: FontWeight.w800, ls: .06, c: Z.gold, h: 1)),
+                ),
+              ),
+            Positioned(
+              left: 8,
+              right: 8,
+              bottom: height * .05,
+              child: Column(children: [
+                Text(g.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: outfit(nameSize,
+                        w: FontWeight.w800,
+                        c: Z.goldHi,
+                        sh: [ts(0, 2, 4, const Color(0xE6000000)), ts(0, 0, 10, const Color(0x66FFC850))])),
+                SizedBox(height: height * .03),
+                Container(
+                  height: buttonH,
+                  width: w * .78,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(buttonH / 2),
+                    border: Border.all(color: Z.rimBright, width: 1.5),
+                    gradient: g.playable ? Z.red3 : null,
+                    color: g.playable ? null : const Color(0xFF2A1B0B),
+                  ),
+                  alignment: Alignment.center,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (g.playable) ...[
+                      Ico(P.play, size: buttonH * .42, color: Z.cream),
+                      SizedBox(width: buttonH * .2),
+                    ],
+                    Text(g.playable ? 'PLAY' : 'PREVIEW',
+                        style: outfit(buttonH * .42, w: FontWeight.w800, ls: .04, c: g.playable ? Z.cream : Z.gold)),
+                  ]),
+                ),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _Banner extends StatelessWidget {
+  const _Banner(this.asset, {required this.label, required this.onTap});
+  final String asset;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Press(
+        label: label,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(1.5),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: Z.goldFrame,
+            boxShadow: [bs(0, 6, 18, const Color(0x99000000))],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14.5),
+            child: SizedBox.expand(child: Image.asset(asset, fit: BoxFit.cover)),
+          ),
+        ),
+      );
+}
 
 /// The player avatar inside a glowing frame. Frame color follows Edit profile.
 class Avatar extends StatelessWidget {
@@ -225,152 +335,3 @@ class Avatar extends StatelessWidget {
   }
 }
 
-class _BalanceBar extends StatelessWidget {
-  const _BalanceBar({required this.coin, required this.value, this.plus});
-  final Widget coin;
-  final String value;
-  final Widget? plus;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        height: 40,
-        padding: EdgeInsets.fromLTRB(5, 0, plus == null ? 10 : 5, 0),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Z.border, width: 1.5),
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF17110A), Color(0xFF0A0704)],
-          ),
-        ),
-        child: Row(children: [
-          coin,
-          const SizedBox(width: 8),
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(value, style: outfit(17, w: FontWeight.w700, c: Z.cream)),
-            ),
-          ),
-          if (plus != null) ...[const SizedBox(width: 8), plus!],
-        ]),
-      );
-}
-
-class _Jackpots extends StatelessWidget {
-  const _Jackpots({required this.tick});
-  final int tick;
-
-  @override
-  Widget build(BuildContext context) {
-    final meters = [
-      ('MEGA', const Color(0xFFFF8A7A), Z.gold, const Color(0x73C81E28), 1234567 + tick * 7),
-      ('MAJOR', const Color(0xFFD6A8FF), const Color(0xFFD6A8FF), const Color(0x738C28C8), 234567 + tick * 3),
-      ('MINOR', const Color(0xFF8CC0FF), const Color(0xFF8CC0FF), const Color(0x731E5AD2), 56789 + tick ~/ 2),
-      ('MINI', const Color(0xFF7FE39A), const Color(0xFF7FE39A), const Color(0x731EA046), 12345 + tick ~/ 5),
-    ];
-    Widget row(List<(String, Color, Color, Color, int)> ms) => Row(children: [
-          for (final (i, (n, c, cr, g, v)) in ms.indexed) _Jackpot(n, c, cr, g, v, last: i == ms.length - 1),
-        ]);
-    return GoldFrame(
-      radius: 14,
-      shadows: [bs(0, 6, 18, const Color(0x80000000))],
-      child: LayoutBuilder(
-        builder: (context, box) => box.maxWidth / 4 >= 84
-            ? row(meters)
-            : Column(children: [
-                Container(
-                  decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Z.line35))),
-                  child: row(meters.sublist(0, 2)),
-                ),
-                row(meters.sublist(2)),
-              ]),
-      ),
-    );
-  }
-}
-
-class _Jackpot extends StatelessWidget {
-  const _Jackpot(this.name, this.color, this.crown, this.glow, this.value, {this.last = false});
-  final String name;
-  final Color color;
-  final Color crown;
-  final Color glow;
-  final int value;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) => Expanded(
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(2, 8, 2, 9),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [glow, const Color(0x000D0906)],
-            ),
-            border: last ? null : const Border(right: BorderSide(color: Z.line35)),
-          ),
-          child: Column(children: [
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Ico(P.crown, size: 12, color: crown),
-              const SizedBox(width: 3),
-              Text(name, style: outfit(11, w: FontWeight.w800, ls: .04, c: color)),
-            ]),
-            const SizedBox(height: 1),
-            Text(fmtInt(value), style: outfit(15, w: FontWeight.w800, c: Z.cream, features: tabular)),
-            Text('GC', style: outfit(9, w: FontWeight.w600, c: const Color(0xFFCDBB94))),
-          ]),
-        ),
-      );
-}
-
-class _QuickActions extends StatelessWidget {
-  const _QuickActions();
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      _Quick('BONUS', const Ico(P.gift), () => Nav.tab(AppTab.promotions)),
-      _Quick('CHAT', const Ico(P.chatDots), () => Nav.push(R.chat)),
-      _Quick('WALLET', const Ico(P.wallet), () => Nav.tab(AppTab.wallet)),
-      _Quick('SETTINGS', const RawIco(_gearSvg), () => Nav.push(R.settings)),
-    ];
-    return LayoutBuilder(builder: (context, box) {
-      final perRow = (box.maxWidth / 66).floor().clamp(2, items.length);
-      final w = box.maxWidth / perRow;
-      return Wrap(runSpacing: 10, children: [for (final q in items) SizedBox(width: w, child: q)]);
-    });
-  }
-}
-
-class _Quick extends StatelessWidget {
-  const _Quick(this.label, this.icon, this.onTap);
-  final String label;
-  final Widget icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Press(
-        label: label,
-        onTap: onTap,
-        child: Column(children: [
-          Container(
-            width: 48,
-            height: 48,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Z.border, width: 2),
-              gradient: Z.darkWell(),
-              boxShadow: [bs(0, 0, 10, const Color(0x4DC99A3E))],
-            ),
-            child: icon,
-          ),
-          const SizedBox(height: 5),
-          Text(label, style: outfit(11, w: FontWeight.w600, ls: .04)),
-        ]),
-      );
-}
