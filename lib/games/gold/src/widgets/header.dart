@@ -22,7 +22,8 @@ class GoldHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 206,
+      // 22 top padding + the two balance bars (94 + 10 + 89).
+      height: 215,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(40, 22, 40, 0),
         child: Row(
@@ -46,8 +47,7 @@ class GoldHeader extends StatelessWidget {
                   onMore: () => onGetMore(Currency.gc),
                   moreLabel: 'Get more Gold Coins',
                 ),
-                // 94 + 1 + 89 fills the 184px under the header's top padding exactly.
-                const SizedBox(height: 1),
+                const SizedBox(height: 10),
                 _BalanceBar(
                   asset: GoldAssets.balanceSc,
                   imgH: 89,

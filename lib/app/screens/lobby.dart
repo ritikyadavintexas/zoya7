@@ -100,12 +100,12 @@ class _LobbyPageState extends State<LobbyPage> {
           ),
         ),
         Expanded(
-          child: Panes(
-            side: PaneList(
-              padding: const EdgeInsets.fromLTRB(14, 2, 6, 16),
-              children: [
-                // Balances
-                _BalanceBar(
+          child: PaneLists(
+            top: 2,
+            side: [
+              // Balances: side by side when there's room, stacked otherwise.
+              LayoutBuilder(builder: (context, box) {
+                final gc = _BalanceBar(
                   coin: const Coin(size: 28, fontSize: 10),
                   value: fmtInt(s.gc),
                   plus: Press(
@@ -119,86 +119,71 @@ class _LobbyPageState extends State<LobbyPage> {
                       child: const StrokeIco(P.plus, size: 13, color: Z.coinInk, width: 3.5),
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                _BalanceBar(
-                  coin: const Coin(label: 'SC', size: 28, fontSize: 10, teal: true),
-                  value: fmtSc(s.sc),
-                ),
-                const SizedBox(height: 10),
-
-                // Jackpots
-                GoldFrame(
-                  radius: 14,
-                  shadows: [bs(0, 6, 18, const Color(0x80000000))],
-                  child: Row(children: [
-                    _Jackpot('MEGA', const Color(0xFFFF8A7A), Z.gold, const Color(0x73C81E28), 1234567 + tick * 7),
-                    _Jackpot('MAJOR', const Color(0xFFD6A8FF), const Color(0xFFD6A8FF), const Color(0x738C28C8), 234567 + tick * 3),
-                    _Jackpot('MINOR', const Color(0xFF8CC0FF), const Color(0xFF8CC0FF), const Color(0x731E5AD2), 56789 + tick ~/ 2),
-                    _Jackpot('MINI', const Color(0xFF7FE39A), const Color(0xFF7FE39A), const Color(0x731EA046), 12345 + tick ~/ 5, last: true),
-                  ]),
-                ),
-                const SizedBox(height: 12),
-
-                // Quick actions
-                Row(children: [
-                  _Quick('BONUS', const Ico(P.gift), () => Nav.tab(AppTab.promotions)),
-                  _Quick('CHAT', const Ico(P.chatDots), () => Nav.push(R.chat)),
-                  _Quick('WALLET', const Ico(P.wallet), () => Nav.tab(AppTab.wallet)),
-                  _Quick('SETTINGS', const RawIco(_gearSvg), () => Nav.push(R.settings)),
-                ]),
-                const SizedBox(height: 12),
-
-                // VIP banner
-                Press(
-                  label: 'Exclusive VIP Rewards — higher status, bigger rewards. Learn more',
-                  onTap: () => Nav.push(R.vip),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Z.border, width: 1.5),
-                      color: Z.field,
-                      boxShadow: [bs(0, 6, 18, const Color(0x80000000))],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: AspectRatio(aspectRatio: 366 / 114, child: Image.asset(A.vipBanner, fit: BoxFit.cover)),
-                  ),
-                ),
-              ],
-            ),
-            main: PaneList(
-              padding: const EdgeInsets.fromLTRB(8, 2, 14, 16),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: SectionTitle(
-                    'POPULAR GAMES',
-                    size: 16,
-                    trailing: Press(
-                      onTap: () => Nav.tab(AppTab.games),
-                      child: Text('See all ›', style: outfit(13, w: FontWeight.w700, c: Z.gold)),
+                );
+                final sc = _BalanceBar(coin: const Coin(label: 'SC', size: 28, fontSize: 10, teal: true), value: fmtSc(s.sc));
+                return box.maxWidth >= 400
+                    ? Row(children: [Expanded(child: gc), const SizedBox(width: 8), Expanded(child: sc)])
+                    : Column(children: [gc, const SizedBox(height: 8), sc]);
+              }),
+              const SizedBox(height: 10),
+              _Jackpots(tick: tick),
+              const SizedBox(height: 12),
+              const _QuickActions(),
+              const SizedBox(height: 12),
+              // VIP banner
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Press(
+                    label: 'Exclusive VIP Rewards — higher status, bigger rewards. Learn more',
+                    onTap: () => Nav.push(R.vip),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Z.border, width: 1.5),
+                        color: Z.field,
+                        boxShadow: [bs(0, 6, 18, const Color(0x80000000))],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: AspectRatio(aspectRatio: 366 / 114, child: Image.asset(A.vipBanner, fit: BoxFit.cover)),
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                GridView.count(
-                  crossAxisCount: 3,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
+              ),
+            ],
+            main: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: SectionTitle(
+                  'POPULAR GAMES',
+                  size: 16,
+                  trailing: Press(
+                    onTap: () => Nav.tab(AppTab.games),
+                    child: Text('See all ›', style: outfit(13, w: FontWeight.w700, c: Z.gold)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // As many columns as fit tiles up to 230 wide.
+              GridView(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 230,
                   mainAxisSpacing: 8,
                   crossAxisSpacing: 8,
                   childAspectRatio: 179 / 96,
-                  children: [
-                    for (final g in games)
-                      Press(
-                        label: '${g.name} — ${g.playable ? 'play' : 'coming soon'}',
-                        onTap: () => openGame(g),
-                        child: RoundImage(g.image),
-                      ),
-                  ],
                 ),
-              ],
-            ),
+                children: [
+                  for (final g in games)
+                    Press(
+                      label: '${g.name} — ${g.playable ? 'play' : 'coming soon'}',
+                      onTap: () => openGame(g),
+                      child: RoundImage(g.image),
+                    ),
+                ],
+              ),
+            ],
           ),
         ),
       ]),
@@ -274,6 +259,39 @@ class _BalanceBar extends StatelessWidget {
       );
 }
 
+class _Jackpots extends StatelessWidget {
+  const _Jackpots({required this.tick});
+  final int tick;
+
+  @override
+  Widget build(BuildContext context) {
+    final meters = [
+      ('MEGA', const Color(0xFFFF8A7A), Z.gold, const Color(0x73C81E28), 1234567 + tick * 7),
+      ('MAJOR', const Color(0xFFD6A8FF), const Color(0xFFD6A8FF), const Color(0x738C28C8), 234567 + tick * 3),
+      ('MINOR', const Color(0xFF8CC0FF), const Color(0xFF8CC0FF), const Color(0x731E5AD2), 56789 + tick ~/ 2),
+      ('MINI', const Color(0xFF7FE39A), const Color(0xFF7FE39A), const Color(0x731EA046), 12345 + tick ~/ 5),
+    ];
+    Widget row(List<(String, Color, Color, Color, int)> ms) => Row(children: [
+          for (final (i, (n, c, cr, g, v)) in ms.indexed) _Jackpot(n, c, cr, g, v, last: i == ms.length - 1),
+        ]);
+    return GoldFrame(
+      radius: 14,
+      shadows: [bs(0, 6, 18, const Color(0x80000000))],
+      child: LayoutBuilder(
+        builder: (context, box) => box.maxWidth / 4 >= 84
+            ? row(meters)
+            : Column(children: [
+                Container(
+                  decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Z.line35))),
+                  child: row(meters.sublist(0, 2)),
+                ),
+                row(meters.sublist(2)),
+              ]),
+      ),
+    );
+  }
+}
+
 class _Jackpot extends StatelessWidget {
   const _Jackpot(this.name, this.color, this.crown, this.glow, this.value, {this.last = false});
   final String name;
@@ -296,23 +314,36 @@ class _Jackpot extends StatelessWidget {
             border: last ? null : const Border(right: BorderSide(color: Z.line35)),
           ),
           child: Column(children: [
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Ico(P.crown, size: 12, color: crown),
-                const SizedBox(width: 3),
-                Text(name, style: outfit(11, w: FontWeight.w800, ls: .04, c: color)),
-              ]),
-            ),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Ico(P.crown, size: 12, color: crown),
+              const SizedBox(width: 3),
+              Text(name, style: outfit(11, w: FontWeight.w800, ls: .04, c: color)),
+            ]),
             const SizedBox(height: 1),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(fmtInt(value), style: outfit(15, w: FontWeight.w800, c: Z.cream, features: tabular)),
-            ),
+            Text(fmtInt(value), style: outfit(15, w: FontWeight.w800, c: Z.cream, features: tabular)),
             Text('GC', style: outfit(9, w: FontWeight.w600, c: const Color(0xFFCDBB94))),
           ]),
         ),
       );
+}
+
+class _QuickActions extends StatelessWidget {
+  const _QuickActions();
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      _Quick('BONUS', const Ico(P.gift), () => Nav.tab(AppTab.promotions)),
+      _Quick('CHAT', const Ico(P.chatDots), () => Nav.push(R.chat)),
+      _Quick('WALLET', const Ico(P.wallet), () => Nav.tab(AppTab.wallet)),
+      _Quick('SETTINGS', const RawIco(_gearSvg), () => Nav.push(R.settings)),
+    ];
+    return LayoutBuilder(builder: (context, box) {
+      final perRow = (box.maxWidth / 66).floor().clamp(2, items.length);
+      final w = box.maxWidth / perRow;
+      return Wrap(runSpacing: 10, children: [for (final q in items) SizedBox(width: w, child: q)]);
+    });
+  }
 }
 
 class _Quick extends StatelessWidget {
@@ -322,26 +353,24 @@ class _Quick extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Expanded(
-        child: Press(
-          label: label,
-          onTap: onTap,
-          child: Column(children: [
-            Container(
-              width: 48,
-              height: 48,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Z.border, width: 2),
-                gradient: Z.darkWell(),
-                boxShadow: [bs(0, 0, 10, const Color(0x4DC99A3E))],
-              ),
-              child: icon,
+  Widget build(BuildContext context) => Press(
+        label: label,
+        onTap: onTap,
+        child: Column(children: [
+          Container(
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Z.border, width: 2),
+              gradient: Z.darkWell(),
+              boxShadow: [bs(0, 0, 10, const Color(0x4DC99A3E))],
             ),
-            const SizedBox(height: 5),
-            Text(label, style: outfit(11, w: FontWeight.w600, ls: .04)),
-          ]),
-        ),
+            child: icon,
+          ),
+          const SizedBox(height: 5),
+          Text(label, style: outfit(11, w: FontWeight.w600, ls: .04)),
+        ]),
       );
 }

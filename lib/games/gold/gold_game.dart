@@ -118,15 +118,19 @@ class _GoldGameState extends State<GoldGame> {
         ),
       ),
       child: SafeArea(
-        child: Center(
-          child: FittedBox(
-            fit: BoxFit.contain,
-            child: SizedBox(
-              width: kDesignW,
-              height: kDesignH,
-              child: DefaultTextStyle(
-                style: rubik(16),
-                child: ListenableBuilder(listenable: c, builder: (context, _) => _canvas()),
+        child: LayoutBuilder(
+          builder: (context, box) => Center(
+            child: FittedBox(
+              fit: BoxFit.contain,
+              child: SizedBox(
+                // Match the screen's shape: the header and footer spread across
+                // the extra width of a 19.5:9 phone instead of leaving bands.
+                width: (kDesignH * box.maxWidth / box.maxHeight).clamp(kDesignW, kDesignMaxW),
+                height: kDesignH,
+                child: DefaultTextStyle(
+                  style: rubik(16),
+                  child: ListenableBuilder(listenable: c, builder: (context, _) => _canvas()),
+                ),
               ),
             ),
           ),

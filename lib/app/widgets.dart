@@ -91,44 +91,91 @@ class ZPage extends StatelessWidget {
 }
 
 /// Landscape page body: a side pane (summary, filters, controls) next to the
-/// main pane. Each pane scrolls on its own when it needs to.
+/// main pane. The side pane takes [sideFraction] of the width (kept between
+/// [minSide] and [maxSide]); if that would leave the main pane narrower than
+/// [minMain], the page shows [narrow] instead (one column), or keeps the
+/// split at [minSide] when no single-column version is given.
 class Panes extends StatelessWidget {
   const Panes({
     super.key,
     required this.side,
     required this.main,
+    this.narrow,
     this.sideFraction = .38,
     this.minSide = 250,
     this.maxSide = 380,
+    this.minMain = 300,
     this.divider = false,
   });
   final Widget side;
   final Widget main;
+  final Widget? narrow;
   final double sideFraction;
   final double minSide;
   final double maxSide;
+  final double minMain;
   final bool divider;
+
+  /// Width of the side pane in [width], or null when both panes don't fit.
+  static double? sideWidth(double width, double fraction, double minSide, double maxSide, double minMain) {
+    final w = (width * fraction).clamp(minSide, maxSide);
+    return width - w >= minMain ? w : null;
+  }
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) {
-        final w = (box.maxWidth * sideFraction).clamp(minSide, maxSide);
+        final w = sideWidth(box.maxWidth, sideFraction, minSide, maxSide, minMain);
+        if (w == null && narrow != null) return narrow!;
         return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          SizedBox(width: w, child: side),
+          SizedBox(width: w ?? minSide, child: side),
           if (divider) Container(width: 1, color: Z.line),
           Expanded(child: main),
         ]);
       });
 }
 
-/// A scrolling column of page content inside a [Panes] pane.
-class PaneList extends StatelessWidget {
-  const PaneList({super.key, required this.children, this.padding = const EdgeInsets.fromLTRB(14, 12, 14, 16)});
-  final List<Widget> children;
-  final EdgeInsets padding;
+/// [Panes] for pages whose panes are plain scrolling lists: two lists side by
+/// side when both fit, otherwise one list with the side items first.
+class PaneLists extends StatelessWidget {
+  const PaneLists({
+    super.key,
+    required this.side,
+    required this.main,
+    this.sideFraction = .38,
+    this.minSide = 250,
+    this.maxSide = 380,
+    this.minMain = 300,
+    this.top = 12,
+    this.divider = false,
+  });
+  final List<Widget> side;
+  final List<Widget> main;
+  final double sideFraction;
+  final double minSide;
+  final double maxSide;
+  final double minMain;
+  final double top;
+  final bool divider;
 
   @override
-  Widget build(BuildContext context) => ListView(padding: padding, children: children);
+  Widget build(BuildContext context) => Panes(
+        sideFraction: sideFraction,
+        minSide: minSide,
+        maxSide: maxSide,
+        minMain: minMain,
+        divider: divider,
+        side: ListView(padding: EdgeInsets.fromLTRB(14, top, divider ? 14 : 6, 16), children: side),
+        main: ListView(padding: EdgeInsets.fromLTRB(divider ? 18 : 8, top, 14, 16), children: main),
+        narrow: ListView(
+          padding: EdgeInsets.fromLTRB(14, top, 14, 16),
+          children: [...side, const SizedBox(height: 16), ...main],
+        ),
+      );
 }
+
+/// Number of columns of at most [maxTile] wide (plus [gap]) that fill [width].
+int columnsFor(double width, double maxTile, {double gap = 10, int min = 1}) =>
+    ((width + gap) / (maxTile + gap)).ceil().clamp(min, 99);
 
 /// 40px round gold-rimmed icon button used in page headers.
 class RoundBtn extends StatelessWidget {
@@ -192,24 +239,20 @@ class TopBar extends StatelessWidget {
         height: 54,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(border: border ? const Border(bottom: BorderSide(color: Z.line)) : null),
-        child: Stack(alignment: Alignment.center, children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 150),
-            child: Semantics(
-              header: true,
-              child: Text(title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: outfit(titleSize, w: FontWeight.w800, ls: .1, c: Z.gold)),
-            ),
+        // Keeps the title centred on the bar while it fits between the ends,
+        // and slides it over (then ellipsizes) when it doesn't.
+        child: NavigationToolbar(
+          middleSpacing: 12,
+          leading: BackBtn(onTap: onBack, label: backLabel),
+          middle: Semantics(
+            header: true,
+            child: Text(title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: outfit(titleSize, w: FontWeight.w800, ls: .1, c: Z.gold)),
           ),
-          Row(children: [
-            BackBtn(onTap: onBack, label: backLabel),
-            const Spacer(),
-            if (right != null) right!,
-          ]),
-        ]),
+          trailing: right,
+        ),
       );
 }
 
@@ -699,43 +742,50 @@ class SideNav extends StatelessWidget {
         border: Border(right: BorderSide(color: Z.border, width: 1.5)),
         gradient: LinearGradient(colors: [Color(0xFF0A0704), Color(0xFF1A120A)]),
       ),
-      child: Column(children: [
-        for (final (tab, label, path) in _items)
-          Expanded(
-            child: Press(
-              label: label,
-              selected: tab == active,
-              onTap: () => onTap(tab),
-              child: Stack(alignment: Alignment.center, children: [
-                Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Ico(path, size: 24, color: tab == active ? Z.gold : Z.tabOff),
-                  const SizedBox(height: 3),
-                  FittedBox(
-                    child: Text(label,
-                        style: outfit(10,
-                            w: tab == active ? FontWeight.w700 : FontWeight.w600,
-                            ls: .04,
-                            c: tab == active ? Z.gold : Z.tabOff)),
-                  ),
-                ]),
-                if (tab == active)
-                  Positioned(
-                    left: 0,
-                    child: Container(
-                      width: 3,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: Z.gold,
-                        borderRadius: BorderRadius.circular(2),
-                        boxShadow: [bs(0, 0, 8, Z.gold)],
+      child: LayoutBuilder(builder: (context, box) {
+        // Items are 72 tall when there's room (tablets), sharing the height
+        // equally on short phones; the chat button sits under them.
+        const chat = 4 + 48.0 + 4; // ChatFab(size: 46) plus its padding
+        final itemH = ((box.maxHeight - chat) / _items.length).clamp(0.0, 72.0);
+        return Column(children: [
+          for (final (tab, label, path) in _items)
+            SizedBox(
+              height: itemH,
+              child: Press(
+                label: label,
+                selected: tab == active,
+                onTap: () => onTap(tab),
+                child: Stack(alignment: Alignment.center, children: [
+                  Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Ico(path, size: 24, color: tab == active ? Z.gold : Z.tabOff),
+                    const SizedBox(height: 3),
+                    FittedBox(
+                      child: Text(label,
+                          style: outfit(10,
+                              w: tab == active ? FontWeight.w700 : FontWeight.w600,
+                              ls: .04,
+                              c: tab == active ? Z.gold : Z.tabOff)),
+                    ),
+                  ]),
+                  if (tab == active)
+                    Positioned(
+                      left: 0,
+                      child: Container(
+                        width: 3,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Z.gold,
+                          borderRadius: BorderRadius.circular(2),
+                          boxShadow: [bs(0, 0, 8, Z.gold)],
+                        ),
                       ),
                     ),
-                  ),
-              ]),
+                ]),
+              ),
             ),
-          ),
-        const Padding(padding: EdgeInsets.only(top: 4, bottom: 4), child: ChatFab(size: 46)),
-      ]),
+          const Padding(padding: EdgeInsets.only(top: 4, bottom: 4), child: ChatFab(size: 46)),
+        ]);
+      }),
     );
   }
 }

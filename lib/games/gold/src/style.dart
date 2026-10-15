@@ -6,8 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'math.dart';
 
 /// Design canvas. Everything is laid out in these units and scaled to the device.
+/// The height is fixed; the width grows with wider screens (up to [kDesignMaxW])
+/// so 19.5:9 phones get a wider table instead of empty bands at the sides.
 const double kDesignW = 1920;
 const double kDesignH = 1080;
+const double kDesignMaxW = 2560;
 
 class GC {
   GC._();

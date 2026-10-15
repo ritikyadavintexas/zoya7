@@ -37,11 +37,9 @@ class WalletPageState extends State<WalletPage> {
           ),
         ),
         Expanded(
-          child: Panes(
+          child: PaneLists(
             sideFraction: .36,
-            side: PaneList(
-              padding: const EdgeInsets.fromLTRB(14, 12, 6, 16),
-              children: [
+            side: [
                 GoldFrame(
                   inner: ellipseGradient(
                       cx: 0, cy: 0, rx: 1, ry: .8, colors: const [Color(0xFF3A2209), Color(0xFF0D0906)], stops: const [0, .7]),
@@ -69,15 +67,11 @@ class WalletPageState extends State<WalletPage> {
                   const SizedBox(height: 8),
                 ],
               ],
-            ),
-            main: PaneList(
-              padding: const EdgeInsets.fromLTRB(8, 12, 14, 18),
-              children: [
+            main: [
                 if (tab == 0) _buy(s),
                 if (tab == 1) _redeem(s),
                 if (tab == 2) _history(),
               ],
-            ),
           ),
         ),
       ]),
@@ -86,16 +80,15 @@ class WalletPageState extends State<WalletPage> {
 
   Widget _buy(AppState s) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         const SizedBox(height: 6),
-        LayoutBuilder(
-          builder: (context, box) => GridView.builder(
-            clipBehavior: Clip.none,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: coinPacks.length,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: box.maxWidth >= 360 ? 3 : 2, mainAxisSpacing: 14, crossAxisSpacing: 10, mainAxisExtent: 172),
-            itemBuilder: (_, i) => _PackTile(coinPacks[i], selected: i == s.selectedPack, onTap: () => s.selectPack(i)),
-          ),
+        // As many columns as fit packs up to 190 wide.
+        GridView.builder(
+          clipBehavior: Clip.none,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: coinPacks.length,
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 190, mainAxisSpacing: 14, crossAxisSpacing: 10, mainAxisExtent: 172),
+          itemBuilder: (_, i) => _PackTile(coinPacks[i], selected: i == s.selectedPack, onTap: () => s.selectPack(i)),
         ),
         const SizedBox(height: 12),
         CtaButton('BUY ${s.pack.gcLabel} GC · ${s.pack.priceLabel}', ls: .03, onTap: () => Nav.push(R.checkout)),
@@ -390,7 +383,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             maxSide: 440,
             side: Column(children: [
               Expanded(
-                child: PaneList(
+                child: ListView(
                   padding: const EdgeInsets.fromLTRB(14, 12, 6, 8),
                   children: [
                     GoldFrame(
@@ -464,7 +457,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ]),
               ),
             ]),
-            main: PaneList(
+            main: ListView(
               padding: const EdgeInsets.fromLTRB(8, 12, 14, 18),
               children: [
                 Text('PAYMENT METHOD', style: outfit(13, w: FontWeight.w800, ls: .12, c: Z.label)),

@@ -95,11 +95,10 @@ class ProfilePage extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: Panes(
+          child: PaneLists(
+            top: 0,
             sideFraction: .4,
-            side: PaneList(
-              padding: const EdgeInsets.fromLTRB(14, 0, 6, 16),
-              children: [
+            side: [
                 Row(children: [
                   SizedBox(
                     width: 84,
@@ -183,10 +182,7 @@ class ProfilePage extends StatelessWidget {
                   ],
                 ]),
               ],
-            ),
-            main: PaneList(
-              padding: const EdgeInsets.fromLTRB(8, 0, 14, 16),
-              children: [
+            main: [
                 ZCard(
                   child: Column(children: [
                     for (final (i, (label, path, onTap, badge)) in rows.indexed)
@@ -202,7 +198,6 @@ class ProfilePage extends StatelessWidget {
                 const SizedBox(height: 12),
                 GhostButton('LOG OUT', color: Z.coral, borderColor: const Color(0xFF8A2A2A), onTap: () => Nav.reset(R.welcome)),
               ],
-            ),
           ),
         ),
       ]),
@@ -241,14 +236,11 @@ class EditProfileScreen extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: Panes(
+          child: PaneLists(
             sideFraction: .34,
             minSide: 240,
             maxSide: 320,
-            side: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
-                child: Column(children: [
+            side: [Center(child: Column(children: [
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     width: 104,
@@ -284,17 +276,12 @@ class EditProfileScreen extends StatelessWidget {
                         ),
                       ),
                   ]),
-                ]),
-              ),
-            ),
-            main: PaneList(
-              padding: const EdgeInsets.fromLTRB(8, 12, 14, 18),
-              children: [
+                ]))],
+            main: [
                 ZField(label: 'USERNAME', initial: s.name, helper: 'Shown in chat and on leaderboards.'),
                 const SizedBox(height: 12),
-                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Expanded(
-                    child: ZField(
+                LayoutBuilder(builder: (context, box) {
+                  final email = ZField(
                       label: 'EMAIL',
                       initial: '${s.name.toLowerCase()}@example.com',
                       keyboard: TextInputType.emailAddress,
@@ -307,13 +294,16 @@ class EditProfileScreen extends StatelessWidget {
                         ),
                         child: Text('VERIFIED', style: outfit(11, w: FontWeight.w700, c: Z.greenHi)),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: ZField(label: 'PHONE', hint: 'Add a phone number', keyboard: TextInputType.phone),
-                  ),
-                ]),
+                    );
+                  const phone = ZField(label: 'PHONE', hint: 'Add a phone number', keyboard: TextInputType.phone);
+                  return box.maxWidth >= 460
+                      ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Expanded(child: email),
+                          const SizedBox(width: 12),
+                          const Expanded(child: phone),
+                        ])
+                      : Column(children: [email, const SizedBox(height: 12), phone]);
+                }),
                 const SizedBox(height: 14),
                 ZCard(
                   child: Column(children: [
@@ -327,7 +317,6 @@ class EditProfileScreen extends StatelessWidget {
                   ]),
                 ),
               ],
-            ),
           ),
         ),
       ]),
@@ -371,11 +360,10 @@ class _VipScreenState extends State<VipScreen> {
           ),
         ),
         Expanded(
-          child: Panes(
+          child: PaneLists(
+            top: 0,
             sideFraction: .4,
-            side: PaneList(
-              padding: const EdgeInsets.fromLTRB(14, 0, 6, 16),
-              children: [
+            side: [
                 GoldFrame(
                   radius: 20,
                   shadows: [bs(0, 10, 26, const Color(0x8C000000)), bs(0, 0, 30, const Color(0x33E2B04F))],
@@ -415,10 +403,7 @@ class _VipScreenState extends State<VipScreen> {
                   ]),
                 ),
               ],
-            ),
-            main: PaneList(
-              padding: const EdgeInsets.fromLTRB(8, 0, 14, 16),
-              children: [
+            main: [
                 const SectionTitle('TIERS & PERKS'),
                 const SizedBox(height: 10),
                 for (final (name, color, pts, perks) in tiers) ...[
@@ -426,7 +411,6 @@ class _VipScreenState extends State<VipScreen> {
                   const SizedBox(height: 8),
                 ],
               ],
-            ),
           ),
         ),
       ]),
@@ -547,24 +531,30 @@ class SettingsScreen extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),
             children: [
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                for (final (c, col) in [sections.sublist(0, 2), sections.sublist(2)].indexed) ...[
-                  if (c > 0) const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      for (final (title, rows) in col) ...[
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Text(title, style: outfit(13, w: FontWeight.w800, ls: .14, c: Z.label)),
-                        ),
-                        const SizedBox(height: 8),
-                        ZCard(child: Column(children: rows)),
-                        const SizedBox(height: 14),
-                      ],
-                    ]),
-                  ),
-                ],
-              ]),
+              // Two columns once each can be 300 wide, one otherwise.
+              LayoutBuilder(builder: (context, box) {
+                final cols = box.maxWidth >= 2 * 300 + 14
+                    ? [sections.sublist(0, 2), sections.sublist(2)]
+                    : [sections];
+                return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  for (final (c, col) in cols.indexed) ...[
+                    if (c > 0) const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        for (final (title, rows) in col) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: Text(title, style: outfit(13, w: FontWeight.w800, ls: .14, c: Z.label)),
+                          ),
+                          const SizedBox(height: 8),
+                          ZCard(child: Column(children: rows)),
+                          const SizedBox(height: 14),
+                        ],
+                      ]),
+                    ),
+                  ],
+                ]);
+              }),
               Text('Zoya7 · version 1.0.0 · 18+ · Play responsibly',
                   textAlign: TextAlign.center, style: outfit(12, c: Z.faint)),
             ],
@@ -685,11 +675,11 @@ class NotificationsScreen extends StatelessWidget {
                 ),
               ]),
               const SizedBox(height: 10),
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                for (final (g, (title, items)) in groups.indexed) ...[
-                  if (g > 0) const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              // TODAY and EARLIER side by side once each can be 300 wide.
+              LayoutBuilder(builder: (context, box) {
+                final cols = [
+                  for (final (title, items) in groups)
+                    Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                       Text(title, style: outfit(13, w: FontWeight.w800, ls: .14, c: Z.label)),
                       for (final (t, b, at, path, color, onTap, u) in items) ...[
                         const SizedBox(height: 8),
@@ -704,9 +694,15 @@ class NotificationsScreen extends StatelessWidget {
                         ),
                       ],
                     ]),
-                  ),
-                ],
-              ]),
+                ];
+                return box.maxWidth >= 2 * 300 + 14
+                    ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Expanded(child: cols[0]),
+                        const SizedBox(width: 14),
+                        Expanded(child: cols[1]),
+                      ])
+                    : Column(children: [cols[0], const SizedBox(height: 16), cols[1]]);
+              }),
             ],
           ),
         ),
@@ -812,14 +808,13 @@ class _LegalScreenState extends State<LegalScreen> {
   Widget build(BuildContext context) {
     final (_, title, sections) = docs[doc];
     return ZPage(
-      child: Panes(
+      child: PaneLists(
+            top: 8,
         sideFraction: .3,
         minSide: 220,
         maxSide: 300,
         divider: true,
-        side: PaneList(
-          padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
-          children: [
+        side: [
             Row(children: [
               const BackBtn(label: 'Back to settings'),
               const SizedBox(width: 12),
@@ -850,10 +845,7 @@ class _LegalScreenState extends State<LegalScreen> {
             const SizedBox(height: 6),
             LinkText('Questions? Contact support ›', size: 14, w: FontWeight.w700, onTap: () => Nav.push(R.chat, 'support')),
           ],
-        ),
-        main: PaneList(
-          padding: const EdgeInsets.fromLTRB(20, 14, 24, 24),
-          children: [
+        main: [
             Text(title, style: outfit(24, w: FontWeight.w800, c: Z.cream)),
             const SizedBox(height: 4),
             Text('Last updated [DATE] · Version [X.X]', style: outfit(13, c: Z.muted2)),
@@ -882,7 +874,6 @@ class _LegalScreenState extends State<LegalScreen> {
               Text(b, style: outfit(14, c: Z.body, h: 1.6)),
             ],
           ],
-        ),
       ),
     );
   }

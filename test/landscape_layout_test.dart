@@ -15,10 +15,11 @@ import 'package:zoya7_gold/app/screens/promotions.dart';
 import 'package:zoya7_gold/app/screens/shell.dart';
 import 'package:zoya7_gold/app/screens/wallet.dart';
 import 'package:zoya7_gold/app/state.dart';
+import 'package:zoya7_gold/app/widgets.dart';
 
-/// Every page must fit a landscape phone without overflowing — from a small
-/// iPhone SE up to a large Android — and still fit when the browser hands us a
-/// portrait window (the app is then drawn turned sideways).
+/// Every page must lay itself out at every landscape screen size from the
+/// smallest phone (568×320) up to a tablet, with nothing overflowing, and the
+/// layouts must actually change with the room they get (columns, panes).
 void main() {
   // Lay text out with the app's real fonts (test/fonts, named the way
   // google_fonts names its families) — the test font's square glyphs are far
@@ -31,10 +32,20 @@ void main() {
     }
   });
 
+  // Real landscape screens (logical px), smallest to largest, plus a portrait
+  // window, which the app draws turned sideways.
   const sizes = {
-    'iPhone SE landscape': Size(667, 375),
-    'iPhone 14 landscape': Size(844, 390),
-    'large Android landscape': Size(915, 412),
+    'iPhone SE (1st gen)': Size(568, 320),
+    'small Android': Size(640, 360),
+    'iPhone 8': Size(667, 375),
+    'iPhone 8 Plus': Size(736, 414),
+    'Galaxy S20': Size(800, 360),
+    'iPhone 14': Size(844, 390),
+    'Pixel 7': Size(915, 412),
+    'iPhone 15 Pro Max': Size(932, 430),
+    'small tablet': Size(1024, 600),
+    'iPad': Size(1180, 820),
+    'large tablet': Size(1366, 1024),
     'portrait window (turned)': Size(390, 844),
   };
 
@@ -117,6 +128,39 @@ void main() {
       });
     });
   }
+
+  /// Number of distinct x positions among the widgets [finder] finds.
+  int columns(WidgetTester tester, Finder finder) =>
+      finder.evaluate().map((e) => tester.getTopLeft(find.byWidget(e.widget)).dx.round()).toSet().length;
+
+  testWidgets('game grids get more columns as the screen gets wider', (tester) async {
+    final counts = <int>[];
+    for (final size in const [Size(568, 320), Size(844, 390), Size(1366, 1024)]) {
+      await show(tester, size, MainShell(initial: AppTab.games));
+      counts.add(columns(tester, find.byType(RoundImage)));
+      await tester.pumpWidget(const SizedBox());
+    }
+    expect(counts[0], lessThan(counts[1]));
+    expect(counts[1], lessThanOrEqualTo(counts[2]));
+  });
+
+  testWidgets('two-pane pages fall back to one column when the main pane would be too narrow', (tester) async {
+    // 568 wide: rail + side pane would leave the main pane < 300px → one list.
+    await show(tester, const Size(568, 320), MainShell(initial: AppTab.profile));
+    expect(find.byType(ListView).hitTestable(), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    // 844 wide: both panes fit → two lists side by side.
+    await show(tester, const Size(844, 390), MainShell(initial: AppTab.profile));
+    expect(find.byType(ListView).hitTestable(), findsNWidgets(2));
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the Gold table widens with the screen instead of leaving side bands', (tester) async {
+    await show(tester, const Size(844, 390), const GoldScreen());
+    final table = tester.getSize(find.byType(FittedBox).first);
+    expect(table.width, closeTo(844, 1));
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('a portrait window draws the app turned sideways', (tester) async {
     await show(tester, const Size(390, 844), const SettingsScreen());

@@ -59,12 +59,10 @@ class _PromotionsPageState extends State<PromotionsPage> with _Ticker {
       child: Column(children: [
         TopBar(title: 'PROMOTIONS', backLabel: 'Back to lobby', onBack: () => Nav.tab(AppTab.home)),
         Expanded(
-          child: Panes(
+          child: PaneLists(
             sideFraction: .5,
             maxSide: 520,
-            side: PaneList(
-              padding: const EdgeInsets.fromLTRB(14, 12, 6, 16),
-              children: [
+            side: [
               GoldFrame(
                 shadows: [bs(0, 8, 22, const Color(0x80000000))],
                 inner: ellipseGradient(
@@ -117,10 +115,7 @@ class _PromotionsPageState extends State<PromotionsPage> with _Ticker {
                 ),
               ),
               ],
-            ),
-            main: PaneList(
-              padding: const EdgeInsets.fromLTRB(8, 12, 14, 16),
-              children: [
+            main: [
               const SectionTitle('MORE OFFERS'),
               const SizedBox(height: 12),
               _Offer(
@@ -199,7 +194,6 @@ class _PromotionsPageState extends State<PromotionsPage> with _Ticker {
                 action: _PillAction('JOIN', onTap: () => Nav.push(R.leaderboard)),
               ),
               ],
-            ),
           ),
         ),
       ]),
@@ -215,12 +209,15 @@ class StreakRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
-    return Row(children: [
-      for (var n = 1; n <= 7; n++) ...[
-        if (n > 1) SizedBox(width: tall ? 5 : 4),
-        Expanded(child: _day(s, n)),
-      ],
-    ]);
+    final gap = tall ? 5.0 : 4.0;
+    // One row of seven while each day gets 40px, otherwise days 1–4 over 5–7.
+    return LayoutBuilder(builder: (context, box) {
+      final perRow = (box.maxWidth - 6 * gap) / 7 >= 40 ? 7 : 4;
+      final w = (box.maxWidth - (perRow - 1) * gap) / perRow;
+      return Wrap(spacing: gap, runSpacing: gap, children: [
+        for (var n = 1; n <= 7; n++) SizedBox(width: w, child: _day(s, n)),
+      ]);
+    });
   }
 
   Widget _day(AppState s, int n) {
@@ -567,12 +564,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with _Ticker {
       child: Column(children: [
         const TopBar(title: 'SLOTS RACE', backLabel: 'Back to promotions', border: false, titleSize: 19),
         Expanded(
-          child: Panes(
+          child: PaneLists(
+            top: 0,
             sideFraction: .45,
             maxSide: 460,
-            side: PaneList(
-              padding: const EdgeInsets.fromLTRB(14, 0, 6, 12),
-              children: [
+            side: [
                 SegTabs(
                   labels: const ['THIS WEEKEND', 'LAST RACE'],
                   index: live ? 0 : 1,
@@ -620,10 +616,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with _Ticker {
                   ],
                 ]),
               ],
-            ),
-            main: PaneList(
-              padding: const EdgeInsets.fromLTRB(8, 0, 14, 12),
-              children: [
+            main: [
                 ZCard(
                   child: Column(children: [
                     for (var k = 3; k < names.length; k++)
@@ -660,7 +653,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with _Ticker {
                   style: outfit(12, c: Z.muted2, h: 1.5),
                 ),
               ],
-            ),
           ),
         ),
         Container(

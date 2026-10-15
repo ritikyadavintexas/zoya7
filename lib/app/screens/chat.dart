@@ -130,7 +130,7 @@ class _ChatScreenState extends State<ChatScreen> {
           minSide: 230,
           maxSide: 300,
           divider: true,
-          side: PaneList(
+          side: ListView(
             padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
             children: [
               Row(children: [

@@ -39,87 +39,83 @@ class _GamesPageState extends State<GamesPage> {
           right: GcChip(onTap: () => Nav.tab(AppTab.wallet, walletTab: 'buy')),
         ),
         Expanded(
-          child: Panes(
+          child: PaneLists(
             sideFraction: .36,
-            side: PaneList(
-              padding: const EdgeInsets.fromLTRB(14, 12, 6, 16),
-              children: [
-                _Featured(onTap: () => Nav.push(R.gold)),
-                const SizedBox(height: 12),
-                TextField(
-                  onChanged: (v) => setState(() => query = v),
-                  style: outfit(15, c: Z.cream),
-                  cursorColor: Z.goldHi,
-                  decoration: fieldDeco(hint: 'Search games', radius: 24, left: 0).copyWith(
-                    hintStyle: outfit(15, c: Z.faint),
-                    prefixIcon: const Padding(
-                      padding: EdgeInsets.only(left: 14, right: 10),
-                      child: RawIco(
-                          '<g fill="none" stroke="#c9a35a" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></g>',
-                          size: 18),
-                    ),
-                    prefixIconConstraints: const BoxConstraints(minWidth: 42),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            side: [
+              _Featured(onTap: () => Nav.push(R.gold)),
+              const SizedBox(height: 12),
+              TextField(
+                onChanged: (v) => setState(() => query = v),
+                style: outfit(15, c: Z.cream),
+                cursorColor: Z.goldHi,
+                decoration: fieldDeco(hint: 'Search games', radius: 24, left: 0).copyWith(
+                  hintStyle: outfit(15, c: Z.faint),
+                  prefixIcon: const Padding(
+                    padding: EdgeInsets.only(left: 14, right: 10),
+                    child: RawIco(
+                        '<g fill="none" stroke="#c9a35a" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></g>',
+                        size: 18),
                   ),
+                  prefixIconConstraints: const BoxConstraints(minWidth: 42),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                const SizedBox(height: 12),
-                Wrap(spacing: 8, runSpacing: 8, children: [
-                  for (final c in cats)
-                    Press(
-                      selected: c == cat,
-                      onTap: () => setState(() => cat = c),
-                      child: Container(
-                        height: 36,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          gradient: c == cat ? Z.goldTab : null,
-                          color: c == cat ? null : Z.field,
-                          border: c == cat ? null : Border.all(color: Z.chip, width: 1.5),
-                        ),
-                        child: Center(
-                          widthFactor: 1,
-                          child: Text(c,
-                              style: outfit(14, w: FontWeight.w700, ls: .03, c: c == cat ? Z.brown : Z.soft)),
-                        ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final c in cats)
+                  Press(
+                    selected: c == cat,
+                    onTap: () => setState(() => cat = c),
+                    child: Container(
+                      height: 36,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        gradient: c == cat ? Z.goldTab : null,
+                        color: c == cat ? null : Z.field,
+                        border: c == cat ? null : Border.all(color: Z.chip, width: 1.5),
+                      ),
+                      child: Center(
+                        widthFactor: 1,
+                        child: Text(c, style: outfit(14, w: FontWeight.w700, ls: .03, c: c == cat ? Z.brown : Z.soft)),
                       ),
                     ),
-                ]),
-              ],
-            ),
-            main: LayoutBuilder(builder: (context, box) {
-              const cols = 3, gap = 10.0, pad = EdgeInsets.fromLTRB(8, 12, 14, 16);
-              final tileW = (box.maxWidth - pad.horizontal - gap * (cols - 1)) / cols;
-              return PaneList(
-                padding: pad,
-                children: [
-                  SectionTitle(
-                    cat == 'All' ? 'ALL GAMES' : cat.toUpperCase(),
-                    trailing: Text('${list.length} ${list.length == 1 ? 'game' : 'games'}',
-                        style: outfit(13, c: Z.muted)),
                   ),
-                  const SizedBox(height: 12),
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: list.length,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: cols,
-                      mainAxisSpacing: gap,
-                      crossAxisSpacing: gap,
-                      mainAxisExtent: tileW * 96 / 179 + 6 + 18,
-                    ),
-                    itemBuilder: (_, i) => _GameTile(list[i], imageHeight: tileW * 96 / 179),
+              ]),
+            ],
+            main: [
+              SectionTitle(
+                cat == 'All' ? 'ALL GAMES' : cat.toUpperCase(),
+                trailing: Text('${list.length} ${list.length == 1 ? 'game' : 'games'}', style: outfit(13, c: Z.muted)),
+              ),
+              const SizedBox(height: 12),
+              LayoutBuilder(builder: (context, box) {
+                // As many columns as fit tiles up to 220 wide; the caption goes
+                // onto two lines when a tile is too narrow for one.
+                const gap = 10.0;
+                final cols = columnsFor(box.maxWidth, 220, gap: gap);
+                final tileW = (box.maxWidth - gap * (cols - 1)) / cols;
+                final imageH = tileW * 96 / 179;
+                final twoLines = tileW < 175;
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: list.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: cols,
+                    mainAxisSpacing: gap,
+                    crossAxisSpacing: gap,
+                    mainAxisExtent: imageH + 6 + (twoLines ? 36 : 18),
                   ),
-                  if (list.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Text('No games match “$query”.',
-                          textAlign: TextAlign.center, style: outfit(15, c: Z.muted)),
-                    ),
-                ],
-              );
-            }),
+                  itemBuilder: (_, i) => _GameTile(list[i], imageHeight: imageH, twoLines: twoLines),
+                );
+              }),
+              if (list.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Text('No games match “$query”.', textAlign: TextAlign.center, style: outfit(15, c: Z.muted)),
+                ),
+            ],
           ),
         ),
       ]),
@@ -136,7 +132,7 @@ class _Featured extends StatelessWidget {
         label: 'Featured: Classic 777 — play now',
         onTap: onTap,
         child: Container(
-          height: 160,
+          height: 156,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Z.goldEdge, width: 2),
@@ -189,9 +185,10 @@ class _Featured extends StatelessWidget {
 }
 
 class _GameTile extends StatelessWidget {
-  const _GameTile(this.g, {required this.imageHeight});
+  const _GameTile(this.g, {required this.imageHeight, this.twoLines = false});
   final GameInfo g;
   final double imageHeight;
+  final bool twoLines;
 
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -224,23 +221,27 @@ class _GameTile extends StatelessWidget {
         const SizedBox(height: 6),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: Row(children: [
-            Text(g.cat, style: outfit(12, w: FontWeight.w600, ls: .04, c: Z.muted)),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                if (g.playable) ...[
-                  Container(width: 7, height: 7, decoration: const BoxDecoration(shape: BoxShape.circle, color: Z.green)),
-                  const SizedBox(width: 4),
-                ],
-                Flexible(
-                  child: Text(g.playable ? '${g.players} playing' : 'Coming soon',
-                      maxLines: 1, overflow: TextOverflow.ellipsis, style: outfit(12, c: Z.muted)),
-                ),
-              ]),
-            ),
-          ]),
+          child: twoLines
+              ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(g.cat, style: outfit(12, w: FontWeight.w600, ls: .04, c: Z.muted, h: 1.5)),
+                  _status(),
+                ])
+              : Row(children: [
+                  Text(g.cat, style: outfit(12, w: FontWeight.w600, ls: .04, c: Z.muted)),
+                  const Spacer(),
+                  _status(),
+                ]),
         ),
+      ]);
+}
+
+extension on _GameTile {
+  Widget _status() => Row(mainAxisSize: MainAxisSize.min, children: [
+        if (g.playable) ...[
+          Container(width: 7, height: 7, decoration: const BoxDecoration(shape: BoxShape.circle, color: Z.green)),
+          const SizedBox(width: 4),
+        ],
+        Text(g.playable ? '${g.players} playing' : 'Coming soon', style: outfit(12, c: Z.muted, h: 1.5)),
       ]);
 }
 
