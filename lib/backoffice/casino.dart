@@ -53,7 +53,6 @@ class Player {
   Player({
     required this.id,
     required this.username,
-    required this.password,
     required this.name,
     required this.created,
     this.phone = '',
@@ -65,12 +64,12 @@ class Player {
     this.startGc = 0,
     this.startSc = 0,
     this.createdBy = '',
+    this.loginGen = 0,
     DateTime? lastSeen,
   }) : lastSeen = lastSeen ?? created;
 
   final String id;
   String username;
-  String password;
   String name;
   String phone;
   String email;
@@ -89,10 +88,13 @@ class Player {
   final String createdBy;
   DateTime lastSeen;
 
+  /// How many times the password was reset (each reset is a new sign-in
+  /// account, see [playerEmail]). Passwords themselves are never stored here.
+  int loginGen;
+
   Map<String, Object> toJson() => {
         'id': id,
         'u': username,
-        'pw': password,
         'n': name,
         'ph': phone,
         'em': email,
@@ -102,12 +104,12 @@ class Player {
         'ssc': startSc,
         'c': created.millisecondsSinceEpoch,
         'by': createdBy,
+        'lg': loginGen,
       };
 
   static Player fromJson(Map<String, dynamic> j) => Player(
         id: j['id'] as String,
         username: j['u'] as String,
-        password: j['pw'] as String,
         name: j['n'] as String,
         phone: j['ph'] as String? ?? '',
         email: j['em'] as String? ?? '',
@@ -117,6 +119,7 @@ class Player {
         startSc: (j['ssc'] as num).toDouble(),
         created: DateTime.fromMillisecondsSinceEpoch(j['c'] as int),
         createdBy: j['by'] as String? ?? '',
+        loginGen: (j['lg'] as num?)?.toInt() ?? 0,
       );
 }
 
@@ -291,17 +294,22 @@ class Play {
     ..last = j.length > 8 ? (j[8] as num).toInt() : 0;
 }
 
+/// Someone who signs in to the admin panel, by their Firebase account [uid].
 class Staff {
-  Staff(this.name, this.role, this.pin);
+  Staff(this.uid, this.name, this.role, {this.username = ''});
+  final String uid;
   String name;
   StaffRole role;
-  String pin;
+
+  /// What they sign in with.
+  String username;
 
   bool get canManage => role != StaffRole.cashier;
   bool get isOwner => role == StaffRole.owner;
 
-  Map<String, Object> toJson() => {'n': name, 'r': role.index, 'p': pin};
-  static Staff fromJson(Map<String, dynamic> j) => Staff(j['n'] as String, StaffRole.values[j['r'] as int], j['p'] as String);
+  Map<String, Object> toJson() => {'n': name, 'r': role.index, 'u': username};
+  static Staff fromJson(String uid, Map<String, dynamic> j) =>
+      Staff(uid, j['n'] as String, StaffRole.values[j['r'] as int], username: j['u'] as String? ?? '');
 }
 
 class AuditEntry {
@@ -457,9 +465,9 @@ DateTime dayStart(int day) {
 class Casino extends ChangeNotifier {
   Casino._({this.persist = false, DateTime Function()? clock}) : clock = clock ?? DateTime.now;
 
-  static const storageKey = 'zoya7.backoffice.v1';
+  static const storageKey = 'zoya7.backoffice.v2';
 
-  /// The demo account (player123 / zoya7demo).
+  /// The demo account (tests and previews).
   static const meId = 'Z7-100123';
 
   /// Save every change to this device's storage.
@@ -474,6 +482,11 @@ class Casino extends ChangeNotifier {
   final audit = <AuditEntry>[];
   var settings = CasinoSettings();
   String featured = 'classic777';
+
+  /// Sign-in lookups: player ID or username ([loginKey]) → the account's
+  /// email and player ID; and Firebase account → player ID.
+  final logins = <String, ({String email, String playerId})>{};
+  final uids = <String, String>{};
 
   /// When each player last opened the game (ms since epoch).
   final seen = <String, int>{};
@@ -501,21 +514,31 @@ class Casino extends ChangeNotifier {
   /// The demo account.
   Player get me => player(meId)!;
 
-  /// Log a player in by player ID or username.
-  Player login(String who, String password) {
-    final w = who.trim().toLowerCase();
-    if (w.isEmpty) throw CasinoError('Enter your player ID or username');
-    Player? p;
-    for (final x in players) {
-      if (x.id.toLowerCase() == w || x.username.toLowerCase() == w || x.id.toLowerCase() == 'z7-$w') p = x;
+  /// How a player ID or username is kept in [logins] (Firebase keys can't
+  /// hold a dot).
+  static String loginKey(String who) => who.trim().toLowerCase().replaceAll('.', ',');
+
+  /// The player a Firebase account belongs to.
+  Player? playerForUid(String uid) => uids[uid] == null ? null : player(uids[uid]!);
+
+  /// Why a player can't play right now, or null.
+  static String? blocked(Player p) => switch (p.status) {
+        PlayerStatus.active => null,
+        PlayerStatus.banned => 'This account is closed',
+        PlayerStatus.suspended => 'This account is on hold — talk to your cashier',
+      };
+
+  /// Tie [p] to its sign-in account (a new one after a password reset).
+  void linkLogin(Player p, String uid, String email, {int generation = 0}) {
+    uids.removeWhere((_, id) => id == p.id);
+    uids[uid] = p.id;
+    logins.removeWhere((_, l) => l.playerId == p.id);
+    for (final k in {loginKey(p.id), loginKey(p.username)}) {
+      logins[k] = (email: email, playerId: p.id);
     }
-    if (p == null) throw CasinoError('No player with that ID. Ask your cashier for one.');
-    if (p.password != password) throw CasinoError('Wrong password');
-    if (p.status != PlayerStatus.active) {
-      throw CasinoError(p.status == PlayerStatus.banned ? 'This account is closed' : 'This account is on hold — talk to your cashier');
-    }
-    touchSeen(p.id);
-    return p;
+    p.loginGen = generation;
+    if (generation > 0) _log('Reset password of ${p.username}');
+    _changed();
   }
 
   /// The player has the game open.
@@ -565,7 +588,6 @@ class Casino extends ChangeNotifier {
   Player createPlayer({
     required String username,
     String? name,
-    String? password,
     String phone = '',
     String email = '',
     String note = '',
@@ -582,7 +604,6 @@ class Casino extends ChangeNotifier {
     final p = Player(
       id: _newPlayerId(),
       username: u,
-      password: (password == null || password.isEmpty) ? newPassword() : password,
       name: (name == null || name.trim().isEmpty) ? u : name.trim(),
       phone: phone,
       email: email,
@@ -601,7 +622,7 @@ class Casino extends ChangeNotifier {
 
   /// Make [count] IDs named [prefix]001, [prefix]002… (skipping taken names).
   List<Player> bulkCreate(int count, String prefix, {double? startGc, double? startSc}) {
-    if (count < 1 || count > 500) throw CasinoError('Make between 1 and 500 at a time');
+    if (count < 1 || count > 50) throw CasinoError('Make between 1 and 50 at a time');
     final made = <Player>[];
     var n = 1;
     while (made.length < count) {
@@ -618,7 +639,9 @@ class Casino extends ChangeNotifier {
   void updatePlayer(Player p, {String? name, String? username, String? phone, String? email, String? note}) {
     if (username != null && username.trim() != p.username) {
       if (usernameTaken(username, except: p.id)) throw CasinoError('“${username.trim()}” is taken');
+      final login = logins.remove(loginKey(p.username));
       p.username = username.trim();
+      if (login != null) logins[loginKey(p.username)] = login;
     }
     if (name != null) p.name = name.trim();
     if (phone != null) p.phone = phone.trim();
@@ -626,13 +649,6 @@ class Casino extends ChangeNotifier {
     if (note != null) p.note = note.trim();
     _log('Edited player ${p.username}');
     _changed();
-  }
-
-  String resetPassword(Player p) {
-    p.password = newPassword();
-    _log('Reset password of ${p.username}');
-    _changed();
-    return p.password;
   }
 
   void setPlayerStatus(Player p, PlayerStatus s) {
@@ -643,6 +659,8 @@ class Casino extends ChangeNotifier {
 
   void deletePlayer(Player p) {
     players.remove(p);
+    logins.removeWhere((_, l) => l.playerId == p.id);
+    uids.removeWhere((_, id) => id == p.id);
     _log('Deleted player ${p.username} (${p.id})');
     _changed();
   }
@@ -738,9 +756,10 @@ class Casino extends ChangeNotifier {
     _changed();
   }
 
-  Staff? signIn(String pin, {bool log = true}) {
+  /// Open the admin panel as the staff member with Firebase account [uid].
+  Staff? signIn(String uid, {bool log = true}) {
     for (final s in staff) {
-      if (s.pin == pin) {
+      if (s.uid == uid) {
         admin = s;
         if (log) {
           _log('Signed in');
@@ -761,11 +780,11 @@ class Casino extends ChangeNotifier {
     _changed();
   }
 
-  void addStaff(String name, StaffRole role, String pin) {
+  /// Give the Firebase account [uid] a role in the admin panel.
+  void addStaff(String uid, String name, StaffRole role, {String username = ''}) {
     if (name.trim().isEmpty) throw CasinoError('Enter a name');
-    if (!RegExp(r'^\d{4}$').hasMatch(pin)) throw CasinoError('PIN is 4 digits');
-    if (staff.any((s) => s.pin == pin)) throw CasinoError('That PIN is in use');
-    staff.add(Staff(name.trim(), role, pin));
+    if (staff.any((s) => s.uid == uid)) throw CasinoError('Already on the staff');
+    staff.add(Staff(uid, name.trim(), role, username: username.trim().toLowerCase()));
     _log('Added ${role.name} ${name.trim()}');
     _changed();
   }
@@ -785,7 +804,26 @@ class Casino extends ChangeNotifier {
     txns.clear();
     plays.clear();
     seen.clear();
+    logins.clear();
+    uids.clear();
     _log('Cleared all players and the ledger');
+    _changed();
+  }
+
+  /// First-time setup: nothing but [owner] and the game setup.
+  void startClean(Staff owner) {
+    players.clear();
+    txns.clear();
+    plays.clear();
+    seen.clear();
+    audit.clear();
+    logins.clear();
+    uids.clear();
+    staff
+      ..clear()
+      ..add(owner);
+    admin = owner;
+    _log('Set up the database');
     _changed();
   }
 
@@ -1025,13 +1063,15 @@ class Casino extends ChangeNotifier {
   /// devices can sync record by record.
   Map<String, Map<String, dynamic>> toRecords() => {
         for (final p in players) 'players/${p.id}': p.toJson(),
-        for (final t in txns) 'txns/${t.id}': t.toJson(),
+        for (final t in txns) 'txns/${t.playerId}/${t.id}': t.toJson(),
         for (final c in configs.values) 'games/${c.id}': c.toJson(),
-        for (final e in plays.entries) 'plays/${e.key}': {'p': e.value.toJson()},
+        for (final pl in plays.values) 'plays/${pl.playerId}/${pl.day}|${pl.gameId}': {'p': pl.toJson()},
         for (final a in audit.length > 500 ? audit.sublist(audit.length - 500) : audit) 'audit/${a.key}': {'a': a.toJson()},
         for (final e in seen.entries) 'seen/${e.key}': {'t': e.value},
         'meta/settings': {...settings.toJson(), 'featured': featured},
-        'meta/staff': {'list': [for (final st in staff) st.toJson()]},
+        for (final st in staff) 'staff/${st.uid}': st.toJson(),
+        for (final e in logins.entries) 'logins/${e.key}': {'e': e.value.email, 'p': e.value.playerId},
+        for (final e in uids.entries) 'uids/${e.key}': {'p': e.value},
       };
 
   /// Replace everything with [records] (what [toRecords] makes).
@@ -1041,6 +1081,9 @@ class Casino extends ChangeNotifier {
     plays.clear();
     audit.clear();
     seen.clear();
+    staff.clear();
+    logins.clear();
+    uids.clear();
     for (final MapEntry(key: path, value: j) in records.entries) {
       final slash = path.indexOf('/');
       final kind = path.substring(0, slash), key = path.substring(slash + 1);
@@ -1053,7 +1096,8 @@ class Casino extends ChangeNotifier {
           case 'games':
             configs[key] = GameConfig.fromJson(j);
           case 'plays':
-            plays[key] = Play.fromJson(j['p'] as List);
+            final pl = Play.fromJson(j['p'] as List);
+            plays['${pl.day}|${pl.gameId}|${pl.playerId}'] = pl;
           case 'audit':
             audit.add(AuditEntry.fromJson(j['a'] as List));
           case 'seen':
@@ -1061,12 +1105,12 @@ class Casino extends ChangeNotifier {
           case 'meta' when key == 'settings':
             settings = CasinoSettings.fromJson(j);
             featured = j['featured'] as String? ?? featured;
-          case 'meta' when key == 'staff':
-            final list = j['list'];
-            final items = list is List ? list : (list as Map).values.toList();
-            staff
-              ..clear()
-              ..addAll([for (final x in items) Staff.fromJson((x as Map).cast<String, dynamic>())]);
+          case 'staff':
+            staff.add(Staff.fromJson(key, j));
+          case 'logins':
+            logins[key] = (email: j['e'] as String, playerId: j['p'] as String);
+          case 'uids':
+            uids[key] = j['p'] as String;
         }
       } catch (_) {
         // A record this version can't read is skipped, not fatal.
@@ -1075,7 +1119,7 @@ class Casino extends ChangeNotifier {
     players.sort((a, b) => a.created.compareTo(b.created));
     txns.sort((a, b) => a.at.compareTo(b.at));
     audit.sort((a, b) => a.at.compareTo(b.at));
-    if (admin != null) admin = staff.where((x) => x.pin == admin!.pin).firstOrNull;
+    if (admin != null) admin = staff.where((x) => x.uid == admin!.uid).firstOrNull;
     recompute();
     saveLocal();
     notifyListeners();
@@ -1092,7 +1136,9 @@ class Casino extends ChangeNotifier {
         'txns': [for (final t in txns) t.toJson()],
         'games': [for (final c in configs.values) c.toJson()],
         'plays': [for (final p in plays.values) p.toJson()],
-        'staff': [for (final s in staff) s.toJson()],
+        'staff': {for (final s in staff) s.uid: s.toJson()},
+        'logins': {for (final e in logins.entries) e.key: {'e': e.value.email, 'p': e.value.playerId}},
+        'uids': uids,
         'audit': [for (final a in audit.length > 500 ? audit.sublist(audit.length - 500) : audit) a.toJson()],
         'seen': seen,
         'settings': settings.toJson(),
@@ -1111,7 +1157,16 @@ class Casino extends ChangeNotifier {
       final pl = Play.fromJson(p as List);
       c.plays['${pl.day}|${pl.gameId}|${pl.playerId}'] = pl;
     }
-    c.staff.addAll([for (final s in j['staff'] as List) Staff.fromJson(s as Map<String, dynamic>)]);
+    for (final e in (j['staff'] as Map).entries) {
+      c.staff.add(Staff.fromJson(e.key as String, (e.value as Map).cast<String, dynamic>()));
+    }
+    for (final e in (j['logins'] as Map? ?? const {}).entries) {
+      final l = e.value as Map;
+      c.logins[e.key as String] = (email: l['e'] as String, playerId: l['p'] as String);
+    }
+    for (final e in (j['uids'] as Map? ?? const {}).entries) {
+      c.uids[e.key as String] = e.value as String;
+    }
     c.audit.addAll([for (final a in j['audit'] as List) AuditEntry.fromJson(a as List)]);
     c.settings = CasinoSettings.fromJson(j['settings'] as Map<String, dynamic>);
     c.featured = j['featured'] as String? ?? 'classic777';
@@ -1142,12 +1197,18 @@ class Casino extends ChangeNotifier {
     audit
       ..clear()
       ..addAll(o.audit);
+    logins
+      ..clear()
+      ..addAll(o.logins);
+    uids
+      ..clear()
+      ..addAll(o.uids);
     settings = o.settings;
     featured = o.featured;
     seen
       ..clear()
       ..addAll(o.seen);
-    admin = keep == null ? null : staff.where((s) => s.pin == keep.pin).firstOrNull ?? staff.first;
+    admin = keep == null ? null : staff.where((s) => s.uid == keep.uid).firstOrNull;
   }
 
   /// This device's saved back office, or fresh demo data.
@@ -1171,7 +1232,11 @@ class Casino extends ChangeNotifier {
     final at = now ?? clock?.call() ?? DateTime.now();
     final c = Casino._(clock: clock ?? (now == null ? null : () => now)).._batch = true;
     final r = Random(7);
-    c.staff.addAll([Staff('Owner', StaffRole.owner, '1234'), Staff('Maya', StaffRole.manager, '2580'), Staff('Leo', StaffRole.cashier, '1111')]);
+    c.staff.addAll([
+      Staff('owner', 'Owner', StaffRole.owner, username: 'owner'),
+      Staff('maya', 'Maya', StaffRole.manager, username: 'maya'),
+      Staff('leo', 'Leo', StaffRole.cashier, username: 'leo'),
+    ]);
 
     c.configs.addAll({
       'classic777': GameConfig(id: 'classic777', weights: SlotMath.solve(.95), badge: 'HOT'),
@@ -1207,7 +1272,6 @@ class Casino extends ChangeNotifier {
       final p = Player(
         id: 'Z7-${100100 + i}',
         username: u,
-        password: c.newPassword(r),
         name: n,
         phone: '(555) ${200 + r.nextInt(700)}-${1000 + r.nextInt(9000)}',
         created: when(ago),
@@ -1221,7 +1285,7 @@ class Casino extends ChangeNotifier {
       created[p.id] = ago;
     }
     final me = Player(
-        id: meId, username: 'player123', password: 'zoya7demo', name: 'Player123', created: when(60), createdBy: 'App', note: 'Plays from this device');
+        id: meId, username: 'player123', name: 'Player123', created: when(60), createdBy: 'App', note: 'Plays from this device');
     c.players.add(me);
 
     // Everyone's history, oldest first, so txn ids run in time order.

@@ -9,7 +9,7 @@ import 'package:zoya7_gold/games/gold/src/math.dart';
 
 void main() {
   final now = DateTime(2026, 10, 16, 18, 30);
-  Casino demo() => Casino.demo(now: now)..signIn('1234');
+  Casino demo() => Casino.demo(now: now)..signIn('owner');
 
   group('demo data', () {
     test('has players, history and the app player on its starting balances', () {
@@ -54,7 +54,6 @@ void main() {
         ..newPlayerSc = 5);
       final p = c.createPlayer(username: 'newbie');
       expect(p.id, startsWith('Z7-'));
-      expect(p.password.length, 8);
       expect((p.gc, p.sc), (20000, 5));
       expect(c.txnsOf(p.id).single.type, TxnType.start);
       expect(() => c.createPlayer(username: 'NEWBIE'), throwsA(isA<CasinoError>()));

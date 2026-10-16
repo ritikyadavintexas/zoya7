@@ -19,8 +19,9 @@ settlement live in `engine.dart` (no UI, unit-tested); `controller.dart` paces t
 
 **Admin panel (Cash App style, portrait) — its own app.** Open `…/admin/` (e.g.
 https://ritikyadavintexas.github.io/zoya7/admin/) and add it to the home screen: it installs as
-**Z7 Admin**, separate from the game, upright, with its own green icon. Sign in once with your staff PIN;
-the device stays signed in until *Lock*.
+**Z7 Admin**, separate from the game, upright, with its own green icon. Staff sign in once with
+their username and password; the device stays signed in until *Lock*. Owners add staff (username,
+password, role) under *Staff & log*.
 
 **Coins only.** Coins have no cash value: staff put coins on an account (*coin in*) and take them
 off (*coin out*). No money amounts, payment methods or payouts are recorded anywhere.
@@ -37,21 +38,41 @@ off (*coin out*). No money amounts, payment methods or payouts are recorded anyw
   clean start); staff & audit log.
 
 **Players need a player ID.** There is no sign-up or guest play: the game's log-in takes the
-player ID (or username) and password made in the admin panel, and the device remembers it. A
-player who is suspended, banned or deleted is logged out on the spot.
+player ID (or username) and password made in the admin panel, and the device remembers it. The
+password is shown once when the ID is made (or reset) — it isn't stored anywhere it could be read
+back. A player who is suspended, banned or deleted is logged out on the spot.
 
-**Shared database.** The game and the panel share one back office
-(`lib/backoffice/casino.dart`), kept in the Firebase Realtime Database
-`https://lilly-55024-default-rtdb.firebaseio.com` (`lib/backoffice/sync.dart`, plain REST — no
-SDK). Every phone and computer connects to it by itself; nothing to set up per device. The
-first device to find it empty uploads its data. A build can point elsewhere with the repository
-variable `ZOYA7_DB_URL`.
+**Database: Firebase (project `lilly-55024`, free Spark plan).** The game and the panel share
+one back office (`lib/backoffice/casino.dart`), kept in the Realtime Database
+`https://lilly-55024-default-rtdb.firebaseio.com` and synced over REST
+(`lib/backoffice/sync.dart`, no SDK). Every phone and computer connects by itself.
 
-Devices sync every few seconds, record by record (players, ledger lines, play, games, settings),
-so two devices changing different things never lose each other's work; balances are worked out
-from the ledger, never stored. Offline changes are sent when the connection is back. Test-mode
-databases are open to anyone with the URL and expire after 30 days — lock the rules before real
-use. While a device can't reach the database it keeps working on its own copy (browser storage).
+- **Sign-in** is Firebase Authentication (email and password, `lib/backoffice/auth.dart`).
+  Nobody types an email: staff use a username and players their player ID or username; the app
+  turns those into `<username>@staff.zoya7.app` and `<player id>@players.zoya7.app` accounts.
+  Firebase keeps the passwords, hashed. A password reset makes a new sign-in for the player
+  (without a server, staff can't change another account's password) and the old one stops working.
+- **Rules** (`firebase/database.rules.json`): staff read everything; cashiers handle players and
+  coins, managers also games and settings, owners also staff. A player reads only their own
+  account, ledger and play, and can write only their play, last-seen and the daily bonus.
+  Each device syncs only what it may read and never sends what it may not write.
+- **Sync:** every few seconds, record by record (players, ledger lines, play, games, settings),
+  three-way merged so two devices changing different things never lose each other's work;
+  balances are worked out from the ledger, never stored. Offline changes are sent when the
+  connection is back.
+
+**Setting it up (once):**
+1. Firebase console → Authentication → Sign-in method → turn on **Email/Password**; under
+   Settings → Authorized domains add `ritikyadavintexas.github.io`.
+2. Realtime Database → Rules → paste `firebase/database.rules.json` → **Publish**.
+3. Straight away, open the admin app → *First time? Set up the owner account* → name, username,
+   password (6+ characters). That makes the owner and starts the database clean (no demo data).
+   Setup works only while the database has no staff, so do it right after publishing the rules.
+
+**Limits of the free plan:** with no server, games are played out on the player's device, so a
+skilled player could fake their own wins or claim the daily bonus more than once; staff-only
+actions (coin in / out, settings, accounts) are enforced by the rules. Server-side play needs
+Cloud Functions (the Blaze plan). Coin packs can't be bought in the app (no payments connected).
 
 **Landscape everywhere.** The Android and iOS builds lock to landscape. Browsers can't lock
 orientation, so when the window is taller than wide (phone held upright) the game draws itself

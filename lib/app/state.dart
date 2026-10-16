@@ -3,8 +3,9 @@ import 'package:flutter/widgets.dart';
 import '../games/gold/src/math.dart' show Currency;
 import 'nav.dart';
 
+import '../backoffice/auth.dart';
 import '../backoffice/casino.dart';
-import '../backoffice/storage.dart';
+import '../backoffice/sync.dart';
 
 /// A Gold Coin package from the Wallet's BUY COINS grid.
 class CoinPack {
@@ -30,22 +31,19 @@ const coinPacks = [
 /// Session state shared by every page. Who's playing, their balances,
 /// coin packs and the games on offer come from the back office
 /// ([Casino]), which the admin panel manages. Players can only log in with a
-/// player ID made in the admin panel; this device remembers who logged in.
+/// player ID made in the admin panel (a Firebase sign-in, through [sync]);
+/// this device remembers who logged in.
 class AppState extends ChangeNotifier {
   /// Without a [casino] (tests, previews) the demo account is logged in.
-  AppState({Casino? casino, String? playerId})
+  AppState({Casino? casino, String? playerId, this.sync})
       : casino = casino ?? Casino.demo(),
         playerId = casino == null ? Casino.meId : playerId {
     this.casino.addListener(_casinoChanged);
     if (this.playerId != null && player == null) this.playerId = null;
   }
 
-  static const _playerKey = 'zoya7.player';
-
-  /// The player this device remembers, if any.
-  static String? rememberedPlayer() => loadSaved(_playerKey);
-
   final Casino casino;
+  final CasinoSync? sync;
 
   /// Logged-in player ID (null: logged out).
   String? playerId;
@@ -59,11 +57,7 @@ class AppState extends ChangeNotifier {
   void _casinoChanged() {
     final p = player;
     if (playerId != null && (p == null || p.status != PlayerStatus.active)) {
-      kickedOut = p == null
-          ? 'This player ID no longer exists'
-          : p.status == PlayerStatus.banned
-              ? 'This account is closed'
-              : 'This account is on hold — talk to your cashier';
+      kickedOut = p == null ? 'This player ID no longer exists' : Casino.blocked(p);
       signOut();
       return;
     }
@@ -72,22 +66,42 @@ class AppState extends ChangeNotifier {
 
   /// Log in with a player ID (or username) and password; returns an error to
   /// show, or null.
-  String? logIn(String who, String password) {
+  Future<String?> logIn(String who, String password) async {
+    final s = sync, auth = s?.auth;
+    if (who.trim().isEmpty) return 'Enter your player ID or username';
+    if (password.isEmpty) return 'Enter your password';
+    if (s == null || auth == null) return 'Can’t reach the server — check the connection';
     try {
-      final p = casino.login(who, password);
-      playerId = p.id;
+      final email = await s.loginEmail(who);
+      if (email == null) return 'No player with that ID. Ask your cashier for one.';
+      final AuthSession session;
+      try {
+        session = await auth.signIn(email, password);
+      } on AuthError catch (e) {
+        return e.message == 'Wrong username or password' ? 'Wrong password' : e.message;
+      }
+      final id = await s.playerOf(session);
+      if (id == null) return 'This password was reset — ask your cashier for the new one';
+      await s.usePlayer(session, id);
+      final p = casino.player(id);
+      final blocked = p == null ? 'Can’t load your account — try again' : Casino.blocked(p);
+      if (blocked != null) {
+        s.signOut();
+        return blocked;
+      }
+      playerId = id;
       kickedOut = null;
-      save(_playerKey, p.id);
+      casino.touchSeen(id);
       notifyListeners();
       return null;
-    } on CasinoError catch (e) {
-      return e.message;
+    } catch (e) {
+      return '$e';
     }
   }
 
   void signOut() {
     playerId = null;
-    clearSaved(_playerKey);
+    sync?.signOut();
     notifyListeners();
   }
 
@@ -140,10 +154,14 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Credits [p] (plus [bonusGc] from a promo code) and returns the pack.
+  /// Coin packs can't be bought in the app yet (no payments are connected):
+  /// a player signed in to the shared database is told to ask the cashier.
+  bool get storeOpen => sync?.auth == null;
+
+  /// Credits [p] (plus [bonusGc] from a promo code).
   void completePurchase(CoinPack p, {int bonusGc = 0}) {
     final me = player;
-    if (me == null) return;
+    if (me == null || !storeOpen) return;
     casino.purchase(me,
         gc: (p.gc + bonusGc).toDouble(), sc: p.sc.toDouble(), note: '${p.gcLabel} GC package');
   }

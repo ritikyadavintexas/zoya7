@@ -213,6 +213,7 @@ class _CreatePlayerState extends State<_CreatePlayer> {
   late final startGc = TextEditingController(text: casino.settings.newPlayerGc.toStringAsFixed(0));
   late final startSc = TextEditingController(text: casino.settings.newPlayerSc.toStringAsFixed(2));
   Player? made;
+  bool busy = false;
 
   @override
   void dispose() {
@@ -225,7 +226,7 @@ class _CreatePlayerState extends State<_CreatePlayer> {
   @override
   Widget build(BuildContext context) {
     final p = made;
-    if (p != null) return CredentialsCard(p, onDone: () => Navigator.of(context).pop(), offerCoinIn: true);
+    if (p != null) return CredentialsCard(p, password: password.text.trim(), onDone: () => Navigator.of(context).pop(), offerCoinIn: true);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Row(children: [
         Expanded(child: KField(label: 'Username', controller: username, icon: Icons.alternate_email_rounded)),
@@ -260,33 +261,56 @@ class _CreatePlayerState extends State<_CreatePlayer> {
       const SizedBox(height: 12),
       KField(label: 'Note (optional)', controller: note, hint: 'e.g. Referred by luckylina'),
       const SizedBox(height: 18),
-      KButton('Create player ID', expand: true, icon: Icons.person_add_alt_1_rounded, onTap: () {
-        attempt(context, () {
-          final p = casino.createPlayer(
-            username: username.text,
-            name: name.text,
-            password: password.text.trim(),
-            phone: phone.text.trim(),
-            email: email.text.trim(),
-            note: note.text,
-            startGc: amountOf(startGc.text) ?? 0,
-            startSc: amountOf(startSc.text) ?? 0,
-          );
-          setState(() => made = p);
-        });
-      }),
+      KButton(busy ? 'Creating…' : 'Create player ID', expand: true, icon: Icons.person_add_alt_1_rounded, onTap: busy ? null : _create),
     ]);
+  }
+
+  Future<void> _create() async {
+    if (password.text.trim().length < 6) {
+      kToast(context, 'The password needs at least 6 characters');
+      return;
+    }
+    setState(() => busy = true);
+    Player? p;
+    final ok = await attemptAsync(context, () async {
+      p = casino.createPlayer(
+        username: username.text,
+        name: name.text,
+        phone: phone.text.trim(),
+        email: email.text.trim(),
+        note: note.text,
+        startGc: amountOf(startGc.text) ?? 0,
+        startSc: amountOf(startSc.text) ?? 0,
+      );
+      try {
+        await makePlayerLogin(context, p!, password.text);
+      } catch (_) {
+        // No sign-in account, no player ID.
+        casino.deletePlayer(p!);
+        rethrow;
+      }
+    });
+    if (mounted) {
+      setState(() {
+        busy = false;
+        if (ok) made = p;
+      });
+    }
   }
 }
 
 /// The new account's login, ready to hand to the player.
 class CredentialsCard extends StatelessWidget {
-  const CredentialsCard(this.p, {super.key, required this.onDone, this.offerCoinIn = false});
+  const CredentialsCard(this.p, {super.key, required this.password, required this.onDone, this.offerCoinIn = false, this.title = 'Player ID created'});
   final Player p;
+
+  /// Shown once: it isn't stored anywhere it could be read back.
+  final String password;
   final VoidCallback onDone;
   final bool offerCoinIn;
+  final String title;
 
-  String get login => 'Zoya7 login\nPlayer ID: ${p.id}\nUsername: ${p.username}\nPassword: ${p.password}';
+  String get login => 'Zoya7 login\nPlayer ID: ${p.id}\nUsername: ${p.username}\nPassword: $password';
 
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -294,13 +318,13 @@ class CredentialsCard extends StatelessWidget {
           child: CircleAvatar(radius: 32, backgroundColor: K.green, child: Icon(Icons.check_rounded, color: Colors.white, size: 38)),
         ),
         const SizedBox(height: 12),
-        Text('Player ID created', textAlign: TextAlign.center, style: kt(22, w: FontWeight.w800)),
-        Text('Starting amount ${gcAmt(p.startGc)} + ${scAmt(p.startSc)}', textAlign: TextAlign.center, style: kt(14, c: K.sub)),
+        Text(title, textAlign: TextAlign.center, style: kt(22, w: FontWeight.w800)),
+        Text('Copy the password now — it can’t be shown again', textAlign: TextAlign.center, style: kt(14, c: K.sub)),
         const SizedBox(height: 16),
         KCard(
           color: K.field,
           child: Column(children: [
-            for (final (k, v) in [('Player ID', p.id), ('Username', p.username), ('Password', p.password)])
+            for (final (k, v) in [('Player ID', p.id), ('Username', p.username), ('Password', password)])
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 5),
                 child: Row(children: [
@@ -345,7 +369,8 @@ class _BulkCreateState extends State<_BulkCreate> {
   final count = TextEditingController(text: '10'), prefix = TextEditingController(text: 'shop');
   late final startGc = TextEditingController(text: casino.settings.newPlayerGc.toStringAsFixed(0));
   late final startSc = TextEditingController(text: casino.settings.newPlayerSc.toStringAsFixed(2));
-  List<Player>? made;
+  List<(Player, String)>? made;
+  int? progress;
 
   @override
   void dispose() {
@@ -360,8 +385,8 @@ class _BulkCreateState extends State<_BulkCreate> {
     final m = made;
     if (m != null) {
       final csv = StringBuffer('Player ID,Username,Password\n');
-      for (final p in m) {
-        csv.writeln('${p.id},${p.username},${p.password}');
+      for (final (p, pw) in m) {
+        csv.writeln('${p.id},${p.username},$pw');
       }
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Text('${m.length} player IDs created', style: kt(18, w: FontWeight.w700)),
@@ -369,7 +394,7 @@ class _BulkCreateState extends State<_BulkCreate> {
         KCard(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: KTable(minWidth: 380, columns: const ['Username', 'Player ID', 'Password'], rows: [
-            for (final p in m) [cellText(p.username, w: FontWeight.w600), cellText(p.id, c: K.sub), cellText(p.password)],
+            for (final (p, pw) in m) [cellText(p.username, w: FontWeight.w600), cellText(p.id, c: K.sub), cellText(pw)],
           ]),
         ),
         const SizedBox(height: 14),
@@ -379,7 +404,8 @@ class _BulkCreateState extends State<_BulkCreate> {
       ]);
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Text('Make a batch of accounts to hand out (e.g. for a store). Each gets its own password.', style: kt(15, c: K.sub, h: 1.4)),
+      Text('Make a batch of accounts to hand out (e.g. for a store). Each gets its own password; copy them when done. Up to 50 at a time.',
+          style: kt(15, c: K.sub, h: 1.4)),
       const SizedBox(height: 14),
       Row(children: [
         Expanded(child: KField(label: 'How many', controller: count, keyboard: TextInputType.number, formatters: KField.money)),
@@ -395,14 +421,43 @@ class _BulkCreateState extends State<_BulkCreate> {
         Expanded(child: KField(label: 'Starting DC each', controller: startSc, keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money)),
       ]),
       const SizedBox(height: 18),
-      KButton('Create IDs', expand: true, icon: Icons.group_add_rounded, onTap: () {
-        attempt(context, () {
-          final r = casino.bulkCreate((amountOf(count.text) ?? 0).round(), prefix.text.trim().isEmpty ? 'player' : prefix.text.trim(),
-              startGc: amountOf(startGc.text) ?? 0, startSc: amountOf(startSc.text) ?? 0);
-          setState(() => made = r);
-        });
-      }),
+      KButton(progress == null ? 'Create IDs' : 'Creating ${progress! + 1}…', expand: true, icon: Icons.group_add_rounded, onTap: progress != null ? null : _create),
     ]);
+  }
+
+  Future<void> _create() async {
+    final n = (amountOf(count.text) ?? 0).round();
+    if (n < 1 || n > 50) {
+      kToast(context, 'Make between 1 and 50 at a time');
+      return;
+    }
+    final done = <(Player, String)>[];
+    setState(() => progress = 0);
+    await attemptAsync(context, () async {
+      final r = casino.bulkCreate(n, prefix.text.trim().isEmpty ? 'player' : prefix.text.trim(),
+          startGc: amountOf(startGc.text) ?? 0, startSc: amountOf(startSc.text) ?? 0);
+      for (final p in r) {
+        if (!mounted) return;
+        setState(() => progress = done.length);
+        final pw = casino.newPassword();
+        try {
+          await makePlayerLogin(context, p, pw);
+          done.add((p, pw));
+        } catch (_) {
+          // Stop here; the IDs without a sign-in go away.
+          for (final x in r.skip(done.length)) {
+            casino.deletePlayer(x);
+          }
+          rethrow;
+        }
+      }
+    });
+    if (mounted) {
+      setState(() {
+        progress = null;
+        if (done.isNotEmpty) made = done;
+      });
+    }
   }
 }
 
@@ -438,8 +493,6 @@ class PlayerDetail extends StatefulWidget {
 }
 
 class _PlayerDetailState extends State<PlayerDetail> {
-  bool showPw = false;
-
   @override
   Widget build(BuildContext context) {
     final casino = CasinoScope.of(context);
@@ -515,10 +568,15 @@ class _PlayerDetailState extends State<PlayerDetail> {
         if (canManage) _Action(Icons.tune_rounded, 'Adjust', () => showCredit(context, p, TxnType.adjust)),
         _Action(Icons.edit_outlined, 'Edit', () => _edit(context, p)),
         _Action(Icons.key_rounded, 'Reset password', () async {
-          if (await kConfirm(context, title: 'Reset password?', message: '${p.username} will need the new password to log in.', action: 'Reset') && context.mounted) {
-            casino.resetPassword(p);
-            setState(() => showPw = true);
-            kToast(context, 'New password: ${p.password}');
+          if (!await kConfirm(context, title: 'Reset password?', message: '${p.username} will need the new password to log in.', action: 'Reset') ||
+              !context.mounted) {
+            return;
+          }
+          final pw = casino.newPassword();
+          if (await attemptAsync(context, () => makePlayerLogin(context, p, pw, generation: p.loginGen + 1)) && context.mounted) {
+            await kSheet<void>(context,
+                title: 'New password',
+                builder: (ctx) => CredentialsCard(p, password: pw, title: 'Password reset', onDone: () => Navigator.of(ctx).pop()));
           }
         }),
         if (p.status == PlayerStatus.active)
@@ -546,19 +604,12 @@ class _PlayerDetailState extends State<PlayerDetail> {
           }, danger: true),
       ]),
       const SizedBox(height: 18),
-      KTitle('Login', size: 16, trailing: TextButton(onPressed: () => copy(context, 'Player ID: ${p.id}\nUsername: ${p.username}\nPassword: ${p.password}', 'Login'), child: Text('Copy', style: kt(14, w: FontWeight.w700, c: K.greenInk)))),
+      KTitle('Login', size: 16, trailing: TextButton(onPressed: () => copy(context, 'Player ID: ${p.id}\nUsername: ${p.username}', 'Login'), child: Text('Copy', style: kt(14, w: FontWeight.w700, c: K.greenInk)))),
       KCard(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Column(children: [
           _info('Username', p.username),
-          Row(children: [
-            Expanded(child: _info('Password', showPw ? p.password : '••••••••')),
-            IconButton(
-              tooltip: showPw ? 'Hide password' : 'Show password',
-              onPressed: () => setState(() => showPw = !showPw),
-              icon: Icon(showPw ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: K.sub, size: 20),
-            ),
-          ]),
+          _info('Password', 'Hidden — use Reset password to give a new one'),
         ]),
       ),
       const SizedBox(height: 18),

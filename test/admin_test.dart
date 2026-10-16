@@ -7,13 +7,18 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:zoya7_gold/admin/admin_app.dart';
 import 'package:zoya7_gold/admin/coins.dart';
 import 'package:zoya7_gold/admin/games.dart' show showBetLimits;
+import 'package:zoya7_gold/admin/kit.dart' show lockAdmin;
 import 'package:zoya7_gold/admin/players.dart';
 import 'package:zoya7_gold/app/assets.dart';
 import 'package:zoya7_gold/app/landscape.dart';
 import 'package:zoya7_gold/app/nav.dart';
 import 'package:zoya7_gold/app/screens/lobby.dart';
 import 'package:zoya7_gold/app/state.dart';
+import 'package:zoya7_gold/backoffice/auth.dart';
 import 'package:zoya7_gold/backoffice/casino.dart';
+import 'package:zoya7_gold/backoffice/sync.dart';
+
+import 'fake_firebase.dart';
 
 /// The admin panel at desktop, tablet and phone sizes (portrait first, and a
 /// phone on its side): every page lays out with nothing overflowing, a phone
@@ -45,7 +50,7 @@ void main() {
     expect(e, isNull, reason: '$what\n${reports.join('\n')}');
   }
 
-  Future<Casino> show(WidgetTester tester, Size size, {Section section = Section.dashboard, String? pin = '1234', Casino? casino}) async {
+  Future<Casino> show(WidgetTester tester, Size size, {Section section = Section.dashboard, String? uid = 'owner', Casino? casino, CasinoSync? sync}) async {
     reports.clear();
     final onError = FlutterError.onError;
     FlutterError.onError = (d) {
@@ -57,8 +62,8 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final c = casino ?? Casino.demo(now: now);
-    if (pin != null) c.signIn(pin);
-    await tester.pumpWidget(AdminApp(casino: c, initialSection: section));
+    if (uid != null) c.signIn(uid);
+    await tester.pumpWidget(AdminApp(casino: c, sync: sync, initialSection: section));
     await tester.pump(const Duration(milliseconds: 300));
     return c;
   }
@@ -72,10 +77,10 @@ void main() {
     group(name, () {
       final desktop = size.width >= 900;
 
-      testWidgets('PIN screen fits', (tester) async {
-        await show(tester, size, pin: null);
-        expect(find.text('Enter your PIN'), findsOneWidget);
-        expectFits(tester, 'PIN');
+      testWidgets('sign-in screen fits', (tester) async {
+        await show(tester, size, uid: null);
+        expect(find.text('Sign in'), findsWidgets);
+        expectFits(tester, 'sign in');
         await clear(tester);
       });
 
@@ -142,18 +147,42 @@ void main() {
     });
   }
 
-  testWidgets('a wrong PIN is refused; the right one opens the panel', (tester) async {
-    final c = await show(tester, const Size(390, 844), pin: null);
-    for (final d in ['9', '9', '9', '9']) {
-      await tester.tap(find.text(d).first);
+  testWidgets('first-time setup makes the owner; a wrong password is refused, the right one signs in', (tester) async {
+    final db = FakeFirebase();
+    final c = Casino.demo(now: now);
+    final sync = CasinoSync(c, transport: db.call, auth: FirebaseAuthApi(post: db.post), autoSync: false, storagePrefix: 'admin.test');
+    await sync.connect(FakeFirebase.host);
+    await show(tester, const Size(390, 844), uid: null, casino: c, sync: sync);
+    // A KField's label sits above its text box.
+    Future<void> type(String label, String text) => tester.enterText(
+        find.descendant(of: find.ancestor(of: find.text(label), matching: find.byType(Column)).first, matching: find.byType(TextField)),
+        text);
+    Future<void> press(String label) async {
+      await tester.ensureVisible(find.text(label).last);
+      await tester.tap(find.text(label).last);
+      await tester.pumpAndSettle();
     }
-    await tester.pump();
-    expect(find.text('Wrong PIN — try again'), findsOneWidget);
-    for (final d in ['2', '5', '8', '0']) {
-      await tester.tap(find.text(d).first);
-    }
+
+    await press('First time? Set up the owner account');
+    await type('Your name', 'Bhanu');
+    await type('Username', 'Bhanu2357');
+    await type('Password', 'short');
+    await press('Create owner account');
+    expect(find.text('The password needs at least 6 characters'), findsOneWidget);
+    await type('Password', 'secret77');
+    await press('Create owner account');
+    expect(c.admin?.name, 'Bhanu');
+    expect(c.players, isEmpty);
+
+    lockAdmin(c, sync);
     await tester.pumpAndSettle();
-    expect(c.admin?.name, 'Maya');
+    await type('Username', 'bhanu2357');
+    await type('Password', 'wrong-one');
+    await press('Sign in');
+    expect(find.text('Wrong username or password'), findsOneWidget);
+    await type('Password', 'secret77');
+    await press('Sign in');
+    expect(c.admin?.name, 'Bhanu');
     expect(find.text('Today'), findsOneWidget);
     await clear(tester);
   });
@@ -173,7 +202,7 @@ void main() {
   });
 
   testWidgets('a cashier only sees home, players and coins', (tester) async {
-    await show(tester, const Size(1440, 900), pin: '1111');
+    await show(tester, const Size(1440, 900), uid: 'leo');
     expect(find.text('Coin in / out'), findsWidgets);
     expect(find.text('Reports'), findsNothing);
     expect(find.text('Settings'), findsNothing);
@@ -192,7 +221,8 @@ void main() {
     expect(find.text('Player ID created'), findsOneWidget);
     final p = c.players.last;
     expect(p.username, 'counter7');
-    expect(find.text(p.password), findsOneWidget);
+    expect(find.text('Copy the password now — it can’t be shown again'), findsOneWidget);
+    expect(c.uids.values, contains(p.id));
     expect(p.sc, c.settings.newPlayerSc);
     await clear(tester);
   });

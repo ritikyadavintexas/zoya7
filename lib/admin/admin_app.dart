@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app/web_safe_area.dart';
+import '../backoffice/auth.dart';
 import '../backoffice/casino.dart';
 import '../backoffice/sync.dart';
 import 'coins.dart';
@@ -34,16 +35,33 @@ class AdminApp extends StatefulWidget {
 }
 
 class _AdminAppState extends State<AdminApp> {
+  /// Signing back in with the account this device remembers.
+  bool resuming = false;
+
   @override
   void initState() {
     super.initState();
     // Signed in once on this device: straight in.
-    restoreAdmin(widget.casino);
+    _resume();
     // The game locks phones to landscape; the admin panel stands up.
     if (!kIsWeb) {
       SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
+  }
+
+  Future<void> _resume() async {
+    final sync = widget.sync;
+    if (widget.casino.admin != null || sync == null || sync.auth == null) return;
+    setState(() => resuming = true);
+    if (await sync.resumeStaff()) {
+      final uid = sync.session?.uid;
+      if (uid == null || widget.casino.signIn(uid, log: false) == null) {
+        // Not on the staff any more (or the session ended).
+        if (sync.state == SyncState.live) sync.signOut(staff: true);
+      }
+    }
+    if (mounted) setState(() => resuming = false);
   }
 
   @override
@@ -66,7 +84,7 @@ class _AdminAppState extends State<AdminApp> {
           home: ListenableBuilder(
             listenable: widget.casino,
             builder: (context, _) => widget.casino.admin == null
-                ? PinGate(onExit: widget.onExit)
+                ? SignInGate(onExit: widget.onExit, resuming: resuming)
                 : AdminShell(onExit: widget.onExit, initial: widget.initialSection),
           ),
           ),
@@ -74,119 +92,142 @@ class _AdminAppState extends State<AdminApp> {
       );
 }
 
-// ── PIN ──────────────────────────────────────────────────────────────────────
-class PinGate extends StatefulWidget {
-  const PinGate({super.key, this.onExit});
+// ── Sign in ──────────────────────────────────────────────────────────────────
+/// Staff sign in with their username and password (a Firebase account). The
+/// very first time, the owner sets themselves up here.
+class SignInGate extends StatefulWidget {
+  const SignInGate({super.key, this.onExit, this.resuming = false});
   final VoidCallback? onExit;
+  final bool resuming;
 
   @override
-  State<PinGate> createState() => _PinGateState();
+  State<SignInGate> createState() => _SignInGateState();
 }
 
-class _PinGateState extends State<PinGate> {
-  String pin = '';
-  bool wrong = false;
-  final _focus = FocusNode();
+class _SignInGateState extends State<SignInGate> {
+  final name = TextEditingController(), username = TextEditingController(), password = TextEditingController();
+  bool setup = false, busy = false;
+  String? error;
 
   @override
   void dispose() {
-    _focus.dispose();
+    for (final c in [name, username, password]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
-  void _type(String d) {
-    if (pin.length >= 4) return;
-    setState(() {
-      pin += d;
-      wrong = false;
-    });
-    if (pin.length == 4) {
-      final ok = signInAndRemember(CasinoScope.read(context), pin) != null;
-      if (!ok) {
-        setState(() {
-          wrong = true;
-          pin = '';
-        });
-      }
-    }
-  }
+  static final _usernameOk = RegExp(r'^[a-zA-Z0-9_.-]{3,30}$');
 
-  void _back() {
-    if (pin.isNotEmpty) setState(() => pin = pin.substring(0, pin.length - 1));
+  Future<void> _go() async {
+    final sync = SyncScope.read(context), auth = sync?.auth, casino = CasinoScope.read(context);
+    final u = username.text.trim(), pw = password.text;
+    String? problem;
+    if (setup && name.text.trim().isEmpty) problem = 'Enter your name';
+    if (!_usernameOk.hasMatch(u)) problem ??= 'Username: 3 or more letters, numbers, _ . or -';
+    if (pw.length < 6) problem ??= 'The password needs at least 6 characters';
+    if (sync == null || auth == null) problem ??= 'Not connected to the database';
+    if (problem != null) {
+      setState(() => error = problem);
+      return;
+    }
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      if (setup) {
+        final s = await auth!.signUp(staffEmail(u), pw);
+        await sync!.setUpOwner(s, name.text, u);
+      } else {
+        final s = await auth!.signIn(staffEmail(u), pw);
+        await sync!.useStaff(s);
+        if (casino.signIn(s.uid) == null) {
+          sync.signOut(staff: true);
+          error = sync.error ?? 'This account isn’t on the staff';
+        }
+      }
+    } on AuthError catch (e) {
+      error = e.message;
+    } catch (e) {
+      error = '$e';
+    }
+    if (mounted) setState(() => busy = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final key = ((size.height - 360) / 5.2).clamp(44.0, 76.0);
+    const white = Colors.white;
     return Scaffold(
       backgroundColor: K.green,
-      body: Focus(
-        focusNode: _focus,
-        autofocus: true,
-        onKeyEvent: (_, e) {
-          if (e is! KeyDownEvent) return KeyEventResult.ignored;
-          final ch = e.character;
-          if (ch != null && RegExp(r'^\d$').hasMatch(ch)) {
-            _type(ch);
-            return KeyEventResult.handled;
-          }
-          if (e.logicalKey == LogicalKeyboardKey.backspace) {
-            _back();
-            return KeyEventResult.handled;
-          }
-          return KeyEventResult.ignored;
-        },
-        child: SafeArea(
-          child: Stack(children: [
-            if (widget.onExit != null)
-              Positioned(
-                left: 8,
-                top: 8,
-                child: TextButton.icon(
-                  onPressed: widget.onExit,
-                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-                  label: Text('Back to the game', style: kt(15, w: FontWeight.w600, c: Colors.white)),
-                ),
-              ),
-            Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 56, 24, 16),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 340),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const AdminLogo(size: 64, inverted: true),
-                    const SizedBox(height: 16),
-                    Text('Zoya7 Admin', style: kt(28, w: FontWeight.w800, c: Colors.white)),
-                    const SizedBox(height: 4),
-                    Text(wrong ? 'Wrong PIN — try again' : 'Enter your PIN',
-                        style: kt(17, w: FontWeight.w600, c: wrong ? const Color(0xFF003B0D) : const Color(0xE6FFFFFF))),
-                    const SizedBox(height: 22),
-                    Semantics(
-                      label: '${pin.length} of 4 digits entered',
-                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        for (var i = 0; i < 4; i++)
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 120),
-                            margin: const EdgeInsets.symmetric(horizontal: 9),
-                            width: 16,
-                            height: 16,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: i < pin.length ? Colors.white : Colors.transparent,
-                              border: Border.all(color: Colors.white, width: 2),
-                            ),
-                          ),
-                      ]),
-                    ),
-                    const SizedBox(height: 22),
-                    Keypad(onDigit: _type, onBack: _back, keyHeight: key, color: Colors.white),
-                  ]),
-                ),
+      body: SafeArea(
+        child: Stack(children: [
+          if (widget.onExit != null)
+            Positioned(
+              left: 8,
+              top: 8,
+              child: TextButton.icon(
+                onPressed: widget.onExit,
+                icon: const Icon(Icons.arrow_back_rounded, color: white),
+                label: Text('Back to the game', style: kt(15, w: FontWeight.w600, c: white)),
               ),
             ),
-          ]),
-        ),
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 56, 24, 16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                child: widget.resuming
+                    ? Column(mainAxisSize: MainAxisSize.min, children: [
+                        const AdminLogo(size: 64, inverted: true),
+                        const SizedBox(height: 18),
+                        const CircularProgressIndicator(color: white),
+                        const SizedBox(height: 14),
+                        Text('Signing in…', style: kt(17, w: FontWeight.w600, c: white)),
+                      ])
+                    : AutofillGroup(
+                        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                          const Center(child: AdminLogo(size: 64, inverted: true)),
+                          const SizedBox(height: 16),
+                          Text('Zoya7 Admin', textAlign: TextAlign.center, style: kt(28, w: FontWeight.w800, c: white)),
+                          const SizedBox(height: 4),
+                          Text(setup ? 'First-time setup: make the owner account' : 'Sign in',
+                              textAlign: TextAlign.center, style: kt(17, w: FontWeight.w600, c: const Color(0xE6FFFFFF))),
+                          const SizedBox(height: 20),
+                          KCard(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                              if (setup) ...[
+                                KField(label: 'Your name', controller: name),
+                                const SizedBox(height: 12),
+                              ],
+                              KField(label: 'Username', controller: username, autofocus: true),
+                              const SizedBox(height: 12),
+                              KField(label: 'Password', controller: password, obscure: true, onSubmitted: (_) => _go()),
+                              if (error != null) ...[
+                                const SizedBox(height: 10),
+                                Text(error!, style: kt(14, w: FontWeight.w600, c: K.red, h: 1.35)),
+                              ],
+                              const SizedBox(height: 14),
+                              KButton(busy ? 'Please wait…' : (setup ? 'Create owner account' : 'Sign in'),
+                                  expand: true, onTap: busy ? null : _go),
+                            ]),
+                          ),
+                          const SizedBox(height: 10),
+                          TextButton(
+                            onPressed: busy ? null : () => setState(() {
+                              setup = !setup;
+                              error = null;
+                            }),
+                            child: Text(setup ? 'Back to sign in' : 'First time? Set up the owner account',
+                                style: kt(14, w: FontWeight.w600, c: white)),
+                          ),
+                        ]),
+                      ),
+              ),
+            ),
+          ),
+        ]),
       ),
     );
   }
@@ -450,7 +491,7 @@ class _Sidebar extends StatelessWidget {
                     Text(statusName(me.role), style: kt(13, c: K.sub)),
                   ]),
                 ),
-                KIconButton(Icons.lock_outline_rounded, tooltip: 'Lock', size: 36, onTap: () => lockAdmin(casino)),
+                KIconButton(Icons.lock_outline_rounded, tooltip: 'Lock', size: 36, onTap: () => lockAdmin(casino, SyncScope.read(context))),
               ]),
               if (onExit != null) ...[
                 const SizedBox(height: 12),
@@ -491,7 +532,7 @@ class _PhoneTopBar extends StatelessWidget {
                 surfaceTintColor: Colors.transparent,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 onSelected: (v) => switch (v) {
-                  'lock' => lockAdmin(casino),
+                  'lock' => lockAdmin(casino, SyncScope.read(context)),
                   'db' => showDatabaseSheet(context),
                   _ => onExit?.call(),
                 },

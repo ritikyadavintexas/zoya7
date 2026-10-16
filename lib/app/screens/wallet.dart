@@ -416,6 +416,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 padding: const EdgeInsets.fromLTRB(14, 4, 6, 10),
                 child: Column(children: [
                   CtaButton('PAY ${p.priceLabel}', height: 48, fontSize: 18, onTap: () {
+                    if (!s.storeOpen) {
+                      showToast(context, 'Coin packs aren’t sold in the app yet — ask your cashier for coins');
+                      return;
+                    }
                     s.completePurchase(p, bonusGc: bonus);
                     Nav.replace(R.purchaseSuccess, (p, bonus));
                   }),

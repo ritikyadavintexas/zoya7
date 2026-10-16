@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../backoffice/auth.dart';
 import '../backoffice/casino.dart';
-import '../backoffice/storage.dart';
 import '../backoffice/sync.dart';
 
 /// The admin panel's look: Cash App — white, black type, one bright green.
@@ -696,27 +696,38 @@ class CasinoScope extends InheritedNotifier<Casino> {
   static Casino read(BuildContext context) => context.getInheritedWidgetOfExactType<CasinoScope>()!.notifier!;
 }
 
-// ── Staying signed in ────────────────────────────────────────────────────────
-const _adminKey = 'zoya7.admin';
-
-/// Sign in and keep this device signed in until Lock.
-Staff? signInAndRemember(Casino c, String pin) {
-  final s = c.signIn(pin);
-  if (s != null) save(_adminKey, pin);
-  return s;
-}
-
-/// Sign back in with the PIN this device remembers (no PIN screen).
-void restoreAdmin(Casino c) {
-  if (c.admin != null) return;
-  final pin = loadSaved(_adminKey);
-  if (pin != null && c.signIn(pin, log: false) == null) clearSaved(_adminKey);
-}
-
-/// Lock: forget the PIN on this device and go back to the PIN screen.
-void lockAdmin(Casino c) {
-  clearSaved(_adminKey);
+// ── Accounts ─────────────────────────────────────────────────────────────────
+/// Lock: sign this device out and go back to the sign-in screen.
+void lockAdmin(Casino c, CasinoSync? sync) {
+  sync?.signOut(staff: true);
   c.signOut();
+}
+
+/// [attempt] for work that waits on the network (sign-in accounts).
+Future<bool> attemptAsync(BuildContext context, Future<void> Function() action, {String? done}) async {
+  try {
+    await action();
+    if (done != null && context.mounted) kToast(context, done);
+    return true;
+  } on CasinoError catch (e) {
+    if (context.mounted) kToast(context, e.message);
+  } on AuthError catch (e) {
+    if (context.mounted) kToast(context, e.message);
+  }
+  return false;
+}
+
+/// Make the sign-in account for [p] with [password] (a new one after a
+/// reset: [generation]). Firebase keeps the password, hashed; it isn't stored
+/// anywhere else, so hand it over now.
+Future<void> makePlayerLogin(BuildContext context, Player p, String password, {int generation = 0}) async {
+  final casino = CasinoScope.read(context);
+  final auth = SyncScope.read(context)?.auth;
+  if (password.trim().length < 6) throw CasinoError('The password needs at least 6 characters');
+  final email = playerEmail(p.id, generation);
+  // Without the sign-in service (tests, previews) the link is local only.
+  final uid = auth == null ? 'local:${p.id}:$generation' : (await auth.signUp(email, password.trim())).uid;
+  casino.linkLogin(p, uid, email, generation: generation);
 }
 
 // ── Database ─────────────────────────────────────────────────────────────────
@@ -724,6 +735,7 @@ class SyncScope extends InheritedNotifier<CasinoSync> {
   const SyncScope({super.key, required CasinoSync? sync, required super.child}) : super(notifier: sync);
 
   static CasinoSync? of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<SyncScope>()?.notifier;
+  static CasinoSync? read(BuildContext context) => context.getInheritedWidgetOfExactType<SyncScope>()?.notifier;
 }
 
 /// A dot and a word: is this device on the shared database?

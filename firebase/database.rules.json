@@ -1,0 +1,65 @@
+{
+  "rules": {
+    "zoya7": {
+      ".read": "auth != null && root.child('zoya7/staff/' + auth.uid).exists()",
+      ".write": "auth != null && root.child('zoya7/staff/' + auth.uid + '/r').val() === 0",
+      "staff": {
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && !root.child('zoya7/staff').exists() && newData.child('r').val() === 0"
+        }
+      },
+      "players": {
+        ".write": "auth != null && root.child('zoya7/staff/' + auth.uid).exists()",
+        "$pid": {
+          ".read": "auth != null && root.child('zoya7/uids/' + auth.uid + '/p').val() === $pid"
+        }
+      },
+      "txns": {
+        ".write": "auth != null && root.child('zoya7/staff/' + auth.uid).exists()",
+        "$pid": {
+          ".read": "auth != null && root.child('zoya7/uids/' + auth.uid + '/p').val() === $pid",
+          "$tid": {
+            ".write": "auth != null && root.child('zoya7/uids/' + auth.uid + '/p').val() === $pid && root.child('zoya7/players/' + $pid + '/st').val() === 0 && !data.exists() && newData.child('p').val() === $pid && newData.child('t').val() === 3 && newData.child('sc').val() === 0 && newData.child('gc').val() > 0 && newData.child('gc').val() <= 25000"
+          }
+        }
+      },
+      "plays": {
+        ".write": "auth != null && root.child('zoya7/staff/' + auth.uid).exists()",
+        "$pid": {
+          ".read": "auth != null && root.child('zoya7/uids/' + auth.uid + '/p').val() === $pid",
+          ".write": "auth != null && root.child('zoya7/uids/' + auth.uid + '/p').val() === $pid && root.child('zoya7/players/' + $pid + '/st').val() === 0"
+        }
+      },
+      "seen": {
+        ".write": "auth != null && root.child('zoya7/staff/' + auth.uid).exists()",
+        "$pid": {
+          ".read": "auth != null && root.child('zoya7/uids/' + auth.uid + '/p').val() === $pid",
+          ".write": "auth != null && root.child('zoya7/uids/' + auth.uid + '/p').val() === $pid && root.child('zoya7/players/' + $pid + '/st').val() === 0"
+        }
+      },
+      "games": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('zoya7/staff/' + auth.uid + '/r').val() === 0 || root.child('zoya7/staff/' + auth.uid + '/r').val() === 1)"
+      },
+      "meta": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('zoya7/staff/' + auth.uid + '/r').val() === 0 || root.child('zoya7/staff/' + auth.uid + '/r').val() === 1)"
+      },
+      "audit": {
+        ".write": "auth != null && root.child('zoya7/staff/' + auth.uid).exists()"
+      },
+      "logins": {
+        ".write": "auth != null && root.child('zoya7/staff/' + auth.uid).exists()",
+        "$key": {
+          ".read": true
+        }
+      },
+      "uids": {
+        ".write": "auth != null && root.child('zoya7/staff/' + auth.uid).exists()",
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid"
+        }
+      }
+    }
+  }
+}

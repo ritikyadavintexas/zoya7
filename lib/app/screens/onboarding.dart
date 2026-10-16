@@ -196,6 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _who = TextEditingController();
   final _pw = TextEditingController();
   bool showPw = false;
+  bool busy = false;
   String? error;
 
   @override
@@ -205,9 +206,13 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (busy) return;
     final s = AppScope.read(context);
-    final e = s.logIn(_who.text, _pw.text);
+    setState(() => busy = true);
+    final e = await s.logIn(_who.text, _pw.text);
+    if (!mounted) return;
+    setState(() => busy = false);
     if (e != null) {
       setState(() => error = e);
       return;
@@ -293,7 +298,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(error ?? kicked ?? 'Forgot your password? Your cashier can reset it.',
                       style: outfit(13, w: FontWeight.w600, c: error != null || kicked != null ? Z.coral : Z.muted2)),
                   const SizedBox(height: 10),
-                  CtaButton('LOG IN', height: 46, fontSize: 18, ls: .03, onTap: _submit),
+                  CtaButton(busy ? 'LOGGING IN…' : 'LOG IN', height: 46, fontSize: 18, ls: .03, onTap: _submit),
                 ]),
               ),
             ),

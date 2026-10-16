@@ -19,6 +19,7 @@ import 'app/state.dart';
 import 'app/theme.dart';
 import 'app/web_env.dart';
 import 'app/web_safe_area.dart';
+import 'backoffice/auth.dart';
 import 'backoffice/casino.dart';
 import 'backoffice/sync.dart';
 
@@ -33,8 +34,10 @@ Future<void> main() async {
   Nav.adminMode.value = adminApp || (kIsWeb && (Uri.base.fragment.startsWith('/admin') || Uri.base.queryParameters.containsKey('admin')));
   if (!Nav.adminMode.value) await _lockLandscape();
   final casino = Casino.load();
-  final sync = CasinoSync(casino)..start();
-  runApp(Zoya7Root(state: AppState(casino: casino, playerId: AppState.rememberedPlayer()), sync: sync, adminApp: adminApp));
+  final sync = CasinoSync(casino, auth: FirebaseAuthApi())..start();
+  // The game picks up the player signed in here before; the admin panel its staff member.
+  final playerId = Nav.adminMode.value ? null : sync.resumePlayer();
+  runApp(Zoya7Root(state: AppState(casino: casino, playerId: playerId, sync: sync), sync: sync, adminApp: adminApp));
 }
 
 /// The game is landscape. Browsers can't lock it, so ForceLandscape turns it there.
@@ -95,7 +98,9 @@ class _Zoya7RootState extends State<Zoya7Root> {
                 onExit: widget.adminApp
                     ? null
                     : () {
-                        _startAt = R.home;
+                        // Back to syncing as the player signed in on this device.
+                        widget.sync?.resumePlayer();
+                        _startAt = widget.state.playerId == null ? R.splash : R.home;
                         _lockLandscape();
                         Nav.adminMode.value = false;
                       },

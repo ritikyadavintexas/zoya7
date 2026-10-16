@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../backoffice/auth.dart';
 import '../backoffice/casino.dart';
 import 'admin_app.dart';
 import 'kit.dart';
@@ -156,7 +157,7 @@ class _StaffPageState extends State<StaffPage> {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: KTable(
             minWidth: 520,
-            columns: const ['Name', 'Role', 'PIN', ''],
+            columns: const ['Name', 'Role', 'Username', ''],
             numeric: const {3},
             rows: [
               for (final s in casino.staff)
@@ -167,11 +168,11 @@ class _StaffPageState extends State<StaffPage> {
                     Flexible(child: cellText(s.name + (s == casino.admin ? ' (you)' : ''), w: FontWeight.w600)),
                   ]),
                   KBadge(statusName(s.role), fg: s.isOwner ? K.greenInk : K.text, bg: s.isOwner ? K.greenSoft : K.field),
-                  cellText('••••', c: K.sub),
+                  cellText(s.username.isEmpty ? '—' : s.username, c: K.sub),
                   s == casino.admin
                       ? const SizedBox()
                       : KIconButton(Icons.delete_outline_rounded, tooltip: 'Remove ${s.name}', size: 34, color: K.redSoft, fg: K.red, onTap: () async {
-                          if (await kConfirm(context, title: 'Remove ${s.name}?', message: 'Their PIN stops working.', action: 'Remove', danger: true) &&
+                          if (await kConfirm(context, title: 'Remove ${s.name}?', message: 'They can’t sign in to the admin panel any more.', action: 'Remove', danger: true) &&
                               context.mounted) {
                             attempt(context, () => casino.removeStaff(s), done: '${s.name} removed');
                           }
@@ -202,8 +203,9 @@ class _StaffPageState extends State<StaffPage> {
   }
 
   void _add(BuildContext context) {
-    final name = TextEditingController(), pin = TextEditingController();
+    final name = TextEditingController(), username = TextEditingController(), password = TextEditingController();
     var role = StaffRole.cashier;
+    var busy = false;
     kSheet<void>(
       context,
       title: 'Add staff',
@@ -211,22 +213,47 @@ class _StaffPageState extends State<StaffPage> {
         builder: (ctx, set) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           KField(label: 'Name', controller: name, autofocus: true),
           const SizedBox(height: 12),
-          KField(label: '4-digit PIN', controller: pin, keyboard: TextInputType.number, obscure: true, formatters: KField.money),
+          Row(children: [
+            Expanded(child: KField(label: 'Username', controller: username)),
+            const SizedBox(width: 12),
+            Expanded(child: KField(label: 'Password (6+ characters)', controller: password, obscure: true)),
+          ]),
           const SizedBox(height: 12),
           Text('Role', style: kt(13, w: FontWeight.w600, c: K.sub)),
           const SizedBox(height: 6),
           KSegment<StaffRole>(values: StaffRole.values, selected: role, expand: true, label: statusName, onChanged: (r) => set(() => role = r)),
           const SizedBox(height: 16),
-          KButton('Add', expand: true, onTap: () {
-            if (attempt(ctx, () => CasinoScope.read(ctx).addStaff(name.text, role, pin.text.trim()), done: '${name.text.trim()} can sign in now')) {
-              Navigator.of(ctx).pop();
-            }
-          }),
+          KButton(busy ? 'Adding…' : 'Add', expand: true, onTap: busy
+              ? null
+              : () async {
+                  final u = username.text.trim().toLowerCase();
+                  if (!RegExp(r'^[a-z0-9_.-]{3,30}$').hasMatch(u)) {
+                    kToast(ctx, 'Username: 3 or more letters, numbers, _ . or -');
+                    return;
+                  }
+                  if (password.text.length < 6) {
+                    kToast(ctx, 'The password needs at least 6 characters');
+                    return;
+                  }
+                  set(() => busy = true);
+                  final ok = await attemptAsync(ctx, () async {
+                    if (name.text.trim().isEmpty) throw CasinoError('Enter a name');
+                    final auth = SyncScope.read(ctx)?.auth;
+                    final uid = auth == null ? 'local:$u' : (await auth.signUp(staffEmail(u), password.text)).uid;
+                    if (ctx.mounted) CasinoScope.read(ctx).addStaff(uid, name.text, role, username: u);
+                  }, done: '${name.text.trim()} can sign in now as $u');
+                  if (ok && ctx.mounted) {
+                    Navigator.of(ctx).pop();
+                  } else {
+                    set(() => busy = false);
+                  }
+                }),
         ]),
       ),
     ).whenComplete(() {
       name.dispose();
-      pin.dispose();
+      username.dispose();
+      password.dispose();
     });
   }
 }
