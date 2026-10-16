@@ -67,6 +67,29 @@ class _Zoya7RootState extends State<Zoya7Root> {
   var _startAt = R.splash;
 
   @override
+  void initState() {
+    super.initState();
+    Nav.adminMode.addListener(_showAdminInAddressBar);
+    _showAdminInAddressBar();
+  }
+
+  @override
+  void dispose() {
+    Nav.adminMode.removeListener(_showAdminInAddressBar);
+    super.dispose();
+  }
+
+  /// Keep …/#/admin in the address bar while the panel is open, so a refresh
+  /// or a bookmark opens the panel again (the panel's own pages would
+  /// otherwise rewrite it to the game's address).
+  void _showAdminInAddressBar() {
+    if (!kIsWeb || widget.adminApp || !Nav.adminMode.value) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Nav.adminMode.value) SystemNavigator.routeInformationUpdated(uri: Uri(path: '/admin'), replace: true);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) => ValueListenableBuilder<bool>(
         valueListenable: Nav.adminMode,
         builder: (context, admin, _) => admin
@@ -194,6 +217,11 @@ class Zoya7App extends StatelessWidget {
         page = ComingSoonScreen(gameId: arg is String ? arg : 'megareels');
       case R.offline:
         page = const OfflineScreen();
+      case final name? when name.startsWith('/admin'):
+        // …/#/admin typed or followed while the game is already open: switch
+        // to the panel (at start-up main() catches it).
+        WidgetsBinding.instance.addPostFrameCallback((_) => Nav.adminMode.value = true);
+        page = const ColoredBox(color: Z.ink);
       case R.dailyBonus:
         return PageRouteBuilder<void>(
           settings: s,
