@@ -211,7 +211,7 @@ void main() {
       await tester.tap(find.text(d).last);
     }
     await tester.pump();
-    expect(find.text('25 SC'), findsOneWidget);
+    expect(find.text('25 DC'), findsOneWidget);
     await tester.tap(find.text('Coin in').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Coin in').last); // confirm

@@ -123,7 +123,7 @@ class _PlayersPageState extends State<PlayersPage> {
               ? const KEmpty('No players match', icon: Icons.person_search_outlined)
               : KTable(
                   minWidth: 860,
-                  columns: const ['Player', 'ID', 'Sweeps Coins', 'Gold Coins', 'Coin in SC (all time)', 'Status', 'Last seen'],
+                  columns: const ['Player', 'ID', 'DC', 'Gold Coins', 'Coin in DC (all time)', 'Status', 'Last seen'],
                   numeric: const {2, 3, 4},
                   rows: [
                     for (final p in list)
@@ -255,7 +255,7 @@ class _CreatePlayerState extends State<_CreatePlayer> {
       Row(children: [
         Expanded(child: KField(label: 'Gold Coins', controller: startGc, keyboard: TextInputType.number, formatters: KField.money)),
         const SizedBox(width: 12),
-        Expanded(child: KField(label: 'Sweeps Coins', controller: startSc, keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money)),
+        Expanded(child: KField(label: 'DC', controller: startSc, keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money)),
       ]),
       const SizedBox(height: 12),
       KField(label: 'Note (optional)', controller: note, hint: 'e.g. Referred by luckylina'),
@@ -392,7 +392,7 @@ class _BulkCreateState extends State<_BulkCreate> {
       Row(children: [
         Expanded(child: KField(label: 'Starting GC each', controller: startGc, keyboard: TextInputType.number, formatters: KField.money)),
         const SizedBox(width: 12),
-        Expanded(child: KField(label: 'Starting SC each', controller: startSc, keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money)),
+        Expanded(child: KField(label: 'Starting DC each', controller: startSc, keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money)),
       ]),
       const SizedBox(height: 18),
       KButton('Create IDs', expand: true, icon: Icons.group_add_rounded, onTap: () {
@@ -484,7 +484,7 @@ class _PlayerDetailState extends State<PlayerDetail> {
         color: K.ink,
         padding: const EdgeInsets.all(18),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Sweeps Coins', style: kt(14, c: const Color(0xB3FFFFFF))),
+          Text('DC', style: kt(14, c: const Color(0xB3FFFFFF))),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
@@ -564,12 +564,12 @@ class _PlayerDetailState extends State<PlayerDetail> {
       const SizedBox(height: 18),
       const KTitle('Coins', size: 16),
       KGrid(min: 150, gap: 10, children: [
-        _stat('Coin in (SC)', grouped(coinIn), K.greenInk),
-        _stat('Coin out (SC)', grouped(coinOut)),
-        _stat('Net (SC)', grouped(coinIn - coinOut), coinIn - coinOut < 0 ? K.red : K.text),
-        _stat('Starting amount', '${compact(p.startGc)} GC + ${grouped(p.startSc)} SC'),
-        _stat('Played (SC)', grouped(wagered)),
-        _stat('Won (SC)', grouped(won)),
+        _stat('Coin in (DC)', grouped(coinIn), K.greenInk),
+        _stat('Coin out (DC)', grouped(coinOut)),
+        _stat('Net (DC)', grouped(coinIn - coinOut), coinIn - coinOut < 0 ? K.red : K.text),
+        _stat('Starting amount', '${compact(p.startGc)} GC + ${grouped(p.startSc)} DC'),
+        _stat('Played (DC)', grouped(wagered)),
+        _stat('Won (DC)', grouped(won)),
       ]),
       if (byGame.isNotEmpty) ...[
         const SizedBox(height: 18),
@@ -582,7 +582,7 @@ class _PlayerDetailState extends State<PlayerDetail> {
                 padding: const EdgeInsets.symmetric(vertical: 7),
                 child: Row(children: [
                   Expanded(child: Text(games.firstWhere((g) => g.id == e.key, orElse: () => games.first).name, style: kt(15, w: FontWeight.w600))),
-                  Text('${e.value.rounds} rounds · ${grouped(e.value.w)} SC', style: kt(13, c: K.sub, num: true)),
+                  Text('${e.value.rounds} rounds · ${grouped(e.value.w)} DC', style: kt(13, c: K.sub, num: true)),
                 ]),
               ),
           ]),

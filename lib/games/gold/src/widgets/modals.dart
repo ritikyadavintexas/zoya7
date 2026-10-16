@@ -300,7 +300,7 @@ class NoCoinsModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cur = curLabel(c.mode);
-    final other = c.mode == Currency.sc ? 'PLAY WITH GC' : 'PLAY WITH SC';
+    final other = c.mode == Currency.sc ? 'PLAY WITH GC' : 'PLAY WITH DC';
     return _ModalCard(
       width: 900,
       glow: const Color(0xFF5A1A10),

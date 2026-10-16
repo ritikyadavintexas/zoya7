@@ -157,7 +157,7 @@ class _CurrencyToggle extends StatelessWidget {
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           for (final cur in Currency.values)
             Press(
-              label: 'Play with ${cur == Currency.gc ? 'Gold' : 'Sweeps'} Coins',
+              label: 'Play with ${cur == Currency.gc ? 'Gold Coins' : 'DC'}',
               selected: c.currency == cur,
               onTap: enabled ? () => c.setCurrency(cur) : null,
               child: AnimatedContainer(

@@ -787,7 +787,7 @@ class NotificationsScreen extends StatelessWidget {
             Z.coral, () => Nav.push(R.gold), false),
       ]),
       ('EARLIER', [
-        ('Package delivered', '120,000 GC and 10 free SC were added to your wallet.', 'Yesterday', P.coin, Z.gold,
+        ('Package delivered', '120,000 GC and 10 free DC were added to your wallet.', 'Yesterday', P.coin, Z.gold,
             () => Nav.tab(AppTab.wallet, walletTab: 'history'), false),
         ('Almost Silver', 'You are 3,800 points away from VIP Silver.', 'Oct 13', P.crown, const Color(0xFFD9DAE6),
             () => Nav.push(R.vip), false),
@@ -935,7 +935,7 @@ class _LegalScreenState extends State<LegalScreen> {
     ('TERMS', 'Terms of Service', [
       ('1. Eligibility', '[Minimum age, eligible locations and excluded jurisdictions.]'),
       ('2. Your account', '[One account per person, accurate information, account security.]'),
-      ('3. Virtual currencies', 'Gold Coins and Sweeps Coins are for play only. They have no cash value and can’t be redeemed for money or prizes.'),
+      ('3. Virtual currencies', 'Gold Coins and DC are for play only. They have no cash value and can’t be redeemed for money or prizes.'),
       ('4. Purchases & refunds', '[Package purchases, payment methods, refund policy.]'),
       ('5. Prohibited conduct', '[Cheating, multiple accounts, abuse in chat, automated play.]'),
       ('6. Ending your account', '[Closure, suspension and what happens to balances.]'),

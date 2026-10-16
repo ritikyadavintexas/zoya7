@@ -5,7 +5,7 @@ import '../../games/gold/src/math.dart' show Currency;
 import '../nav.dart';
 import '../state.dart';
 
-/// The Blackjack table, playing with the app's GC / SC balances, with the
+/// The Blackjack table, playing with the app's GC / DC balances, with the
 /// rules and limits set in the back office.
 class BlackjackScreen extends StatelessWidget {
   const BlackjackScreen({super.key});

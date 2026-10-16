@@ -224,4 +224,4 @@ String _commas(String digits) {
   return neg ? '-$b' : b.toString();
 }
 
-String curLabel(Currency c) => c == Currency.sc ? 'SC' : 'GC';
+String curLabel(Currency c) => c == Currency.sc ? 'DC' : 'GC';

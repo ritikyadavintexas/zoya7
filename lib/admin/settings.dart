@@ -41,7 +41,7 @@ class _SettingsPageState extends State<SettingsPage> {
       kToast(context, 'Every field needs a number (0 or more)');
       return;
     }
-    casino.updateSettings('starting amount ${grouped(v['ngc']!, 0)} GC + ${grouped(v['nsc']!)} SC, coin-in limit ${grouped(v['cid']!)} SC', (s) => s
+    casino.updateSettings('starting amount ${grouped(v['ngc']!, 0)} GC + ${grouped(v['nsc']!)} DC, coin-in limit ${grouped(v['cid']!)} DC', (s) => s
       ..newPlayerGc = v['ngc']!
       ..newPlayerSc = v['nsc']!
       ..maxCoinInPerDay = v['cid']!
@@ -68,13 +68,13 @@ class _SettingsPageState extends State<SettingsPage> {
             Row(children: [
               Expanded(child: _num('ngc', 'Starting Gold Coins')),
               const SizedBox(width: 12),
-              Expanded(child: _num('nsc', 'Starting Sweeps Coins')),
+              Expanded(child: _num('nsc', 'Starting DC')),
             ]),
             KRow(title: 'Players can sign up in the app', trailing: KSwitch(label: 'Players can sign up', value: registration, onChanged: (v) => setState(() => registration = v))),
             KRow(title: 'Daily bonus', sub: 'The 7-day streak in the app', trailing: KSwitch(label: 'Daily bonus', value: daily, onChanged: (v) => setState(() => daily = v))),
           ]),
           _card('Coin in', Icons.south_west_rounded, [
-            _num('cid', 'Most Sweeps Coins per player per day'),
+            _num('cid', 'Most DC per player per day'),
             const SizedBox(height: 10),
             Text('Coins are for play only: they have no cash value and are never paid out.', style: kt(13, c: K.sub, h: 1.4)),
           ]),

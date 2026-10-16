@@ -106,7 +106,7 @@ class _PromotionsPageState extends State<PromotionsPage> with _Ticker {
         iconGradient: Z.coinGold(),
         icon: const Ico(P.gift, size: 24, color: Z.coinInk),
         title: 'Welcome Pack',
-        body: Text('Bonus Gold Coins plus free Sweeps Coins on your first package.', style: outfit(13, c: Z.body, h: 1.3)),
+        body: Text('Bonus Gold Coins plus free DC on your first package.', style: outfit(13, c: Z.body, h: 1.3)),
         action: _PillAction('GET PACK', gold: true, onTap: () => Nav.tab(AppTab.wallet, walletTab: 'buy')),
       ),
       _OfferCard(

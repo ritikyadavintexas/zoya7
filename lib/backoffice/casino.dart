@@ -332,7 +332,7 @@ class CasinoSettings {
   double newPlayerGc = 50000;
   double newPlayerSc = 2;
 
-  /// Most Sweeps Coins one player can be given by coin in in a day.
+  /// Most DC one player can be given by coin in in a day.
   double maxCoinInPerDay = 1000;
 
   bool registrationOpen = true;
@@ -409,7 +409,7 @@ class Report {
   final games = <String, GameReport>{};
   final players = <String, PlayerReport>{};
 
-  /// Sweeps Coins given by coin in minus taken by coin out.
+  /// DC given by coin in minus taken by coin out.
   double get netSc => coinInSc - coinOutSc;
   double get wageredSc => games.values.fold(0, (a, g) => a + g.wSc);
   double get wonSc => games.values.fold(0, (a, g) => a + g.winSc);
@@ -428,7 +428,7 @@ class GameReport {
   double get ggrSc => wSc - winSc;
   double get ggrGc => wGc - winGc;
 
-  /// What the game actually paid back (SC play, else GC).
+  /// What the game actually paid back (DC play, else GC).
   double? get actualRtp => wSc > 0 ? winSc / wSc : (wGc > 0 ? winGc / wGc : null);
 }
 
@@ -541,7 +541,7 @@ class Casino extends ChangeNotifier {
 
   int get online => players.where((p) => now.difference(p.lastSeen).inMinutes < 15).length;
 
-  /// Sweeps Coins a player has been given by coin in, all time.
+  /// DC a player has been given by coin in, all time.
   double coinInTotal(String playerId) => txns
       .where((t) => t.playerId == playerId && t.type == TxnType.coinIn)
       .fold(0, (a, t) => a + t.sc);
@@ -658,7 +658,7 @@ class Casino extends ChangeNotifier {
     if (gc < 0 || sc < 0 || (gc == 0 && sc == 0)) throw CasinoError('Enter an amount');
     if (p.status != PlayerStatus.active) throw CasinoError('${p.username} is ${p.status.name}');
     if (checkLimit && _todaySc(p, TxnType.coinIn) + sc > settings.maxCoinInPerDay + 1e-9) {
-      throw CasinoError('Over the daily coin-in limit of ${settings.maxCoinInPerDay.toStringAsFixed(0)} SC');
+      throw CasinoError('Over the daily coin-in limit of ${settings.maxCoinInPerDay.toStringAsFixed(0)} DC');
     }
     final t = _post(Txn(id: _txnId(), playerId: p.id, type: TxnType.coinIn, at: now, gc: gc.roundToDouble(), sc: _r2(sc), by: actor, note: note));
     _log('Coin in ${_coins(t.gc, t.sc)} → ${p.username}');
@@ -676,7 +676,7 @@ class Casino extends ChangeNotifier {
   /// Take coins off a player's account.
   Txn coinOut(Player p, {double gc = 0, double sc = 0, String note = ''}) {
     if (gc < 0 || sc < 0 || (gc == 0 && sc == 0)) throw CasinoError('Enter an amount');
-    if (sc > p.sc + 1e-9) throw CasinoError('${p.username} has only ${_r2(p.sc).toStringAsFixed(2)} SC');
+    if (sc > p.sc + 1e-9) throw CasinoError('${p.username} has only ${_r2(p.sc).toStringAsFixed(2)} DC');
     if (gc > p.gc) throw CasinoError('${p.username} has only ${p.gc.toStringAsFixed(0)} GC');
     final t = _post(Txn(id: _txnId(), playerId: p.id, type: TxnType.coinOut, at: now, gc: -gc.roundToDouble(), sc: -_r2(sc), by: actor, note: note));
     _log('Coin out ${_coins(gc, sc)} ← ${p.username}');
@@ -886,7 +886,7 @@ class Casino extends ChangeNotifier {
     return r;
   }
 
-  /// Sweeps Coins in and out per day for the last [days] days (oldest first).
+  /// DC in and out per day for the last [days] days (oldest first).
   List<({DateTime day, double coinIn, double coinOut})> daily(int days) {
     final today = dayOf(now);
     final cin = List<double>.filled(days, 0), cout = List<double>.filled(days, 0);
@@ -907,23 +907,23 @@ class Casino extends ChangeNotifier {
     final b = StringBuffer()
       ..writeln('Zoya7 report,${r.period.label},${r.period.from.toIso8601String().substring(0, 10)},'
           '${r.period.to.subtract(const Duration(days: 1)).toIso8601String().substring(0, 10)}')
-      ..writeln('Starting amount SC,${f(r.openSc)}')
+      ..writeln('Starting amount DC,${f(r.openSc)}')
       ..writeln('Starting amount GC,${f(r.openGc)}')
-      ..writeln('Coin in SC,${f(r.coinInSc)}')
+      ..writeln('Coin in DC,${f(r.coinInSc)}')
       ..writeln('Coin in GC,${f(r.coinInGc)}')
       ..writeln('Coin ins,${r.coinIns}')
-      ..writeln('Coin out SC,${f(r.coinOutSc)}')
+      ..writeln('Coin out DC,${f(r.coinOutSc)}')
       ..writeln('Coin out GC,${f(r.coinOutGc)}')
       ..writeln('Coin outs,${r.coinOuts}')
-      ..writeln('Net coin in SC,${f(r.netSc)}')
-      ..writeln('Bonus SC,${f(r.bonusSc)}')
-      ..writeln('Wagered SC,${f(r.wageredSc)}')
-      ..writeln('Won SC,${f(r.wonSc)}')
-      ..writeln('Hold SC,${f(r.ggrSc)}')
-      ..writeln('Ending amount SC,${f(r.closeSc)}')
+      ..writeln('Net coin in DC,${f(r.netSc)}')
+      ..writeln('Bonus DC,${f(r.bonusSc)}')
+      ..writeln('Wagered DC,${f(r.wageredSc)}')
+      ..writeln('Won DC,${f(r.wonSc)}')
+      ..writeln('Hold DC,${f(r.ggrSc)}')
+      ..writeln('Ending amount DC,${f(r.closeSc)}')
       ..writeln('Ending amount GC,${f(r.closeGc)}')
       ..writeln()
-      ..writeln('Game,Status,Rounds,Players,Wagered SC,Won SC,Hold SC,Wagered GC,Won GC,Actual RTP,Theoretical RTP');
+      ..writeln('Game,Status,Rounds,Players,Wagered DC,Won DC,Hold DC,Wagered GC,Won GC,Actual RTP,Theoretical RTP');
     for (final g in games) {
       final gr = r.games[g.id] ?? GameReport(g.id);
       final c = config(g.id);
@@ -933,7 +933,7 @@ class Casino extends ChangeNotifier {
     }
     b
       ..writeln()
-      ..writeln('Player ID,Username,Starting SC,Coin in SC,Coin out SC,Net SC,Wagered SC,Won SC,Ending SC');
+      ..writeln('Player ID,Username,Starting DC,Coin in DC,Coin out DC,Net DC,Wagered DC,Won DC,Ending DC');
     for (final p in players) {
       final pr = r.players[p.id]!;
       b.writeln('${p.id},${p.username},${f(pr.openSc)},${f(pr.coinInSc)},${f(pr.coinOutSc)},${f(pr.netSc)},'
@@ -1084,7 +1084,7 @@ class Casino extends ChangeNotifier {
   static String _gameName(String id) => games.firstWhere((g) => g.id == id, orElse: () => games.first).name;
 
   static String _coins(double gc, double sc) =>
-      [if (gc != 0) '${gc.toStringAsFixed(0)} GC', if (sc != 0) '${sc.toStringAsFixed(2)} SC'].join(' + ');
+      [if (gc != 0) '${gc.toStringAsFixed(0)} GC', if (sc != 0) '${sc.toStringAsFixed(2)} DC'].join(' + ');
 
   Map<String, Object> toJson() => {
         'v': 1,
@@ -1314,7 +1314,7 @@ class Casino extends ChangeNotifier {
     for (final (ago, by, what) in const [
       (12, 'Owner', 'Classic 777: RTP set to 95.00%'),
       (8, 'Maya', 'Blackjack: added to the lobby'),
-      (3, 'Owner', 'Settings: starting amount 50,000 GC + 2 SC'),
+      (3, 'Owner', 'Settings: starting amount 50,000 GC + 2 DC'),
     ]) {
       c.audit.add(AuditEntry(when(ago), by, what));
     }

@@ -61,7 +61,7 @@ String grouped(double v, [int decimals = 2]) {
   return '${v < -1e-9 ? '−' : ''}$whole${dot < 0 ? '' : s.substring(dot)}';
 }
 
-String scAmt(double v) => '${grouped(v)} SC';
+String scAmt(double v) => '${grouped(v)} DC';
 String gcAmt(double v) => '${grouped(v, 0)} GC';
 
 /// 1.2K, 3.45M.
@@ -527,7 +527,7 @@ class KTable extends StatelessWidget {
 Widget cellText(String s, {Color c = K.text, FontWeight w = FontWeight.w500, double size = 14}) =>
     Text(s, maxLines: 1, overflow: TextOverflow.ellipsis, style: kt(size, w: w, c: c, num: true));
 
-/// Bars for Sweeps Coins in (green) and out (black) per day.
+/// Bars for DC in (green) and out (black) per day.
 class KBarChart extends StatelessWidget {
   const KBarChart({super.key, required this.days, this.height = 180});
   final List<({DateTime day, double coinIn, double coinOut})> days;

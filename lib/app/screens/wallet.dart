@@ -55,8 +55,8 @@ class WalletPageState extends State<WalletPage> {
                   ),
                   const SizedBox(width: 8),
                   _BalanceChip(
-                    coin: const Coin(label: 'SC', size: 30, fontSize: 10, teal: true),
-                    label: 'SWEEPS COINS',
+                    coin: const Coin(label: 'DC', size: 30, fontSize: 10, teal: true),
+                    label: 'DC',
                     labelColor: Z.teal,
                     value: fmtSc(s.sc),
                   ),
@@ -115,7 +115,7 @@ class WalletPageState extends State<WalletPage> {
         const SizedBox(height: 10),
         Row(children: [
           Expanded(
-            child: Text('Coins are for play only and have no cash value. Sweeps Coins are a free bonus with Gold Coin packages.',
+            child: Text('Coins are for play only and have no cash value. DC are a free bonus with Gold Coin packages.',
                 style: outfit(12, c: Z.muted2, h: 1.35)),
           ),
           const SizedBox(width: 12),
@@ -141,10 +141,10 @@ class WalletPageState extends State<WalletPage> {
     final hist = [
       for (final t in s.casino.txnsOf(s.playerId ?? '').take(6))
         (
-          t.sc != 0 && t.gc == 0 ? 'SC' : 'GC',
+          t.sc != 0 && t.gc == 0 ? 'DC' : 'GC',
           t.note.isNotEmpty ? t.note : statusName(t.type),
           when(t.at),
-          t.gc != 0 ? '${t.gc > 0 ? '+' : '−'}${fmtInt(t.gc.abs())} GC' : '${t.sc > 0 ? '+' : '−'}${fmtSc(t.sc.abs())} SC',
+          t.gc != 0 ? '${t.gc > 0 ? '+' : '−'}${fmtInt(t.gc.abs())} GC' : '${t.sc > 0 ? '+' : '−'}${fmtSc(t.sc.abs())} DC',
           t.gc + t.sc >= 0,
         ),
     ];
@@ -164,9 +164,9 @@ class WalletPageState extends State<WalletPage> {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
-                  gradient: icon == 'SC' ? Z.coinTeal() : Z.coinGold(),
+                  gradient: icon == 'DC' ? Z.coinTeal() : Z.coinGold(),
                 ),
-                child: Text(icon, style: outfit(11, w: FontWeight.w800, c: icon == 'SC' ? Z.tealInk : Z.coinInk)),
+                child: Text(icon, style: outfit(11, w: FontWeight.w800, c: icon == 'DC' ? Z.tealInk : Z.coinInk)),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -220,7 +220,7 @@ class _PackTile extends StatelessWidget {
   Widget build(BuildContext context) => Press(
         onTap: onTap,
         selected: selected,
-        label: '${p.gcLabel} Gold Coins plus ${p.sc} Sweeps Coins, ${p.priceLabel}',
+        label: '${p.gcLabel} Gold Coins plus ${p.sc} DC, ${p.priceLabel}',
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
@@ -241,7 +241,7 @@ class _PackTile extends StatelessWidget {
                   Coin(size: coin, fontSize: coin * .3, glow: [bs(0, 0, 14, const Color(0x73FFC850))]),
                   const SizedBox(height: 4),
                   Text(p.gcLabel, style: outfit(19, w: FontWeight.w800, c: Z.cream, h: 1.1)),
-                  Text('+ ${p.sc} SC FREE', style: outfit(11, w: FontWeight.w700, c: Z.teal)),
+                  Text('+ ${p.sc} DC FREE', style: outfit(11, w: FontWeight.w700, c: Z.teal)),
                   const Spacer(),
                   Container(
                     height: 32,
@@ -389,7 +389,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             const SizedBox(height: 2),
                             Text('${fmtInt(p.gc)} GC', style: outfit(20, w: FontWeight.w800, c: Z.cream)),
                             const SizedBox(height: 2),
-                            Text('+ ${p.sc} SC free', style: outfit(14, w: FontWeight.w700, c: Z.teal)),
+                            Text('+ ${p.sc} DC free', style: outfit(14, w: FontWeight.w700, c: Z.teal)),
                           ]),
                         ),
                         Text(p.priceLabel, style: outfit(20, w: FontWeight.w800, c: Z.cream)),
@@ -422,7 +422,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   const SizedBox(height: 6),
                   Text.rich(
                     TextSpan(children: [
-                      const TextSpan(text: 'GC have no cash value; SC are a free bonus. By paying you agree to the '),
+                      const TextSpan(text: 'GC have no cash value; DC are a free bonus. By paying you agree to the '),
                       WidgetSpan(
                         alignment: PlaceholderAlignment.baseline,
                         baseline: TextBaseline.alphabetic,
@@ -685,7 +685,7 @@ class _PurchaseSuccessScreenState extends State<PurchaseSuccessScreen> with Tick
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: const Color(0x806FE0C0)),
                         ),
-                        child: Text('+ ${p.sc} SC free bonus', style: outfit(16, w: FontWeight.w700, c: Z.teal)),
+                        child: Text('+ ${p.sc} DC free bonus', style: outfit(16, w: FontWeight.w700, c: Z.teal)),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -695,7 +695,7 @@ class _PurchaseSuccessScreenState extends State<PurchaseSuccessScreen> with Tick
                       child: Column(children: [
                         _row('New GC balance', Text(fmtInt(s.gc), style: outfit(14, w: FontWeight.w800, c: Z.cream))),
                         const SizedBox(height: 8),
-                        _row('New SC balance', Text(fmtSc(s.sc), style: outfit(14, w: FontWeight.w800, c: Z.cream))),
+                        _row('New DC balance', Text(fmtSc(s.sc), style: outfit(14, w: FontWeight.w800, c: Z.cream))),
                         const SizedBox(height: 8),
                         _row('Receipt', Text('#Z7-$order', style: outfit(14, c: Z.body))),
                       ]),

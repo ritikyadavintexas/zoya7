@@ -75,7 +75,7 @@ void main() {
       final t = c.coinIn(p, sc: 60, gc: 600000, note: 'Promo');
       expect((p.sc, p.gc), (60, 600000));
       expect((t.type, t.by, t.note), (TxnType.coinIn, 'Owner', 'Promo'));
-      expect(() => c.coinIn(p, sc: 50), throwsA(isA<CasinoError>())); // over 100 SC today
+      expect(() => c.coinIn(p, sc: 50), throwsA(isA<CasinoError>())); // over 100 DC today
       expect(() => c.coinIn(p), throwsA(isA<CasinoError>())); // nothing to add
       c.setPlayerStatus(p, PlayerStatus.suspended);
       expect(() => c.coinIn(p, sc: 1), throwsA(isA<CasinoError>()));

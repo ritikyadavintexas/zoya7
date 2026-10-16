@@ -62,17 +62,17 @@ class _ReportsPageState extends State<ReportsPage> {
         KSegment(values: List.generate(periods.length, (i) => i), selected: period, label: (i) => periods[i].label, onChanged: (i) => setState(() => period = i)),
         const SizedBox(height: 16),
         KGrid(min: 200, children: [
-          KStat(label: 'Starting amount', value: '${grouped(r.openSc)} SC', sub: '${compact(r.openGc)} GC on player balances', icon: Icons.flag_outlined),
+          KStat(label: 'Starting amount', value: '${grouped(r.openSc)} DC', sub: '${compact(r.openGc)} GC on player balances', icon: Icons.flag_outlined),
           KStat(label: 'Coin in', value: scAmt(r.coinInSc), sub: '${r.coinIns} times · ${compact(r.coinInGc)} GC', icon: Icons.south_west_rounded, color: K.greenInk),
           KStat(label: 'Coin out', value: scAmt(r.coinOutSc), sub: '${r.coinOuts} times · ${compact(r.coinOutGc)} GC', icon: Icons.north_east_rounded),
-          KStat(label: 'Ending amount', value: '${grouped(r.closeSc)} SC', sub: '${compact(r.closeGc)} GC on player balances', icon: Icons.outlined_flag_rounded),
+          KStat(label: 'Ending amount', value: '${grouped(r.closeSc)} DC', sub: '${compact(r.closeGc)} GC on player balances', icon: Icons.outlined_flag_rounded),
         ]),
         const SizedBox(height: 16),
         LayoutBuilder(builder: (context, box) {
           final flow = KCard(
             padding: const EdgeInsets.all(18),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              const KTitle('Sweeps Coins, start to end'),
+              const KTitle('DC, start to end'),
               _line('Starting amount', r.openSc, bold: true),
               _line('+ Coin in', r.coinInSc),
               _line('+ Starting amounts of new IDs', r.startSc),
@@ -94,7 +94,7 @@ class _ReportsPageState extends State<ReportsPage> {
               const Divider(color: K.line, height: 18),
               _line('Net coin in', r.netSc, bold: true),
               const SizedBox(height: 10),
-              _line('Hold on SC play', r.ggrSc),
+              _line('Hold on DC play', r.ggrSc),
               _line('Hold on GC play', r.wageredGc - r.wonGc, gc: true),
               const SizedBox(height: 14),
               KBarChart(days: series, height: 140),
@@ -117,7 +117,7 @@ class _ReportsPageState extends State<ReportsPage> {
             const Padding(padding: EdgeInsets.symmetric(horizontal: 14), child: KTitle('Each game')),
             KTable(
               minWidth: 900,
-              columns: const ['Game', 'Status', 'Rounds', 'Players', 'Played SC', 'Won SC', 'Hold SC', 'RTP actual', 'RTP set'],
+              columns: const ['Game', 'Status', 'Rounds', 'Players', 'Played DC', 'Won DC', 'Hold DC', 'RTP actual', 'RTP set'],
               numeric: const {2, 3, 4, 5, 6, 7, 8},
               rows: [
                 for (final g in games)
@@ -158,7 +158,7 @@ class _ReportsPageState extends State<ReportsPage> {
             if (rows.isNotEmpty)
               KTable(
                 minWidth: 900,
-                columns: const ['Player', 'Starting SC', 'Coin in SC', 'Coin out SC', 'Net SC', 'Played SC', 'Won SC', 'Ending SC'],
+                columns: const ['Player', 'Starting DC', 'Coin in DC', 'Coin out DC', 'Net DC', 'Played DC', 'Won DC', 'Ending DC'],
                 numeric: const {1, 2, 3, 4, 5, 6, 7},
                 rows: [
                   for (final x in rows.take(100))
@@ -189,7 +189,7 @@ class _ReportsPageState extends State<ReportsPage> {
             if (byStaff.isNotEmpty)
               KTable(
                 minWidth: 420,
-                columns: const ['Who', 'Coin ins', 'Coin in SC', 'Coin outs', 'Coin out SC'],
+                columns: const ['Who', 'Coin ins', 'Coin in DC', 'Coin outs', 'Coin out DC'],
                 numeric: const {1, 2, 3, 4},
                 rows: [
                   for (final e in byStaff.entries)

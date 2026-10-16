@@ -101,7 +101,7 @@ class _CoinFormState extends State<_CoinForm> {
       _PlayerChip(p),
       const SizedBox(height: 16),
       KField(
-        label: 'Sweeps Coins',
+        label: 'DC',
         controller: sc,
         hint: '0.00',
         autofocus: true,
@@ -119,7 +119,7 @@ class _CoinFormState extends State<_CoinForm> {
       Wrap(spacing: 8, runSpacing: 8, children: [
         for (final v in const [10, 20, 50, 100, 200])
           ActionChip(
-            label: Text('$v SC', style: kt(14, w: FontWeight.w600)),
+            label: Text('$v DC', style: kt(14, w: FontWeight.w600)),
             backgroundColor: K.field,
             side: BorderSide.none,
             shape: const StadiumBorder(),
@@ -220,7 +220,7 @@ class _CreditFormState extends State<_CreditForm> {
       Row(children: [
         Expanded(child: KField(label: 'Gold Coins', controller: gc, hint: '0', keyboard: TextInputType.number, formatters: KField.money)),
         const SizedBox(width: 12),
-        Expanded(child: KField(label: 'Sweeps Coins', controller: sc, hint: '0.00', keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money)),
+        Expanded(child: KField(label: 'DC', controller: sc, hint: '0.00', keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money)),
       ]),
       const SizedBox(height: 12),
       KField(label: adjust ? 'Reason' : 'Note', controller: note, hint: adjust ? 'Why the balance changes' : 'e.g. Birthday bonus'),
@@ -396,7 +396,7 @@ class _CoinsPageState extends State<CoinsPage> {
             const SizedBox(height: 10),
             KTable(
               minWidth: 760,
-              columns: const ['Player', 'Type', 'When', 'Sweeps Coins', 'Gold Coins', 'Note', 'By'],
+              columns: const ['Player', 'Type', 'When', 'DC', 'Gold Coins', 'Note', 'By'],
               numeric: const {3, 4},
               rows: [
                 for (final t in ledger)
@@ -464,7 +464,7 @@ class _CoinPadState extends State<CoinPad> {
   String amount = '0';
   String? playerId;
 
-  /// Sweeps Coins (true) or Gold Coins.
+  /// DC (true) or Gold Coins.
   bool sweeps = true;
 
   void _digit(String d) => setState(() {
@@ -550,11 +550,11 @@ class _CoinPadState extends State<CoinPad> {
                   const SizedBox(height: 8),
                   FittedBox(
                     fit: BoxFit.scaleDown,
-                    child: Text('$amount ${sweeps ? 'SC' : 'GC'}', style: kt(keyH * 1.25, w: FontWeight.w700, c: onGreen, h: 1.15, num: true)),
+                    child: Text('$amount ${sweeps ? 'DC' : 'GC'}', style: kt(keyH * 1.25, w: FontWeight.w700, c: onGreen, h: 1.15, num: true)),
                   ),
                   const SizedBox(height: 6),
                   Row(mainAxisSize: MainAxisSize.min, children: [
-                    for (final (sc, label) in const [(true, 'Sweeps Coins'), (false, 'Gold Coins')])
+                    for (final (sc, label) in const [(true, 'DC'), (false, 'Gold Coins')])
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 3),
                         child: Semantics(

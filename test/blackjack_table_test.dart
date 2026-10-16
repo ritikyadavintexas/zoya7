@@ -91,13 +91,13 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Sweeps Coins table and a blackjack paying 3 to 2', (tester) async {
+  testWidgets('DC table and a blackjack paying 3 to 2', (tester) async {
     final w = await open(tester, 'As 9d Kh 7c');
-    await tap(tester, 'Play with Sweeps Coins');
-    await tap(tester, 'Add 5 SC chip');
+    await tap(tester, 'Play with DC');
+    await tap(tester, 'Add 5 DC chip');
     await tap(tester, 'DEAL');
     await tester.pump(const Duration(seconds: 1));
-    expect(find.textContaining('BLACKJACK! +7.50 SC'), findsOneWidget);
+    expect(find.textContaining('BLACKJACK! +7.50 DC'), findsOneWidget);
     expect(w.b[Currency.sc], 258.0);
     expect(tester.takeException(), isNull);
   });

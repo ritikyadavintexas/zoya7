@@ -13,7 +13,7 @@ not-enough-coins and table chat.
 
 **Blackjack:** a full table (`lib/games/blackjack/`): 6-deck shoe, blackjack pays 3 to 2, dealer
 stands on all 17s and peeks under an Ace or ten, insurance 2 to 1, double (also after split), split
-up to four hands (split Aces one card each). Bets in GC or SC from the app balances. Rules and
+up to four hands (split Aces one card each). Bets in GC or DC from the app balances. Rules and
 settlement live in `engine.dart` (no UI, unit-tested); `controller.dart` paces the deal and dealer;
 `blackjack_game.dart` draws the table, cards and chips.
 
@@ -27,7 +27,7 @@ off (*coin out*). No money amounts, payment methods or payouts are recorded anyw
 
 - *Phone* — the basics, in four tabs: **Today** (net coin in, in/out, player balances), **Players**
   (search, create a player ID, profile with coin in/out), **Coins** (Cash App–style keypad: pick a
-  player, type an amount of Sweeps or Gold Coins, coin in or out; history) and **Games** (on/off switches,
+  player, type an amount of DC or Gold Coins, coin in or out; history) and **Games** (on/off switches,
   maintenance mode). The avatar menu has *Database & install*.
 - *Desktop* — everything: dashboard; players (bulk IDs, bonuses, adjustments, password reset,
   suspend / ban / delete); coin ledger; reports (starting / ending amount, coin in / out, per game,
@@ -96,7 +96,7 @@ pop-in banner on celebrations, a sliding chat drawer.
 lib/games/gold/
   gold_game.dart          ← the one widget your app routes to
   src/math.dart           ← symbols, paytable rules, GoldOutcomeSource (plug your engine here)
-  src/controller.dart     ← game state: spin/stop/auto, bets, GC/SC, panels, chat
+  src/controller.dart     ← game state: spin/stop/auto, bets, GC/DC, panels, chat
   src/style.dart          ← design tokens + exact CSS→Flutter conversions
   src/widgets/            ← header, reels, side panels, footer, modals, chat, win overlay
 ```

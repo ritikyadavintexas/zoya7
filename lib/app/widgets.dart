@@ -510,7 +510,7 @@ class GoldFrame extends StatelessWidget {
       );
 }
 
-/// Round GC / SC coin badge.
+/// Round GC / DC coin badge.
 class Coin extends StatelessWidget {
   const Coin({super.key, this.label = 'GC', this.size = 30, this.fontSize, this.teal = false, this.big = false, this.glow});
   final String label;

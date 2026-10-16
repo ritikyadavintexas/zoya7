@@ -145,8 +145,8 @@ class Hud extends StatelessWidget {
               const SizedBox(width: 8),
               _BalancePill(
                 height: pillH,
-                coin: Coin(label: 'SC', size: pillH * .78, fontSize: pillH * .26, teal: true),
-                label: 'SC',
+                coin: Coin(label: 'DC', size: pillH * .78, fontSize: pillH * .26, teal: true),
+                label: 'DC',
                 labelColor: Z.teal,
                 value: fmtSc(s.sc),
                 border: const Color(0xFF2FB58E),

@@ -51,14 +51,14 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
           KStat(label: 'Players who played', value: '${r.active.length}', sub: '${r.rounds} rounds', icon: Icons.sports_esports_outlined),
           KStat(label: 'New player IDs', value: '${r.newPlayers}', sub: '${casino.players.length} in total', icon: Icons.person_add_alt_outlined),
-          KStat(label: 'Hold (SC)', value: grouped(r.ggrSc), sub: 'Played ${compact(r.wageredSc)} · won ${compact(r.wonSc)}', icon: Icons.casino_outlined),
+          KStat(label: 'Hold (DC)', value: grouped(r.ggrSc), sub: 'Played ${compact(r.wageredSc)} · won ${compact(r.wonSc)}', icon: Icons.casino_outlined),
           KStat(label: 'Online now', value: '${casino.online}', sub: 'Seen in the last 15 min', icon: Icons.wifi_tethering_rounded),
         ]),
         const SizedBox(height: 16),
         KCard(
           padding: const EdgeInsets.all(18),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            KTitle('Coin in vs coin out (SC) · last 14 days', trailing: manage ? KButton('Reports', tone: KTone.ghost, height: 32, onTap: () => AdminNav.to(context, Section.reports)) : null),
+            KTitle('Coin in vs coin out (DC) · last 14 days', trailing: manage ? KButton('Reports', tone: KTone.ghost, height: 32, onTap: () => AdminNav.to(context, Section.reports)) : null),
             KBarChart(days: casino.daily(14), height: 200),
           ]),
         ),
@@ -122,7 +122,7 @@ class _DashboardPageState extends State<DashboardPage> {
       KGrid(min: 150, gap: 10, max: 2, children: [
         _small('Players who played', '${r.active.length}'),
         _small('New player IDs', '${r.newPlayers}'),
-        _small('Hold (SC)', grouped(r.ggrSc)),
+        _small('Hold (DC)', grouped(r.ggrSc)),
         _small('Online now', '${casino.online}'),
         _small('Player balances', scAmt(r.closeSc)),
         _small('Coin ins today', '${r.coinIns}'),
@@ -197,7 +197,7 @@ class _GameLine extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(g.name, style: kt(15, w: FontWeight.w600)),
             Text(
-              r == null ? 'RTP ${pct(c.rtp)} · no play yet' : 'RTP ${pct(c.rtp)} · ${r!.rounds} rounds · hold ${grouped(r!.ggrSc)} SC',
+              r == null ? 'RTP ${pct(c.rtp)} · no play yet' : 'RTP ${pct(c.rtp)} · ${r!.rounds} rounds · hold ${grouped(r!.ggrSc)} DC',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: kt(13, c: K.sub),

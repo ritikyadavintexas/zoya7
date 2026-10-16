@@ -11,13 +11,13 @@ import '../games/gold/src/math.dart';
 import 'admin_app.dart';
 import 'kit.dart';
 
-String _betStep(int i) => '${compact(GoldRules.bets[Currency.gc]![i])} GC / ${grouped(GoldRules.bets[Currency.sc]![i])} SC';
+String _betStep(int i) => '${compact(GoldRules.bets[Currency.gc]![i])} GC / ${grouped(GoldRules.bets[Currency.sc]![i])} DC';
 
 String betRange(GameConfig c) => switch (c.kind) {
       GameKind.goldSlot => 'Bets ${compact(GoldRules.bets[Currency.gc]![c.minIdx])}–${compact(GoldRules.bets[Currency.gc]![c.maxIdx])} GC · '
-          '${grouped(GoldRules.bets[Currency.sc]![c.minIdx])}–${grouped(GoldRules.bets[Currency.sc]![c.maxIdx])} SC',
+          '${grouped(GoldRules.bets[Currency.sc]![c.minIdx])}–${grouped(GoldRules.bets[Currency.sc]![c.maxIdx])} DC',
       GameKind.slot => 'Bet limits set at launch',
-      _ => 'Bets ${compact(c.minGc)}–${compact(c.maxGc)} GC · ${grouped(c.minSc)}–${grouped(c.maxSc)} SC',
+      _ => 'Bets ${compact(c.minGc)}–${compact(c.maxGc)} GC · ${grouped(c.minSc)}–${grouped(c.maxSc)} DC',
     };
 
 /// Games: on, off (maintenance) or hidden; featured; ribbons; bet limits.
@@ -274,9 +274,9 @@ class _BetLimitsState extends State<_BetLimits> {
       ]),
       const SizedBox(height: 12),
       Row(children: [
-        Expanded(child: KField(label: 'Min bet SC', controller: minSc, keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money)),
+        Expanded(child: KField(label: 'Min bet DC', controller: minSc, keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money)),
         const SizedBox(width: 12),
-        Expanded(child: KField(label: 'Max bet SC', controller: maxSc, keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money)),
+        Expanded(child: KField(label: 'Max bet DC', controller: maxSc, keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money)),
       ]),
       const SizedBox(height: 16),
       KButton('Save', expand: true, onTap: () {
@@ -392,7 +392,7 @@ class _SlotMathState extends State<_SlotMath> {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       KGrid(min: 200, children: [
         KStat(label: 'Return to player', value: pct(m.rtp), sub: 'Line pays; jackpots extra', color: K.greenInk),
-        KStat(label: 'House edge', value: pct(1 - m.rtp), sub: 'Kept per 100 SC played: ${grouped(100 * (1 - m.rtp))}'),
+        KStat(label: 'House edge', value: pct(1 - m.rtp), sub: 'Kept per 100 DC played: ${grouped(100 * (1 - m.rtp))}'),
         KStat(label: 'Hit rate', value: pct(m.hitRate, 1), sub: '${oneIn(m.hitRate)} spins pays'),
         KStat(label: 'MEGA jackpot', value: oneIn(m.jackpotChance(JackpotTier.mega)), sub: 'MAJOR ${oneIn(m.jackpotChance(JackpotTier.major))}'),
       ]),
@@ -510,7 +510,7 @@ class _BlackjackMathState extends State<_BlackjackMath> {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       KGrid(min: 220, children: [
         KStat(label: 'Return to player', value: pct(1 - r.houseEdge), sub: 'Basic-strategy play', color: K.greenInk),
-        KStat(label: 'House edge', value: pct(r.houseEdge), sub: 'Kept per 100 SC bet: ${grouped(100 * r.houseEdge)}'),
+        KStat(label: 'House edge', value: pct(r.houseEdge), sub: 'Kept per 100 DC bet: ${grouped(100 * r.houseEdge)}'),
         KStat(label: 'Blackjack pays', value: r.blackjackPays == 1.5 ? '3 to 2' : r.blackjackPays == 1.2 ? '6 to 5' : '1 to 1', sub: 'Insurance pays 2 to 1'),
       ]),
       const SizedBox(height: 16),
