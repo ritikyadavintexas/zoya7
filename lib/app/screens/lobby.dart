@@ -15,6 +15,23 @@ import '../widgets.dart';
 /// Open a game tile: Classic 777 / Fruit Spin play Gold, others show "coming soon".
 void openGame(GameInfo g) => g.playable ? Nav.push(R.gold) : Nav.push(R.comingSoon, g.id);
 
+/// Jackpot meters tick up on a shared clock, so the lobby icon and the
+/// jackpot popup always agree.
+final _jackpotClock = Stopwatch()..start();
+int _jackpotTick() => _jackpotClock.elapsedMilliseconds ~/ 200;
+
+int jackpotValue(JackpotTier t, [int? tick]) {
+  final k = tick ?? _jackpotTick();
+  return switch (t) {
+    JackpotTier.mega => 1234567 + k * 7,
+    JackpotTier.major => 234567 + k * 3,
+    JackpotTier.minor => 56789 + k ~/ 2,
+    JackpotTier.mini => 12345 + k ~/ 5,
+  };
+}
+
+String _short(int v) => v >= 1000000 ? '${(v / 1000000).toStringAsFixed(2)}M' : '${(v / 1000).toStringAsFixed(0)}K';
+
 class LobbyPage extends StatefulWidget {
   const LobbyPage({super.key});
 
@@ -23,13 +40,14 @@ class LobbyPage extends StatefulWidget {
 }
 
 class _LobbyPageState extends State<LobbyPage> {
-  int tick = 0;
+  static const cats = ['All games', 'Slots', 'Table', 'Instant'];
+  String cat = 'All games';
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(milliseconds: 200), (_) => setState(() => tick++));
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
   }
 
   @override
@@ -42,22 +60,35 @@ class _LobbyPageState extends State<LobbyPage> {
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
     final pad = MediaQuery.paddingOf(context);
+    final list = games.where((g) => cat == 'All games' || g.cat == cat.toUpperCase()).toList();
     return Padding(
       padding: EdgeInsets.fromLTRB(pad.left + 10, 8, pad.right + 10, pad.bottom + 8),
-      child: LayoutBuilder(builder: (context, box) {
-        // Jackpots on top; the games take everything below, with the reward
-        // shortcuts in a slim column beside them.
-        const gap = 10.0;
-        final h = box.maxHeight;
-        final jackpotH = (h * .22).clamp(54.0, 116.0);
-        final cardH = (h - jackpotH - gap).clamp(150.0, 340.0);
-        final iconSize = (cardH * .26).clamp(48.0, 72.0);
-        final content = Column(mainAxisSize: MainAxisSize.min, children: [
-          SizedBox(height: jackpotH, child: _JackpotStrip(tick: tick)),
-          const SizedBox(height: gap),
-          SizedBox(
-            height: cardH,
-            child: Row(children: [
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        // Categories.
+        SizedBox(
+          height: 32,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: cats.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (_, i) => _CatChip(cats[i], selected: cats[i] == cat, onTap: () => setState(() => cat = cats[i])),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: LayoutBuilder(builder: (context, box) {
+            // Two rows of square tiles fill the height; the reward icons share
+            // the same height in a column on the left.
+            // Two rows on phones; tall screens get a third row rather than
+            // giant tiles.
+            const gap = 8.0, maxTile = 230.0;
+            final rows = ((box.maxHeight + gap) / (maxTile + gap)).ceil().clamp(2, 3);
+            final tile = (box.maxHeight - gap * (rows - 1)) / rows;
+            // Three icons: each is size + 6 (badge room) + 4 + ~18 (label),
+            // with .2 × size between them.
+            final iconSize = ((box.maxHeight - 3 * 28) / 3.4).clamp(34.0, 66.0);
+            final mega = jackpotValue(JackpotTier.mega);
+            return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 _RewardIcon(
                   label: 'DAILY',
@@ -67,7 +98,7 @@ class _LobbyPageState extends State<LobbyPage> {
                   onTap: () => Nav.push(R.dailyBonus),
                   child: Image.asset(A.dailyBonusIcon, fit: BoxFit.cover),
                 ),
-                SizedBox(height: iconSize * .3),
+                SizedBox(height: iconSize * .2),
                 _RewardIcon(
                   label: 'VIP',
                   semantic: 'VIP Club, ${s.vipRewards} rewards waiting',
@@ -79,45 +110,294 @@ class _LobbyPageState extends State<LobbyPage> {
                     child: Image.asset(GoldAssets.symbol(Sym.crown), fit: BoxFit.contain),
                   ),
                 ),
+                SizedBox(height: iconSize * .2),
+                _RewardIcon(
+                  label: 'JACKPOTS',
+                  semantic: 'Jackpots — MEGA ${fmtInt(mega)} GC. Show all',
+                  count: 0,
+                  size: iconSize,
+                  onTap: () => showJackpots(context),
+                  child: Center(
+                    child: _Plaque(
+                      tier: JackpotTier.mega,
+                      value: mega,
+                      label: _short(mega),
+                      width: iconSize * .9,
+                      height: iconSize * .9 * 176 / 243,
+                    ),
+                  ),
+                ),
               ]),
               const SizedBox(width: 12),
-              Expanded(child: _GameRow(height: cardH, gap: gap)),
-            ]),
-          ),
-        ]);
-        final total = jackpotH + gap + cardH;
-        return total <= h ? Center(child: content) : SingleChildScrollView(child: content);
-      }),
+              Expanded(
+                // One game highlighted, then two rows of tiles, scrolling sideways.
+                child: CustomScrollView(
+                  scrollDirection: Axis.horizontal,
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: _FeaturedTile(games.first, size: Size(box.maxHeight * 1.05, box.maxHeight)),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(width: gap)),
+                    SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: rows,
+                        mainAxisSpacing: gap,
+                        crossAxisSpacing: gap,
+                        mainAxisExtent: tile,
+                      ),
+                      delegate: SliverChildBuilderDelegate((_, i) => _GameTile(list[i]), childCount: list.length),
+                    ),
+                  ],
+                ),
+              ),
+            ]);
+          }),
+        ),
+      ]),
     );
   }
 }
 
-/// The game cards, centred when they all fit and scrolling sideways when not.
-class _GameRow extends StatelessWidget {
-  const _GameRow({required this.height, required this.gap});
-  final double height;
-  final double gap;
+class _CatChip extends StatelessWidget {
+  const _CatChip(this.label, {required this.selected, required this.onTap});
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) {
-        final cardW = height * .84;
-        final fits = games.length * cardW + (games.length - 1) * gap <= box.maxWidth;
-        if (fits) {
-          return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            for (final (i, g) in games.indexed) ...[
-              if (i > 0) SizedBox(width: gap),
-              GameCard(g, height: height),
-            ],
-          ]);
-        }
-        return ListView.separated(
-          scrollDirection: Axis.horizontal,
-          clipBehavior: Clip.none,
-          itemCount: games.length,
-          separatorBuilder: (_, __) => SizedBox(width: gap),
-          itemBuilder: (_, i) => GameCard(games[i], height: height),
-        );
-      });
+  Widget build(BuildContext context) => Press(
+        label: label,
+        selected: selected,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: selected ? Z.goldTab : null,
+            color: selected ? null : const Color(0xCC140D07),
+            border: Border.all(color: selected ? Z.goldBright : const Color(0x99C99A3E), width: 1.2),
+          ),
+          child: Center(
+            widthFactor: 1,
+            child: Text(label.toUpperCase(),
+                style: outfit(12, w: FontWeight.w800, ls: .08, c: selected ? Z.brown : Z.tabOff)),
+          ),
+        ),
+      );
+}
+
+/// The highlighted game: a large tile spanning both rows.
+class _FeaturedTile extends StatelessWidget {
+  const _FeaturedTile(this.g, {required this.size});
+  final GameInfo g;
+  final Size size;
+
+  @override
+  Widget build(BuildContext context) => Press(
+        label: 'Featured: ${g.name} — play',
+        onTap: () => openGame(g),
+        child: Container(
+          width: size.width,
+          height: size.height,
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: Z.goldFrame,
+            boxShadow: [bs(0, 8, 18, const Color(0xB3000000)), bs(0, 0, 18, const Color(0x55FFC846))],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(fit: StackFit.expand, children: [
+              Transform.scale(
+                scale: 1.45,
+                alignment: const Alignment(0, .55),
+                child: Image.asset(A.welcomeHero, fit: BoxFit.cover, alignment: const Alignment(0, .9)),
+              ),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x00000000), Color(0x00000000), Color(0xE60A0603)],
+                    stops: [0, .5, 1],
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 10,
+                top: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: const LinearGradient(colors: [Color(0xFFFFB347), Color(0xFFE8771A)]),
+                    boxShadow: [bs(0, 2, 6, const Color(0x99000000))],
+                  ),
+                  child: Text('★ FEATURED', style: outfit(11, w: FontWeight.w800, ls: .08, c: const Color(0xFF3A1A02), h: 1)),
+                ),
+              ),
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 10,
+                child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(g.name.toUpperCase(),
+                            maxLines: 1,
+                            style: playfair((size.height * .1).clamp(16.0, 30.0), w: FontWeight.w800, c: Z.goldHi, h: 1)),
+                      ),
+                      const SizedBox(height: 3),
+                      Text('3-reel slot · MEGA jackpot',
+                          maxLines: 1, overflow: TextOverflow.ellipsis, style: outfit(12, c: Z.soft)),
+                    ]),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    height: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Z.rimBright, width: 1.5),
+                      gradient: Z.red3,
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Ico(P.play, size: 11, color: Z.cream),
+                      const SizedBox(width: 6),
+                      Text('PLAY', style: outfit(13, w: FontWeight.w800, ls: .06, c: Z.cream)),
+                    ]),
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+      );
+}
+
+/// A square game tile: art with the name across the bottom.
+class _GameTile extends StatelessWidget {
+  const _GameTile(this.g);
+  final GameInfo g;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, box) => Press(
+          label: '${g.name} — ${g.playable ? 'play' : 'coming soon'}',
+          onTap: () => openGame(g),
+          child: Container(
+            padding: const EdgeInsets.all(1.5),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: Z.goldFrame,
+              boxShadow: [bs(0, 6, 12, const Color(0x99000000))],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10.5),
+              child: Stack(fit: StackFit.expand, children: [
+                const ColoredBox(color: Color(0xFF0E0A14)),
+                Image.asset(A.card(g.id), fit: BoxFit.cover, alignment: Alignment.topCenter),
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0x00000000), Color(0x00000000), Color(0xE6080512)],
+                      stops: [0, .55, 1],
+                    ),
+                  ),
+                ),
+                if (!g.playable)
+                  Positioned(
+                    top: 5,
+                    right: 5,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xD90A0603),
+                        borderRadius: BorderRadius.circular(7),
+                        border: Border.all(color: Z.border),
+                      ),
+                      child: Text('SOON', style: outfit(9, w: FontWeight.w800, ls: .06, c: Z.gold, h: 1)),
+                    ),
+                  ),
+                Positioned(
+                  left: 6,
+                  right: 6,
+                  bottom: 6,
+                  child: Text(g.name.toUpperCase(),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      style: playfair((box.maxHeight * .12).clamp(12.0, 20.0), w: FontWeight.w800, c: Z.goldHi, h: 1)
+                          .copyWith(shadows: [ts(0, 2, 4, const Color(0xE6000000))])),
+                ),
+              ]),
+            ),
+          ),
+        ),
+      );
+}
+
+/// All four jackpots, live, in a popup.
+void showJackpots(BuildContext context) => showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close jackpots',
+      barrierColor: const Color(0xB3000000),
+      transitionDuration: const Duration(milliseconds: 180),
+      transitionBuilder: (_, a, __, child) => FadeTransition(
+        opacity: a,
+        child: ScaleTransition(scale: Tween(begin: .94, end: 1.0).animate(a), child: child),
+      ),
+      pageBuilder: (_, __, ___) => const _JackpotsPopup(),
+    );
+
+class _JackpotsPopup extends StatefulWidget {
+  const _JackpotsPopup();
+
+  @override
+  State<_JackpotsPopup> createState() => _JackpotsPopupState();
+}
+
+class _JackpotsPopupState extends State<_JackpotsPopup> {
+  late final Timer _timer = Timer.periodic(const Duration(milliseconds: 200), (_) => setState(() {}));
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    return Center(
+      child: Material(
+        type: MaterialType.transparency,
+        child: SizedBox(
+          width: math.min(size.width - 40, 720),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Row(children: [
+              Text('JACKPOTS', style: outfit(18, w: FontWeight.w800, ls: .12, c: Z.goldHi)),
+              const Spacer(),
+              RoundBtn(
+                label: 'Close',
+                onTap: () => Navigator.of(context).pop(),
+                child: const StrokeIco(P.close, size: 16),
+              ),
+            ]),
+            const SizedBox(height: 10),
+            SizedBox(height: (size.height * .3).clamp(80.0, 140.0), child: _JackpotStrip(tick: _jackpotTick())),
+            const SizedBox(height: 10),
+            Text('Line up three on the payline in Classic 777 to win a jackpot.', style: outfit(13, c: Z.body)),
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
 /// A round-cornered reward shortcut with a red count badge (hidden at 0).
@@ -133,6 +413,7 @@ class _RewardIcon extends StatelessWidget {
   final String label;
   final String semantic;
   final int count;
+
   final double size;
   final VoidCallback onTap;
   final Widget child;
@@ -208,12 +489,7 @@ class _JackpotStrip extends StatelessWidget {
     (JackpotTier.mini, 205 / 154),
   ];
 
-  int _value(JackpotTier t) => switch (t) {
-        JackpotTier.mega => 1234567 + tick * 7,
-        JackpotTier.major => 234567 + tick * 3,
-        JackpotTier.minor => 56789 + tick ~/ 2,
-        JackpotTier.mini => 12345 + tick ~/ 5,
-      };
+  int _value(JackpotTier t) => jackpotValue(t, tick);
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) {
@@ -245,9 +521,12 @@ class _JackpotStrip extends StatelessWidget {
 }
 
 class _Plaque extends StatelessWidget {
-  const _Plaque({required this.tier, required this.value, required this.height, required this.width});
+  const _Plaque({required this.tier, required this.value, required this.height, required this.width, this.label});
   final JackpotTier tier;
   final int value;
+
+  /// Text in the value slot (defaults to the full amount).
+  final String? label;
   final double height;
   final double width;
 
@@ -268,7 +547,7 @@ class _Plaque extends StatelessWidget {
               child: Center(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
-                  child: Text(fmtInt(value),
+                  child: Text(label ?? fmtInt(value),
                       style: outfit(height * .2, w: FontWeight.w800, c: Z.cream, features: tabular, sh: [
                         ts(0, 1, 0, const Color(0xFF000000)),
                         ts(0, 0, 8, const Color(0x80FFC850)),
@@ -279,104 +558,6 @@ class _Plaque extends StatelessWidget {
           ]),
         ),
       );
-}
-
-/// A tall game card: art, name and a PLAY button, scaled to [height].
-class GameCard extends StatelessWidget {
-  const GameCard(this.g, {super.key, required this.height});
-  final GameInfo g;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    final w = height * .84;
-    final nameSize = (height * .085).clamp(12.0, 26.0);
-    final buttonH = (height * .14).clamp(24.0, 46.0);
-    return Press(
-      label: '${g.name} — ${g.playable ? 'play' : 'coming soon'}',
-      onTap: () => openGame(g),
-      child: Container(
-        width: w,
-        height: height,
-        padding: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: Z.goldFrame,
-          boxShadow: [bs(0, 8, 18, const Color(0xB3000000)), bs(0, 0, 12, const Color(0x40FFC846))],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: Stack(fit: StackFit.expand, children: [
-            const ColoredBox(color: Color(0xFF120A05)),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: AspectRatio(aspectRatio: 229 / 178, child: Image.asset(A.card(g.id), fit: BoxFit.cover)),
-            ),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0x00120A05), Color(0x00120A05), Color(0xF2120A05)],
-                  stops: [0, .45, .72],
-                ),
-              ),
-            ),
-            if (!g.playable)
-              Positioned(
-                top: 6,
-                right: 6,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xD90A0603),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Z.border),
-                  ),
-                  child: Text('SOON', style: outfit(10, w: FontWeight.w800, ls: .06, c: Z.gold, h: 1)),
-                ),
-              ),
-            Positioned(
-              left: 8,
-              right: 8,
-              bottom: height * .05,
-              child: Column(children: [
-                Text(g.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: outfit(nameSize,
-                        w: FontWeight.w800,
-                        c: Z.goldHi,
-                        sh: [ts(0, 2, 4, const Color(0xE6000000)), ts(0, 0, 10, const Color(0x66FFC850))])),
-                SizedBox(height: height * .03),
-                Container(
-                  height: buttonH,
-                  width: w * .78,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(buttonH / 2),
-                    border: Border.all(color: Z.rimBright, width: 1.5),
-                    gradient: g.playable ? Z.red3 : null,
-                    color: g.playable ? null : const Color(0xFF2A1B0B),
-                  ),
-                  alignment: Alignment.center,
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    if (g.playable) ...[
-                      Ico(P.play, size: buttonH * .42, color: Z.cream),
-                      SizedBox(width: buttonH * .2),
-                    ],
-                    Text(g.playable ? 'PLAY' : 'PREVIEW',
-                        style: outfit(buttonH * .42, w: FontWeight.w800, ls: .04, c: g.playable ? Z.cream : Z.gold)),
-                  ]),
-                ),
-              ]),
-            ),
-          ]),
-        ),
-      ),
-    );
-  }
 }
 
 /// The player avatar inside a glowing frame. Frame color follows Edit profile.

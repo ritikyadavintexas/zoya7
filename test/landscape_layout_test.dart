@@ -141,6 +141,15 @@ void main() {
         });
       }
 
+      testWidgets('jackpots popup fits', (tester) async {
+        await show(tester, size, const HomeScreen());
+        await tester.tap(find.bySemanticsLabel(RegExp('^Jackpots')));
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.text('JACKPOTS'), findsWidgets);
+        expectFits(tester);
+        await tester.pumpWidget(const SizedBox());
+      });
+
       testWidgets('options menu fits', (tester) async {
         await show(tester, size, const HomeScreen());
         await tester.tap(find.bySemanticsLabel('Menu'));
