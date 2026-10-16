@@ -206,8 +206,13 @@ class _LoginScreenState extends State<LoginScreen> {
       showToast(context, 'Please confirm you are 18+ and agree to the Terms');
       return;
     }
-    AppScope.read(context).signIn();
-    Nav.homeWithBonus();
+    final s = AppScope.read(context);
+    if (signup && !s.casino.settings.registrationOpen) {
+      showToast(context, 'New sign-ups are closed right now. Ask the cashier for a player ID.');
+      return;
+    }
+    s.signIn();
+    _enter(s);
   }
 
   @override
@@ -335,9 +340,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _socialIn() {
-    AppScope.read(context).signIn();
-    Nav.homeWithBonus();
+    final s = AppScope.read(context)..signIn();
+    _enter(s);
   }
+
+  /// Into the lobby, with the daily bonus when the back office has it on.
+  void _enter(AppState s) => s.casino.settings.dailyBonus ? Nav.homeWithBonus() : Nav.reset(R.home);
 }
 
 class _Check extends StatelessWidget {

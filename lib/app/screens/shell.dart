@@ -156,7 +156,7 @@ class Hud extends StatelessWidget {
                 extent: iconW,
                 label: s.bonusClaimed ? 'Daily bonus' : 'Daily bonus ready',
                 dot: !s.bonusClaimed,
-                onTap: () => Nav.push(R.dailyBonus),
+                onTap: () => openDailyBonus(context),
                 child: const RawIco(_giftSvg, size: 28),
               ),
               _HudIcon(
@@ -223,6 +223,7 @@ void showOptionsMenu(BuildContext context) {
     ('Settings', P.gear, () => Nav.push(R.settings)),
     ('Help & support', P.chat, () => Nav.push(R.chat, 'support')),
     ('Rules & terms', P.doc, () => Nav.push(R.legal)),
+    ('Admin panel', P.lock, () => Nav.adminMode.value = true),
     ('Log out', P.back, () => Nav.reset(R.welcome)),
   ];
   showGeneralDialog<void>(

@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import '../backoffice/casino.dart';
+
 /// A Gold Coin package from the Wallet's BUY COINS grid.
 class CoinPack {
   const CoinPack(this.gc, this.gcLabel, this.sc, this.price, [this.tag]);
@@ -21,11 +23,22 @@ const coinPacks = [
   CoinPack(1400000, '1.4M', 100, 99.99),
 ];
 
-/// Prototype session state shared by every page. Replace with your backend.
+/// Session state shared by every page. Balances, purchases, redemptions and
+/// the games on offer come from the back office ([Casino]), which the admin
+/// panel manages.
 class AppState extends ChangeNotifier {
-  double gc = 125000;
-  double sc = 250.50;
-  double redeemableSc = 180;
+  AppState({Casino? casino}) : casino = casino ?? Casino.demo() {
+    this.casino.addListener(notifyListeners);
+  }
+
+  final Casino casino;
+
+  double get gc => casino.me.gc;
+  set gc(double v) => casino.moveMine(gc: v - gc);
+  double get sc => casino.me.sc;
+  set sc(double v) => casino.moveMine(sc: v - sc);
+
+  double get redeemableSc => sc;
   String name = 'Player123';
   bool guest = false;
 
@@ -67,10 +80,9 @@ class AppState extends ChangeNotifier {
   }
 
   void claimBonus() {
-    if (bonusClaimed) return;
+    if (bonusClaimed || !casino.settings.dailyBonus) return;
     bonusClaimed = true;
-    gc += todayBonus;
-    notifyListeners();
+    casino.credit(casino.me, gc: todayBonus.toDouble(), note: 'Daily bonus');
   }
 
   void selectPack(int i) {
@@ -80,9 +92,18 @@ class AppState extends ChangeNotifier {
 
   /// Credits [p] (plus [bonusGc] from a promo code) and returns the pack.
   void completePurchase(CoinPack p, {int bonusGc = 0}) {
-    gc += p.gc + bonusGc;
-    sc += p.sc;
-    notifyListeners();
+    casino.purchase(casino.me, p.price,
+        gc: (p.gc + bonusGc).toDouble(), sc: p.sc.toDouble(), note: '${p.gcLabel} GC package');
+  }
+
+  /// Ask for a payout of [amount] SC; returns an error to show, or null.
+  String? requestRedemption(double amount, String method) {
+    try {
+      casino.cashOut(casino.me, amount, method: method);
+      return null;
+    } on CasinoError catch (e) {
+      return e.message;
+    }
   }
 
   void setAvatarFrame(int i) {
@@ -106,15 +127,14 @@ class AppState extends ChangeNotifier {
   }
 
   /// Add (or with a negative amount, take) coins — game bets and wins.
-  void adjust({double gc = 0, double sc = 0}) {
-    this.gc += gc;
-    this.sc = ((this.sc + sc) * 100).roundToDouble() / 100;
-    notifyListeners();
-  }
+  void adjust({double gc = 0, double sc = 0}) => casino.moveMine(gc: gc, sc: sc);
 
-  void setGc(double v) {
-    gc = v;
-    notifyListeners();
+  void setGc(double v) => gc = v;
+
+  @override
+  void dispose() {
+    casino.removeListener(notifyListeners);
+    super.dispose();
   }
 }
 

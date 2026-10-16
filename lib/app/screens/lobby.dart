@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../backoffice/casino.dart';
 import '../../games/gold/src/assets.dart' show GoldAssets;
 import '../../games/gold/src/math.dart' show JackpotTier, Sym;
 import '../assets.dart';
@@ -14,11 +15,50 @@ import '../widgets.dart';
 
 /// Open a game tile: Blackjack has its table, Classic 777 / Fruit Spin play
 /// Gold, and the rest show "coming soon".
-void openGame(GameInfo g) => switch (g.id) {
-      'blackjack' => Nav.push(R.blackjack),
-      _ when g.playable => Nav.push(R.gold),
-      _ => Nav.push(R.comingSoon, g.id),
-    };
+/// Games switched off in the back office (or everything, in maintenance
+/// mode) say so instead of opening.
+void openGame(BuildContext context, GameInfo g) {
+  final casino = AppScope.read(context).casino;
+  if (casino.settings.maintenance) {
+    showToast(context, casino.settings.maintenanceMessage);
+    return;
+  }
+  if (casino.statusOf(g.id) != GameStatus.live) {
+    showToast(context, '${g.name} is under maintenance. Back soon!');
+    return;
+  }
+  switch (g.id) {
+    case 'blackjack':
+      Nav.push(R.blackjack);
+    case _ when g.playable:
+      Nav.push(R.gold, g.id);
+    default:
+      Nav.push(R.comingSoon, g.id);
+  }
+}
+
+/// The daily bonus, unless the back office has paused it.
+void openDailyBonus(BuildContext context) {
+  if (AppScope.read(context).casino.settings.dailyBonus) {
+    Nav.push(R.dailyBonus);
+  } else {
+    showToast(context, 'The daily bonus is paused right now');
+  }
+}
+
+/// The games players can see, in lobby order.
+List<GameInfo> visibleGames(Casino casino) => [
+      for (final g in games)
+        if (casino.statusOf(g.id) != GameStatus.hidden) g,
+    ];
+
+/// A tile's corner tag: off, coming soon, or the back office's ribbon.
+({String text, bool off})? gameTag(Casino casino, GameInfo g) {
+  if (casino.settings.maintenance || casino.statusOf(g.id) == GameStatus.maintenance) return (text: 'OFF', off: true);
+  if (!g.playable) return (text: 'SOON', off: false);
+  final b = casino.config(g.id).badge;
+  return b.isEmpty ? null : (text: b, off: false);
+}
 
 /// Jackpot meters tick up on a shared clock, so the lobby icon and the
 /// jackpot popup always agree.
@@ -65,7 +105,9 @@ class _LobbyPageState extends State<LobbyPage> {
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
     final pad = MediaQuery.paddingOf(context);
-    final list = games.where((g) => cat == 'All games' || g.cat == cat.toUpperCase()).toList();
+    final shown = visibleGames(s.casino);
+    final list = shown.where((g) => cat == 'All games' || g.cat == cat.toUpperCase()).toList();
+    final featured = shown.where((g) => g.id == s.casino.featured).firstOrNull ?? shown.firstOrNull;
     return Padding(
       padding: EdgeInsets.fromLTRB(pad.left + 10, 8, pad.right + 10, pad.bottom + 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -100,7 +142,7 @@ class _LobbyPageState extends State<LobbyPage> {
                   semantic: s.bonusClaimed ? 'Daily bonus' : 'Daily bonus, 1 to claim',
                   count: s.bonusClaimed ? 0 : 1,
                   size: iconSize,
-                  onTap: () => Nav.push(R.dailyBonus),
+                  onTap: () => openDailyBonus(context),
                   child: Image.asset(A.dailyBonusIcon, fit: BoxFit.cover),
                 ),
                 SizedBox(height: iconSize * .2),
@@ -139,10 +181,12 @@ class _LobbyPageState extends State<LobbyPage> {
                 child: CustomScrollView(
                   scrollDirection: Axis.horizontal,
                   slivers: [
-                    SliverToBoxAdapter(
-                      child: _FeaturedTile(games.first, size: Size(box.maxHeight * 1.05, box.maxHeight)),
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(width: gap)),
+                    if (featured != null) ...[
+                      SliverToBoxAdapter(
+                        child: _FeaturedTile(featured, size: Size(box.maxHeight * 1.05, box.maxHeight)),
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(width: gap)),
+                    ],
                     SliverGrid(
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: rows,
@@ -200,7 +244,7 @@ class _FeaturedTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Press(
         label: 'Featured: ${g.name} — play',
-        onTap: () => openGame(g),
+        onTap: () => openGame(context, g),
         child: Container(
           width: size.width,
           height: size.height,
@@ -216,7 +260,9 @@ class _FeaturedTile extends StatelessWidget {
               Transform.scale(
                 scale: 1.45,
                 alignment: const Alignment(0, .55),
-                child: Image.asset(A.welcomeHero, fit: BoxFit.cover, alignment: const Alignment(0, .9)),
+                child: g.id == 'classic777'
+                    ? Image.asset(A.welcomeHero, fit: BoxFit.cover, alignment: const Alignment(0, .9))
+                    : Image.asset(A.card(g.id), fit: BoxFit.cover, alignment: Alignment.topCenter),
               ),
               const DecoratedBox(
                 decoration: BoxDecoration(
@@ -256,7 +302,12 @@ class _FeaturedTile extends StatelessWidget {
                             style: playfair((size.height * .1).clamp(16.0, 30.0), w: FontWeight.w800, c: Z.goldHi, h: 1)),
                       ),
                       const SizedBox(height: 3),
-                      Text('3-reel slot · MEGA jackpot',
+                      Text(
+                          switch (g.cat) {
+                            'TABLE' => 'Table game · ${g.players.isEmpty ? 'live tables' : '${g.players} playing'}',
+                            'INSTANT' => 'Instant win',
+                            _ => '3-reel slot · MEGA jackpot',
+                          },
                           maxLines: 1, overflow: TextOverflow.ellipsis, style: outfit(12, c: Z.soft)),
                     ]),
                   ),
@@ -290,9 +341,11 @@ class _GameTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, box) => Press(
-          label: '${g.name} — ${g.playable ? 'play' : 'coming soon'}',
-          onTap: () => openGame(g),
+        builder: (context, box) {
+          final tag = gameTag(AppScope.of(context).casino, g);
+          return Press(
+          label: '${g.name} — ${tag?.off ?? false ? 'under maintenance' : g.playable ? 'play' : 'coming soon'}',
+          onTap: () => openGame(context, g),
           child: Container(
             padding: const EdgeInsets.all(1.5),
             decoration: BoxDecoration(
@@ -304,7 +357,15 @@ class _GameTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(10.5),
               child: Stack(fit: StackFit.expand, children: [
                 const ColoredBox(color: Color(0xFF0E0A14)),
-                Image.asset(A.card(g.id), fit: BoxFit.cover, alignment: Alignment.topCenter),
+                if (tag?.off ?? false)
+                  ColorFiltered(
+                    colorFilter: const ColorFilter.matrix(<double>[
+                      .2, .6, .1, 0, 0, .2, .6, .1, 0, 0, .2, .6, .1, 0, 0, 0, 0, 0, 1, 0, //
+                    ]),
+                    child: Image.asset(A.card(g.id), fit: BoxFit.cover, alignment: Alignment.topCenter),
+                  )
+                else
+                  Image.asset(A.card(g.id), fit: BoxFit.cover, alignment: Alignment.topCenter),
                 const DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -315,20 +376,7 @@ class _GameTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (!g.playable)
-                  Positioned(
-                    top: 5,
-                    right: 5,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xD90A0603),
-                        borderRadius: BorderRadius.circular(7),
-                        border: Border.all(color: Z.border),
-                      ),
-                      child: Text('SOON', style: outfit(9, w: FontWeight.w800, ls: .06, c: Z.gold, h: 1)),
-                    ),
-                  ),
+                if (tag != null) Positioned(top: 5, right: 5, child: GameTagChip(tag, size: 9)),
                 Positioned(
                   left: 6,
                   right: 6,
@@ -342,8 +390,31 @@ class _GameTile extends StatelessWidget {
               ]),
             ),
           ),
-        ),
+        );
+        },
       );
+}
+
+/// A tile's corner tag (OFF / SOON / NEW / HOT).
+class GameTagChip extends StatelessWidget {
+  const GameTagChip(this.tag, {super.key, this.size = 10});
+  final ({String text, bool off}) tag;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final hot = !tag.off && (tag.text == 'HOT' || tag.text == 'NEW');
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: size * .7, vertical: size * .35),
+      decoration: BoxDecoration(
+        color: tag.off ? const Color(0xE6400A0A) : hot ? null : const Color(0xD90A0603),
+        gradient: hot ? Z.red3 : null,
+        borderRadius: BorderRadius.circular(size * .8),
+        border: Border.all(color: tag.off ? Z.coral : hot ? Z.rimBright : Z.border),
+      ),
+      child: Text(tag.text, style: outfit(size, w: FontWeight.w800, ls: .06, c: tag.off ? Z.coral : hot ? Z.cream : Z.gold, h: 1)),
+    );
+  }
 }
 
 /// All four jackpots, live, in a popup.

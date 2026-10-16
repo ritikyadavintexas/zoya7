@@ -16,13 +16,24 @@ class BlackjackController extends ChangeNotifier {
   BlackjackController({
     required this.wallet,
     Shoe? shoe,
+    this.rules = const BjRules(),
+    this.limits = defaultLimits,
+    this.onSettled,
     this.pace = const Duration(milliseconds: 520),
-  }) : shoe = shoe ?? Shoe() {
-    round = BlackjackRound(this.shoe);
+  }) : shoe = shoe ?? Shoe(decks: rules.decks) {
+    round = BlackjackRound(this.shoe, rules: rules);
   }
 
   final BlackjackWallet wallet;
   final Shoe shoe;
+  final BjRules rules;
+
+  /// Table limits (min, max bet) per currency.
+  final Map<Currency, (double, double)> limits;
+  static const defaultLimits = {Currency.gc: (500.0, 250000.0), Currency.sc: (.5, 250.0)};
+
+  /// Called once per settled round with what was staked and paid back.
+  final void Function(Currency currency, double staked, double returned)? onSettled;
 
   /// Time between dealer cards (and the base for deal animations).
   final Duration pace;
@@ -48,9 +59,14 @@ class BlackjackController extends ChangeNotifier {
     Currency.gc: [500.0, 1000.0, 5000.0, 25000.0],
     Currency.sc: [0.5, 1.0, 5.0, 25.0],
   };
-  List<double> get chips => _chips[currency]!;
-  double get minBet => chips.first;
-  double get maxBet => currency == Currency.gc ? 250000 : 250;
+  List<double> get chips {
+    final all = _chips[currency]!;
+    final fit = all.where((c) => c <= maxBet).toList();
+    return fit.isEmpty ? [all.first] : fit;
+  }
+
+  double get minBet => limits[currency]?.$1 ?? defaultLimits[currency]!.$1;
+  double get maxBet => limits[currency]?.$2 ?? defaultLimits[currency]!.$2;
   double get balance => wallet.balance(currency);
 
   Phase get phase => round.phase;
@@ -122,7 +138,7 @@ class BlackjackController extends ChangeNotifier {
     }
     wallet.add(currency, -bet);
     lastBet = bet;
-    round = BlackjackRound(shoe)..deal(bet);
+    round = BlackjackRound(shoe, rules: rules)..deal(bet);
     dealSerial++;
     notifyListeners();
     // Let the four cards fly in.
@@ -191,12 +207,13 @@ class BlackjackController extends ChangeNotifier {
 
   void _payout() {
     if (round.returned > 0) wallet.add(currency, round.returned);
+    onSettled?.call(currency, round.staked, round.returned);
   }
 
   /// Back to betting, keeping the last bet on the circle when affordable.
   void newRound() {
     if (phase != Phase.settled || busy) return;
-    round = BlackjackRound(shoe);
+    round = BlackjackRound(shoe, rules: rules);
     bet = lastBet <= balance ? lastBet : 0;
     notifyListeners();
   }

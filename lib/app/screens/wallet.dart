@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../backoffice/casino.dart';
 import '../icons.dart';
 import '../nav.dart';
 import '../state.dart';
@@ -21,7 +22,28 @@ class WalletPageState extends State<WalletPage> {
   static const tabs = ['buy', 'redeem', 'history'];
   late int tab = tabs.indexOf(widget.initialTab).clamp(0, 2);
   int payout = 0;
+  final _redeemAmount = TextEditingController();
 
+  @override
+  void dispose() {
+    _redeemAmount.dispose();
+    super.dispose();
+  }
+
+  void _requestRedemption(AppState s) {
+    final amount = double.tryParse(_redeemAmount.text.trim().replaceAll(',', ''));
+    if (amount == null || amount <= 0) {
+      showToast(context, 'Enter how many SC to redeem');
+      return;
+    }
+    final error = s.requestRedemption(amount, const ['Bank', 'Gift card'][payout]);
+    if (error != null) {
+      showToast(context, error);
+      return;
+    }
+    _redeemAmount.clear();
+    showToast(context, 'Redemption request submitted');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +107,7 @@ class WalletPageState extends State<WalletPage> {
                 child: switch (tab) {
                   0 => _buy(s),
                   1 => _redeem(s),
-                  _ => _history(),
+                  _ => _history(s),
                 },
               ),
             ]),
@@ -146,7 +168,11 @@ class WalletPageState extends State<WalletPage> {
               ]),
             ),
             const SizedBox(height: 10),
-            const ZField(label: 'AMOUNT TO REDEEM', hint: 'Minimum [MIN] SC', keyboard: TextInputType.number),
+            ZField(
+                label: 'AMOUNT TO REDEEM',
+                hint: 'Minimum ${fmtInt(s.casino.settings.minCashOut)} SC',
+                controller: _redeemAmount,
+                keyboard: const TextInputType.numberWithOptions(decimal: true)),
             const SizedBox(height: 8),
             Text('Identity verification is required before your first redemption.',
                 style: outfit(12, c: Z.muted2, h: 1.35)),
@@ -163,20 +189,35 @@ class WalletPageState extends State<WalletPage> {
             ],
             const SizedBox(height: 4),
             CtaButton('REQUEST REDEMPTION',
-                height: 46, fontSize: 16, onTap: () => showToast(context, 'Redemption request submitted')),
+                height: 46, fontSize: 16, onTap: () => _requestRedemption(s)),
           ]),
         ),
       ]);
 
   // Two columns of compact entries.
-  Widget _history() {
-    const hist = [
-      ('GC', 'Daily bonus', 'Today · 9:41 AM', '+5,000 GC', true),
-      ('GC', 'Classic 777 win', 'Today · 9:12 AM', '+75,000 GC', true),
-      ('GC', '120K GC package', 'Yesterday · 8:30 PM', '+120,000 GC', true),
-      ('SC', 'Free SC with package', 'Yesterday · 8:30 PM', '+10.00 SC', true),
-      ('SC', 'Redemption — bank', 'Oct 12 · Pending', '−50.00 SC', false),
-      ('GC', 'Referral bonus', 'Oct 10', '+10,000 GC', true),
+  Widget _history(AppState s) {
+    String when(DateTime t) {
+      final now = s.casino.now;
+      final days = DateTime(now.year, now.month, now.day).difference(DateTime(t.year, t.month, t.day)).inDays;
+      final h = t.hour % 12 == 0 ? 12 : t.hour % 12;
+      final clock = '$h:${t.minute.toString().padLeft(2, '0')} ${t.hour < 12 ? 'AM' : 'PM'}';
+      return switch (days) { 0 => 'Today · $clock', 1 => 'Yesterday · $clock', _ => '${monthName(t.month)} ${t.day}' };
+    }
+
+    // The latest moves on this account, from the back office's ledger.
+    final hist = [
+      for (final t in s.casino.txnsOf(Casino.meId).take(6))
+        (
+          t.sc != 0 && t.gc == 0 ? 'SC' : 'GC',
+          t.note.isNotEmpty
+              ? t.note
+              : t.type == TxnType.cashOut
+                  ? 'Redemption${t.method.isEmpty ? '' : ' — ${t.method.toLowerCase()}'}'
+                  : statusName(t.type),
+          '${when(t.at)}${t.status == TxnStatus.approved ? '' : ' · ${statusName(t.status)}'}',
+          t.gc != 0 ? '${t.gc > 0 ? '+' : '−'}${fmtInt(t.gc.abs())} GC' : '${t.sc > 0 ? '+' : '−'}${fmtSc(t.sc.abs())} SC',
+          t.gc + t.sc >= 0,
+        ),
     ];
     return GridView(
       padding: EdgeInsets.zero,

@@ -35,6 +35,9 @@ enum AppTab { home, games, promotions, wallet, profile }
 class Nav {
   static final navigatorKey = GlobalKey<NavigatorState>();
 
+  /// The admin panel is on screen instead of the game (see main.dart).
+  static final adminMode = ValueNotifier<bool>(false);
+
   static NavigatorState get _nav => navigatorKey.currentState!;
 
   /// Open a section: back to the lobby, then the section's page on top of

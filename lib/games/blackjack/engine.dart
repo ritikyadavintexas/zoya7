@@ -3,13 +3,78 @@ import 'dart:math';
 /// Blackjack rules and round logic, with no UI. One [BlackjackRound] is one
 /// hand of play: deal → (insurance) → player decisions → dealer → settle.
 ///
-/// Table rules: 6 decks, reshuffled at 75% penetration; dealer stands on all
-/// 17s and peeks for blackjack under an Ace or a ten; blackjack pays 3 to 2;
-/// insurance pays 2 to 1; double on any first two cards, also after a split;
-/// split up to four hands; split Aces get one card each and can't be re-split;
-/// 21 on a split hand isn't a blackjack.
+/// Default table rules ([BjRules]): 6 decks, reshuffled at 75% penetration;
+/// dealer stands on all 17s and peeks for blackjack under an Ace or a ten;
+/// blackjack pays 3 to 2; insurance pays 2 to 1; double on any first two
+/// cards, also after a split; split up to four hands; split Aces get one card
+/// each and can't be re-split; 21 on a split hand isn't a blackjack.
+/// The back office can change the rules per table.
 
 enum Suit { spades, hearts, diamonds, clubs }
+
+/// The table's rules — the game's math, set from the back office.
+class BjRules {
+  const BjRules({
+    this.decks = 6,
+    this.blackjackPays = 1.5,
+    this.hitSoft17 = false,
+    this.doubleAfterSplit = true,
+    this.maxHands = 4,
+    this.insurance = true,
+  });
+
+  final int decks;
+
+  /// Winnings per unit bet on a blackjack: 1.5 (3 to 2) or 1.2 (6 to 5).
+  final double blackjackPays;
+  final bool hitSoft17;
+  final bool doubleAfterSplit;
+
+  /// Hands a player can split into (1 = no splitting).
+  final int maxHands;
+  final bool insurance;
+
+  BjRules copyWith({int? decks, double? blackjackPays, bool? hitSoft17, bool? doubleAfterSplit, int? maxHands, bool? insurance}) =>
+      BjRules(
+        decks: decks ?? this.decks,
+        blackjackPays: blackjackPays ?? this.blackjackPays,
+        hitSoft17: hitSoft17 ?? this.hitSoft17,
+        doubleAfterSplit: doubleAfterSplit ?? this.doubleAfterSplit,
+        maxHands: maxHands ?? this.maxHands,
+        insurance: insurance ?? this.insurance,
+      );
+
+  Map<String, Object> toJson() => {
+        'decks': decks,
+        'bj': blackjackPays,
+        'h17': hitSoft17,
+        'das': doubleAfterSplit,
+        'hands': maxHands,
+        'ins': insurance,
+      };
+
+  static BjRules fromJson(Map<String, dynamic> j) => BjRules(
+        decks: j['decks'] as int? ?? 6,
+        blackjackPays: (j['bj'] as num?)?.toDouble() ?? 1.5,
+        hitSoft17: j['h17'] as bool? ?? false,
+        doubleAfterSplit: j['das'] as bool? ?? true,
+        maxHands: j['hands'] as int? ?? 4,
+        insurance: j['ins'] as bool? ?? true,
+      );
+
+  /// Estimated house edge (fraction of the initial bet) for basic-strategy
+  /// play, from the standard rule-variation effects against a 6-deck S17 DAS
+  /// game with resplits to four hands and peek (≈0.42%).
+  double get houseEdge {
+    var e = .0042;
+    e += switch (decks) { 1 => -.0048, 2 => -.0019, 3 || 4 => -.0006, 5 || 6 => 0, _ => .0002 };
+    if (hitSoft17) e += .0022;
+    if (!doubleAfterSplit) e += .0014;
+    e += switch (maxHands) { 1 => .0057, 2 => .0010, 3 => .0003, _ => 0 };
+    e += (1.5 - blackjackPays) * .0453; // 6:5 costs ≈1.36%
+    return e;
+  }
+}
 
 class PlayingCard {
   const PlayingCard(this.rank, this.suit);
@@ -116,10 +181,11 @@ class BjHand {
 enum Phase { betting, insurance, player, dealer, settled }
 
 class BlackjackRound {
-  BlackjackRound(this.shoe, {this.maxHands = 4});
+  BlackjackRound(this.shoe, {this.rules = const BjRules()});
 
   final Shoe shoe;
-  final int maxHands;
+  final BjRules rules;
+  int get maxHands => rules.maxHands;
 
   Phase phase = Phase.betting;
   final hands = <BjHand>[];
@@ -151,7 +217,7 @@ class BlackjackRound {
     dealer.add(shoe.draw());
     hand.cards.add(shoe.draw());
     dealer.add(shoe.draw());
-    if (upCard!.isAce) {
+    if (upCard!.isAce && rules.insurance) {
       phase = Phase.insurance;
     } else {
       _peek();
@@ -179,7 +245,11 @@ class BlackjackRound {
   }
 
   bool get canHit => phase == Phase.player && !hand.done;
-  bool get canDouble => phase == Phase.player && hand.cards.length == 2 && !hand.done;
+  bool get canDouble =>
+      phase == Phase.player &&
+      hand.cards.length == 2 &&
+      !hand.done &&
+      (!hand.fromSplit || rules.doubleAfterSplit);
   bool get canSplit =>
       phase == Phase.player &&
       hand.cards.length == 2 &&
@@ -245,7 +315,8 @@ class BlackjackRound {
     }
     // Nothing to play against: every hand bust.
     final live = hands.any((h) => !h.bust);
-    if (live && handTotal(dealer).total < 17) {
+    final d = handTotal(dealer);
+    if (live && (d.total < 17 || (d.total == 17 && d.soft && rules.hitSoft17))) {
       dealer.add(shoe.draw());
       return true;
     }
@@ -265,7 +336,7 @@ class BlackjackRound {
       } else if (h.blackjack && !dBj) {
         h
           ..outcome = Outcome.blackjack
-          ..returned = h.bet * 2.5;
+          ..returned = h.bet * (1 + rules.blackjackPays);
       } else if (dBj) {
         h
           ..outcome = h.blackjack ? Outcome.push : Outcome.lose

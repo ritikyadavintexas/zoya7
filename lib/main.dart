@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'admin/admin_app.dart';
 import 'app/landscape.dart';
 import 'app/nav.dart';
 import 'app/screens/blackjack.dart';
@@ -17,23 +18,60 @@ import 'app/screens/wallet.dart';
 import 'app/state.dart';
 import 'app/theme.dart';
 import 'app/web_safe_area.dart';
+import 'backoffice/casino.dart';
 
 /// Set by CI (`--dart-define=BUILD_SHA=…`) so you can tell which build is on your phone.
 const _buildSha = String.fromEnvironment('BUILD_SHA');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // The whole app is landscape. Browsers can't lock it, so ForceLandscape turns it there.
-  if (!kIsWeb) {
-    await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
-    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-  }
-  runApp(Zoya7App(state: AppState()));
+  // …/#/admin (or ?admin) opens the admin panel instead of the game.
+  Nav.adminMode.value = kIsWeb && (Uri.base.fragment.startsWith('/admin') || Uri.base.queryParameters.containsKey('admin'));
+  if (!Nav.adminMode.value) await _lockLandscape();
+  runApp(Zoya7Root(state: AppState(casino: Casino.load())));
+}
+
+/// The game is landscape. Browsers can't lock it, so ForceLandscape turns it there.
+Future<void> _lockLandscape() async {
+  if (kIsWeb) return;
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+}
+
+/// The game, or the admin panel (portrait, Cash App style) over the same
+/// back office.
+class Zoya7Root extends StatefulWidget {
+  const Zoya7Root({super.key, required this.state});
+  final AppState state;
+
+  @override
+  State<Zoya7Root> createState() => _Zoya7RootState();
+}
+
+class _Zoya7RootState extends State<Zoya7Root> {
+  /// Coming back from the admin panel goes straight to the lobby.
+  var _startAt = R.splash;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+        valueListenable: Nav.adminMode,
+        builder: (context, admin, _) => admin
+            ? AdminApp(
+                casino: widget.state.casino,
+                onExit: () {
+                  _startAt = R.home;
+                  _lockLandscape();
+                  Nav.adminMode.value = false;
+                },
+              )
+            : Zoya7App(state: widget.state, startAt: _startAt),
+      );
 }
 
 class Zoya7App extends StatelessWidget {
-  const Zoya7App({super.key, required this.state});
+  const Zoya7App({super.key, required this.state, this.startAt = R.splash});
   final AppState state;
+  final String startAt;
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +91,15 @@ class Zoya7App extends StatelessWidget {
             TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
           }),
         ),
-        initialRoute: R.splash,
+        initialRoute: startAt,
+        // A link to a page (…/#/wallet) opens it over the lobby; the admin
+        // panel's link and a return from the panel start at [startAt].
+        onGenerateInitialRoutes: (name) => name == R.splash || name.startsWith('/admin') || startAt != R.splash
+            ? [_route(RouteSettings(name: startAt))]
+            : [
+                _route(const RouteSettings(name: R.home)),
+                if (name != R.home) _route(RouteSettings(name: name)),
+              ],
         onGenerateRoute: _route,
         builder: (context, child) => WebSafeArea(
           child: ForceLandscape(
@@ -100,7 +146,7 @@ class Zoya7App extends StatelessWidget {
       case R.profile:
         page = const ProfilePage();
       case R.gold:
-        page = const GoldScreen();
+        page = GoldScreen(gameId: arg is String ? arg : 'classic777');
       case R.blackjack:
         page = const BlackjackScreen();
       case R.chat:

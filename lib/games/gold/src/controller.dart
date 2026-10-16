@@ -37,6 +37,8 @@ class GoldController extends ChangeNotifier {
     Currency currency = Currency.gc,
     WinTier? previewOverlay,
     GoldPanel previewPanel = GoldPanel.none,
+    this.minBetIdx = 0,
+    this.maxBetIdx = GoldRules.maxBetIndex,
   })  : outcomes = outcomes ?? LocalGoldMath(),
         audio = audio ?? _SilentAudio(),
         gc = initialGc,
@@ -54,7 +56,11 @@ class GoldController extends ChangeNotifier {
   Currency mode;
   double gc;
   double sc;
-  int betIdx = 2;
+  late int betIdx = 2.clamp(minBetIdx, maxBetIdx);
+
+  /// The bet steps this table offers (set from the back office).
+  final int minBetIdx;
+  final int maxBetIdx;
 
   // Reels
   List<List<Sym>> grid = [
@@ -140,15 +146,15 @@ class GoldController extends ChangeNotifier {
   }
 
   void betDown() {
-    if (!busy && betIdx > 0) _set(() => betIdx--);
+    if (!busy && betIdx > minBetIdx) _set(() => betIdx--);
   }
 
   void betUp() {
-    if (!busy && betIdx < GoldRules.maxBetIndex) _set(() => betIdx++);
+    if (!busy && betIdx < maxBetIdx) _set(() => betIdx++);
   }
 
   void maxBet() {
-    if (!busy) _set(() => betIdx = GoldRules.maxBetIndex);
+    if (!busy) _set(() => betIdx = maxBetIdx);
   }
 
   void toggleAuto() {
@@ -297,7 +303,7 @@ class GoldController extends ChangeNotifier {
   void closePanel() => _set(() => panel = GoldPanel.none);
 
   void lowerBet() => _set(() {
-        betIdx = 0;
+        betIdx = minBetIdx;
         panel = GoldPanel.none;
       });
 

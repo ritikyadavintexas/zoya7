@@ -15,10 +15,25 @@ export 'controller.dart' show BlackjackWallet;
 /// The Blackjack table: one player against the dealer, landscape, sized to
 /// the screen (cards scale with the table's height).
 class BlackjackGame extends StatefulWidget {
-  const BlackjackGame({super.key, required this.wallet, this.onExit, this.onBuyCoins, this.shoe, this.pace});
+  const BlackjackGame({
+    super.key,
+    required this.wallet,
+    this.onExit,
+    this.onBuyCoins,
+    this.rules = const BjRules(),
+    this.limits = BlackjackController.defaultLimits,
+    this.onSettled,
+    this.shoe,
+    this.pace,
+  });
   final BlackjackWallet wallet;
   final VoidCallback? onExit;
   final ValueChanged<Currency>? onBuyCoins;
+
+  /// The table's math and limits (set from the back office).
+  final BjRules rules;
+  final Map<Currency, (double, double)> limits;
+  final void Function(Currency currency, double staked, double returned)? onSettled;
 
   /// For tests: a stacked shoe and fast pacing.
   final Shoe? shoe;
@@ -32,6 +47,9 @@ class _BlackjackGameState extends State<BlackjackGame> {
   late final c = BlackjackController(
     wallet: widget.wallet,
     shoe: widget.shoe,
+    rules: widget.rules,
+    limits: widget.limits,
+    onSettled: widget.onSettled,
     pace: widget.pace ?? const Duration(milliseconds: 520),
   );
 
@@ -89,7 +107,7 @@ class _TopStrip extends StatelessWidget {
           Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('BLACKJACK', style: playfair(20, w: FontWeight.w800, c: Z.goldHi, h: 1)),
             const SizedBox(height: 2),
-            Text('Pays 3 to 2', style: outfit(11, w: FontWeight.w600, ls: .06, c: const Color(0xFFB8D8C2))),
+            Text('Pays ${payLabel(c.rules.blackjackPays)}', style: outfit(11, w: FontWeight.w600, ls: .06, c: const Color(0xFFB8D8C2))),
           ]),
           const Spacer(),
           _CurrencyToggle(c: c),
@@ -112,7 +130,7 @@ class _TopStrip extends StatelessWidget {
           const SizedBox(width: 8),
           RoundBtn(
             label: 'Rules',
-            onTap: () => _showRules(context),
+            onTap: () => _showRules(context, c.rules),
             child: Text('?', style: outfit(18, w: FontWeight.w800, c: Z.gold)),
           ),
         ]),
@@ -162,7 +180,16 @@ class _CurrencyToggle extends StatelessWidget {
   }
 }
 
-void _showRules(BuildContext context) => showGeneralDialog<void>(
+/// "3 to 2", "6 to 5", "2 to 1"…
+String payLabel(double pays) {
+  for (var d = 1; d <= 10; d++) {
+    final n = pays * d;
+    if ((n - n.round()).abs() < 1e-6) return '${n.round()} to $d';
+  }
+  return '${pays.toStringAsFixed(2)} to 1';
+}
+
+void _showRules(BuildContext context, BjRules rules) => showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Close rules',
@@ -184,14 +211,20 @@ void _showRules(BuildContext context) => showGeneralDialog<void>(
                     RoundBtn(label: 'Close', onTap: () => Navigator.of(ctx).pop(), child: const StrokeIco(P.close, size: 16)),
                   ]),
                   const SizedBox(height: 8),
-                  for (final r in const [
+                  for (final r in [
                     'Get closer to 21 than the dealer without going over.',
-                    'Blackjack (an Ace and a ten-value card) pays 3 to 2.',
-                    'Dealer stands on all 17s and checks for blackjack under an Ace or a ten.',
-                    'Double on any first two cards, also after splitting.',
-                    'Split pairs up to four hands. Split Aces get one card each.',
-                    'Insurance is offered when the dealer shows an Ace and pays 2 to 1.',
-                    'Six decks, reshuffled when the cut card comes out.',
+                    'Blackjack (an Ace and a ten-value card) pays ${payLabel(rules.blackjackPays)}.',
+                    rules.hitSoft17
+                        ? 'Dealer hits soft 17, stands on hard 17, and checks for blackjack under an Ace or a ten.'
+                        : 'Dealer stands on all 17s and checks for blackjack under an Ace or a ten.',
+                    rules.doubleAfterSplit
+                        ? 'Double on any first two cards, also after splitting.'
+                        : 'Double on any first two cards (not after splitting).',
+                    rules.maxHands > 1
+                        ? 'Split pairs up to ${rules.maxHands} hands. Split Aces get one card each.'
+                        : 'Pairs can\'t be split at this table.',
+                    if (rules.insurance) 'Insurance is offered when the dealer shows an Ace and pays 2 to 1.',
+                    '${rules.decks == 1 ? 'One deck' : '${rules.decks} decks'}, reshuffled when the cut card comes out.',
                   ])
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
@@ -235,7 +268,7 @@ class _Table extends StatelessWidget {
                       serial: c.dealSerial,
                       keyPrefix: 'd',
                     )
-                  : const Center(child: _FeltText('DEALER STANDS ON ALL 17s', size: 13)),
+                  : Center(child: _FeltText(c.rules.hitSoft17 ? 'DEALER HITS SOFT 17' : 'DEALER STANDS ON ALL 17s', size: 13)),
             ),
             SizedBox(height: 36, child: Center(child: _Middle(c: c))),
             // Player.

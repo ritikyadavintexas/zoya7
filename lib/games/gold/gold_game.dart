@@ -35,7 +35,13 @@ class GoldGame extends StatefulWidget {
     this.onExitToLobby,
     this.onBuyCoins,
     this.onOpenPlayLimits,
+    this.minBetIdx = 0,
+    this.maxBetIdx = GoldRules.maxBetIndex,
   });
+
+  /// Bet steps offered (indexes into [GoldRules.bets]).
+  final int minBetIdx;
+  final int maxBetIdx;
 
   /// Spin results. Plug your server math engine in here; defaults to [LocalGoldMath].
   final GoldOutcomeSource? outcomes;
@@ -71,6 +77,8 @@ class _GoldGameState extends State<GoldGame> {
     currency: widget.currency,
     previewOverlay: widget.previewOverlay,
     previewPanel: widget.previewPanel,
+    minBetIdx: widget.minBetIdx,
+    maxBetIdx: widget.maxBetIdx,
   );
 
   bool _precached = false;

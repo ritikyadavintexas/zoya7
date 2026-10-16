@@ -165,3 +165,5 @@ String fmtSc(double v) {
   final cents = ((v - whole) * 100).round().toString().padLeft(2, '0');
   return '${fmtInt(whole)}.$cents';
 }
+
+String monthName(int m) => const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1];

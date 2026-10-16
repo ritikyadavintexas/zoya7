@@ -8,7 +8,7 @@ import '../nav.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'lobby.dart' show openGame;
+import 'lobby.dart' show GameTagChip, gameTag, openGame, visibleGames;
 
 class GamesPage extends StatefulWidget {
   const GamesPage({super.key});
@@ -25,7 +25,8 @@ class _GamesPageState extends State<GamesPage> {
   @override
   Widget build(BuildContext context) {
     final q = query.trim().toLowerCase();
-    final list = games.where((g) {
+    final casino = AppScope.of(context).casino;
+    final list = visibleGames(casino).where((g) {
       final catOk = cat == 'All' || g.cat == cat.toUpperCase() || (cat == 'Jackpot' && g.cat == 'SLOTS');
       return catOk && (q.isEmpty || g.name.toLowerCase().contains(q));
     }).toList();
@@ -237,31 +238,21 @@ class _GameTile extends StatelessWidget {
   final bool twoLines;
 
   @override
-  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+  Widget build(BuildContext context) {
+    final tag = gameTag(AppScope.of(context).casino, g);
+    final off = tag?.off ?? false;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Press(
-          label: '${g.name} — ${g.playable ? 'play' : 'coming soon'}',
-          onTap: () => openGame(g),
+          label: '${g.name} — ${off ? 'under maintenance' : g.playable ? 'play' : 'coming soon'}',
+          onTap: () => openGame(context, g),
           child: Stack(children: [
-            g.playable
+            g.playable && !off
                 ? RoundImage(g.image, height: imageHeight)
                 : ColorFiltered(
                     colorFilter: ColorFilter.matrix(saturateBrightness(.8, .85)),
                     child: RoundImage(g.image, height: imageHeight, borderColor: Z.chip),
                   ),
-            if (!g.playable)
-              Positioned(
-                right: 6,
-                top: 6,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xD90A0603),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Z.border),
-                  ),
-                  child: Text('SOON', style: outfit(10, w: FontWeight.w700, ls: .06, c: Z.gold, h: 1)),
-                ),
-              ),
+            if (tag != null) Positioned(right: 6, top: 6, child: GameTagChip(tag)),
           ]),
         ),
         const SizedBox(height: 6),
@@ -279,6 +270,7 @@ class _GameTile extends StatelessWidget {
                 ]),
         ),
       ]);
+  }
 }
 
 extension on _GameTile {

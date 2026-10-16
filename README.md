@@ -17,9 +17,34 @@ up to four hands (split Aces one card each). Bets in GC or SC from the app balan
 settlement live in `engine.dart` (no UI, unit-tested); `controller.dart` paces the deal and dealer;
 `blackjack_game.dart` draws the table, cards and chips.
 
+**Admin panel (Cash App style, portrait):** open `…/#/admin` (or *Admin panel* in the game's
+options menu) and sign in with a PIN — demo PINs: Owner `1234`, Manager `2580`, Cashier `1111`.
+
+- *Phone* — the basics, in four tabs: **Today** (net cash, in/out, approvals, drawer), **Players**
+  (search, create a player ID, profile with cash in/out), **Cash** (Cash App keypad: pick a player,
+  type an amount, cash in or out; pending queue; history) and **Games** (on/off switches,
+  maintenance mode).
+- *Desktop* — everything: dashboard with 14-day chart; players table with side-pane profiles,
+  bulk ID creation (CSV of logins), bonuses, adjustments, password reset, suspend / ban / delete;
+  cash in/out with the full ledger and approval queue; drawer shifts (starting amount → expected
+  cash → counted, over/short); **reports** for today / yesterday / 7 / 30 days / month / all time
+  (starting amount, cash in, cash out, pending, net cash, ending amount, SC start-to-end
+  reconciliation, each game's rounds / hold / actual vs set RTP, each player, by staff, shifts —
+  copy as CSV); **games** (live / off / hidden, featured game, NEW / HOT ribbons, bet limits);
+  **game math** (slot RTP solver that re-weights the reels, editable reel stops with hit rate and
+  jackpot odds, 100,000-spin simulator; blackjack rules with house edge; roulette wheel; target
+  RTP for games still in development); **settings** (starting amount for new IDs, GC/SC per $1,
+  cash-in bonus %, limits, auto-pay, sign-ups, daily bonus, backup / reset); **staff & audit log**
+  with owner / manager / cashier roles.
+
+The game and the panel share one back office (`lib/backoffice/casino.dart`): balances, purchases
+and redemptions in the game land in the ledger, every round is recorded for the reports, and game
+switches, bet limits and math apply the next time a game opens. Without a server it's kept on the
+device (browser storage on the web) — swap `lib/backoffice/storage*.dart` for API calls to share it.
+
 **Landscape everywhere.** The Android and iOS builds lock to landscape. Browsers can't lock
-orientation, so when the window is taller than wide (phone held upright) the app draws itself
-turned sideways (`lib/app/landscape.dart`). Pages use a left side rail for navigation and a
+orientation, so when the window is taller than wide (phone held upright) the game draws itself
+turned sideways (the admin panel stays upright) (`lib/app/landscape.dart`). Pages use a left side rail for navigation and a
 side pane + main pane layout sized for a phone on its side.
 
 App code lives in `lib/app/` (`screens/` one file per area, `state.dart` holds the prototype balances,
@@ -74,8 +99,8 @@ GoldGame(
 ```
 
 - **Math:** `GoldOutcomeSource.spin()` returns the 3×3 grid, win, multiplier and jackpot. Reels keep
-  spinning until it resolves, so a network call works. `LocalGoldMath` is the design prototype's math
-  (≈22.8% line-pay RTP) — for development only.
+  spinning until it resolves, so a network call works. `LocalGoldMath` uses the reel weights set in the
+  admin panel's *Game math* (95% / 94% RTP by default; the design prototype's were ≈22.8%).
 - **Jackpots:** meter values are simulated in `GoldController.jackpots()`; feed live values from your server.
 - **Chat:** the auto-reply is the design's demo; connect `chatSend` to your chat service.
 - **Sound:** the design has no audio; implement `GoldAudio` (spin, reel stop, win, music).
