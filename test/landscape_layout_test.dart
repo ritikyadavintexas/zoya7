@@ -34,8 +34,7 @@ void main() {
     }
   });
 
-  // Real landscape screens (logical px), smallest to largest, plus a portrait
-  // window, which the app draws turned sideways.
+  // Real landscape screens (logical px), smallest to largest.
   const sizes = {
     'iPhone SE (1st gen)': Size(568, 320),
     'small Android': Size(640, 360),
@@ -48,7 +47,6 @@ void main() {
     'small tablet': Size(1024, 600),
     'iPad': Size(1180, 820),
     'large tablet': Size(1366, 1024),
-    'portrait window (turned)': Size(390, 844),
   };
 
   final pages = <String, Widget Function()>{
@@ -206,10 +204,18 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('a portrait window draws the app turned sideways', (tester) async {
+  testWidgets('held upright, the game swirls as if starting; sideways it is plain landscape, where it left off', (tester) async {
     await show(tester, const Size(390, 844), const SettingsScreen());
-    final box = tester.renderObject<RenderBox>(find.byType(SettingsScreen));
-    expect(box.size, const Size(844, 390));
+    expect(find.byType(TurnPhoneCard), findsOneWidget);
+    expect(find.byType(SettingsScreen, skipOffstage: false), findsOneWidget);
+    expect(find.byType(RotatedBox), findsNothing);
+    final page = tester.state(find.byType(SettingsScreen, skipOffstage: false));
+
+    tester.view.physicalSize = const Size(844, 390);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(TurnPhoneCard), findsNothing);
+    expect(tester.getSize(find.byType(SettingsScreen)), const Size(844, 390));
+    expect(tester.state(find.byType(SettingsScreen)), same(page), reason: 'the page is kept, not rebuilt');
     await tester.pumpWidget(const SizedBox());
   });
 }

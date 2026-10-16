@@ -147,9 +147,17 @@ void main() {
     });
   }
 
-  testWidgets('first-time setup makes the owner; a wrong password is refused, the right one signs in', (tester) async {
+  testWidgets('staff sign in with username and password; a wrong password or a non-staff account is refused', (tester) async {
     final db = FakeFirebase();
-    final c = Casino.demo(now: now);
+    final auth = FirebaseAuthApi(post: db.post);
+    final owner = await auth.signUp(staffEmail('bhanu2357'), 'secret77');
+    await auth.signUp(staffEmail('stranger'), 'secret77');
+    db.tree = {
+      'staff': {
+        owner.uid: {'n': 'Bhanu', 'r': 0, 'u': 'bhanu2357'},
+      },
+    };
+    final c = Casino.empty();
     final sync = CasinoSync(c, transport: db.call, auth: FirebaseAuthApi(post: db.post), autoSync: false, storagePrefix: 'admin.test');
     await sync.connect(FakeFirebase.host);
     await show(tester, const Size(390, 844), uid: null, casino: c, sync: sync);
@@ -163,19 +171,12 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    await press('First time? Set up the owner account');
-    await type('Your name', 'Bhanu');
-    await type('Username', 'Bhanu2357');
-    await type('Password', 'short');
-    await press('Create owner account');
-    expect(find.text('The password needs at least 6 characters'), findsOneWidget);
+    expect(find.textContaining('First time'), findsNothing);
+    await type('Username', 'stranger');
     await type('Password', 'secret77');
-    await press('Create owner account');
-    expect(c.admin?.name, 'Bhanu');
-    expect(c.players, isEmpty);
+    await press('Sign in');
+    expect(c.admin, isNull);
 
-    lockAdmin(c, sync);
-    await tester.pumpAndSettle();
     await type('Username', 'bhanu2357');
     await type('Password', 'wrong-one');
     await press('Sign in');
@@ -184,6 +185,11 @@ void main() {
     await press('Sign in');
     expect(c.admin?.name, 'Bhanu');
     expect(find.text('Today'), findsOneWidget);
+
+    lockAdmin(c, sync);
+    await tester.pumpAndSettle();
+    expect(c.admin, isNull);
+    expect(find.text('Sign in'), findsWidgets);
     await clear(tester);
   });
 

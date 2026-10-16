@@ -419,51 +419,6 @@ class CasinoSync extends ChangeNotifier {
     return v;
   }
 
-  // ── Whole-database writes (owner) ──────────────────────────────────────────
-  /// Write this copy over the whole database (first-time setup).
-  Future<void> _uploadAll() async {
-    if (url == null) return;
-    final recs = casino.toRecords();
-    final tree = <String, dynamic>{};
-    final stamp = casino.now.millisecondsSinceEpoch;
-    for (final e in recs.entries) {
-      final segs = e.key.split('/');
-      var node = tree;
-      for (final s in segs.take(segs.length - 1)) {
-        node = node.putIfAbsent(s, () => <String, dynamic>{}) as Map<String, dynamic>;
-      }
-      node[segs.last] = {...e.value, '_up': stamp};
-    }
-    final w = await transport('PUT', _at('', await _query()), jsonEncode(tree));
-    if (w.status != 200) throw 'The database refused the upload (${w.status})';
-    _base = _texts(recs);
-    _haveBase = true;
-    _dirty.clear();
-    lastSync = casino.now;
-    state = SyncState.live;
-    notifyListeners();
-  }
-
-  /// First-time setup: make [s] the owner (allowed only while the database
-  /// has no staff), then start the database clean with just them.
-  Future<void> setUpOwner(AuthSession s, String name, String username) async {
-    url ??= normalize(configuredUrl());
-    _switch(s, null);
-    final q = await _query();
-    final owner = Staff(s.uid, name.trim(), StaffRole.owner, username: username.trim().toLowerCase());
-    final w = await transport('PUT', _at('staff/${s.uid}', q), jsonEncode(owner.toJson()));
-    if (w.status == 401 || w.status == 403) {
-      _switch(null, null);
-      throw AuthError('This database already has an owner — sign in instead');
-    }
-    if (w.status != 200) throw AuthError('The database refused the setup (${w.status})');
-    casino.startClean(owner);
-    await _uploadAll();
-    save(_staffKey, jsonEncode(s.toJson()));
-    _poll?.cancel();
-    if (autoSync) _poll = Timer.periodic(every, (_) => syncNow());
-  }
-
   /// The email a player ID or username signs in with (null: no such player).
   Future<String?> loginEmail(String who) async {
     final res = await transport('GET', _at('logins/${Casino.loginKey(who)}', ''));

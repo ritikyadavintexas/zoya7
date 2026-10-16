@@ -93,8 +93,7 @@ class _AdminAppState extends State<AdminApp> {
 }
 
 // ── Sign in ──────────────────────────────────────────────────────────────────
-/// Staff sign in with their username and password (a Firebase account). The
-/// very first time, the owner sets themselves up here.
+/// Staff sign in with their username and password (a Firebase account).
 class SignInGate extends StatefulWidget {
   const SignInGate({super.key, this.onExit, this.resuming = false});
   final VoidCallback? onExit;
@@ -105,13 +104,13 @@ class SignInGate extends StatefulWidget {
 }
 
 class _SignInGateState extends State<SignInGate> {
-  final name = TextEditingController(), username = TextEditingController(), password = TextEditingController();
-  bool setup = false, busy = false;
+  final username = TextEditingController(), password = TextEditingController();
+  bool busy = false;
   String? error;
 
   @override
   void dispose() {
-    for (final c in [name, username, password]) {
+    for (final c in [username, password]) {
       c.dispose();
     }
     super.dispose();
@@ -123,7 +122,6 @@ class _SignInGateState extends State<SignInGate> {
     final sync = SyncScope.read(context), auth = sync?.auth, casino = CasinoScope.read(context);
     final u = username.text.trim(), pw = password.text;
     String? problem;
-    if (setup && name.text.trim().isEmpty) problem = 'Enter your name';
     if (!_usernameOk.hasMatch(u)) problem ??= 'Username: 3 or more letters, numbers, _ . or -';
     if (pw.length < 6) problem ??= 'The password needs at least 6 characters';
     if (sync == null || auth == null) problem ??= 'Not connected to the database';
@@ -136,16 +134,11 @@ class _SignInGateState extends State<SignInGate> {
       error = null;
     });
     try {
-      if (setup) {
-        final s = await auth!.signUp(staffEmail(u), pw);
-        await sync!.setUpOwner(s, name.text, u);
-      } else {
-        final s = await auth!.signIn(staffEmail(u), pw);
-        await sync!.useStaff(s);
-        if (casino.signIn(s.uid) == null) {
-          sync.signOut(staff: true);
-          error = sync.error ?? 'This account isn’t on the staff';
-        }
+      final s = await auth!.signIn(staffEmail(u), pw);
+      await sync!.useStaff(s);
+      if (casino.signIn(s.uid) == null) {
+        sync.signOut(staff: true);
+        error = sync.error ?? 'This account isn’t on the staff';
       }
     } on AuthError catch (e) {
       error = e.message;
@@ -191,16 +184,12 @@ class _SignInGateState extends State<SignInGate> {
                           const SizedBox(height: 16),
                           Text('Zoya7 Admin', textAlign: TextAlign.center, style: kt(28, w: FontWeight.w800, c: white)),
                           const SizedBox(height: 4),
-                          Text(setup ? 'First-time setup: make the owner account' : 'Sign in',
+                          Text('Sign in',
                               textAlign: TextAlign.center, style: kt(17, w: FontWeight.w600, c: const Color(0xE6FFFFFF))),
                           const SizedBox(height: 20),
                           KCard(
                             padding: const EdgeInsets.all(16),
                             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                              if (setup) ...[
-                                KField(label: 'Your name', controller: name),
-                                const SizedBox(height: 12),
-                              ],
                               KField(label: 'Username', controller: username, autofocus: true),
                               const SizedBox(height: 12),
                               KField(label: 'Password', controller: password, obscure: true, onSubmitted: (_) => _go()),
@@ -209,18 +198,9 @@ class _SignInGateState extends State<SignInGate> {
                                 Text(error!, style: kt(14, w: FontWeight.w600, c: K.red, h: 1.35)),
                               ],
                               const SizedBox(height: 14),
-                              KButton(busy ? 'Please wait…' : (setup ? 'Create owner account' : 'Sign in'),
+                              KButton(busy ? 'Please wait…' : 'Sign in',
                                   expand: true, onTap: busy ? null : _go),
                             ]),
-                          ),
-                          const SizedBox(height: 10),
-                          TextButton(
-                            onPressed: busy ? null : () => setState(() {
-                              setup = !setup;
-                              error = null;
-                            }),
-                            child: Text(setup ? 'Back to sign in' : 'First time? Set up the owner account',
-                                style: kt(14, w: FontWeight.w600, c: white)),
                           ),
                         ]),
                       ),

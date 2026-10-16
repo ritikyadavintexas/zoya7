@@ -233,23 +233,4 @@ void main() {
     expect(sAdmin.state, SyncState.live);
     expect((db.tree!['players'] as Map).containsKey(p.id), isTrue);
   });
-
-  test('first-time setup makes the owner and starts the database clean', () async {
-    await join(); // demo data in the database
-    final c = Casino.demo(now: DateTime.now());
-    final auth = FirebaseAuthApi(post: db.post);
-    final s = CasinoSync(c, transport: db.call, auth: auth, autoSync: false, storagePrefix: 'test.${device++}');
-    await s.connect(dbUrl);
-    final session = await auth.signUp(staffEmail('Bhanu2357'), 'secret77');
-    await s.setUpOwner(session, 'Bhanu', 'Bhanu2357');
-    expect(c.admin?.name, 'Bhanu');
-    expect(c.players, isEmpty);
-    expect(db.tree!['players'], isNull);
-    expect((db.tree!['staff'] as Map).keys, [session.uid]);
-    expect(db.tree!['games'], isNotEmpty);
-
-    // Staff sign in with their username from then on.
-    final again = await auth.signIn(staffEmail('bhanu2357'), 'secret77');
-    expect(again.uid, session.uid);
-  });
 }

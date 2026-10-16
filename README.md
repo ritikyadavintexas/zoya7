@@ -63,13 +63,9 @@ remembers is who is signed in.
   balances are worked out from the ledger, never stored. Changes made while the connection drops
   are sent when it's back, as long as the app stays open.
 
-**Setting it up (once):**
-1. Firebase console → Authentication → Sign-in method → turn on **Email/Password**; under
-   Settings → Authorized domains add `ritikyadavintexas.github.io`.
-2. Realtime Database → Rules → paste `firebase/database.rules.json` → **Publish**.
-3. Straight away, open the admin app → *First time? Set up the owner account* → name, username,
-   password (6+ characters). That makes the owner and starts the database clean (no demo data).
-   Setup works only while the database has no staff, so do it right after publishing the rules.
+**Firebase settings:** Authentication → Email/Password on, with `ritikyadavintexas.github.io` an
+authorized domain; Realtime Database → Rules = `firebase/database.rules.json`. The owner account
+is set up; owners add more staff under *Staff & log*.
 
 **Limits of the free plan:** with no server, games are played out on the player's device, so a
 skilled player could fake their own wins or claim the daily bonus more than once; staff-only
@@ -77,8 +73,9 @@ actions (coin in / out, settings, accounts) are enforced by the rules. Server-si
 Cloud Functions (the Blaze plan). Coin packs can't be bought in the app (no payments connected).
 
 **Landscape everywhere.** The Android and iOS builds lock to landscape. Browsers can't lock
-orientation, so when the window is taller than wide (phone held upright) the game draws itself
-turned sideways (the admin panel stays upright) (`lib/app/landscape.dart`). Pages use a left side rail for navigation and a
+orientation, so while the window is taller than wide (phone held upright) the game waits behind a
+gold swirl and carries on, where it left off, once the phone is turned — plain landscape, status bar
+on top (the admin panel stays upright) (`lib/app/landscape.dart`). Pages use a left side rail for navigation and a
 side pane + main pane layout sized for a phone on its side.
 
 App code lives in `lib/app/` (`screens/` one file per area, `state.dart` holds the prototype balances,

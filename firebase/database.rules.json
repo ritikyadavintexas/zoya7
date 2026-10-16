@@ -3,11 +3,6 @@
     "zoya7": {
       ".read": "auth != null && root.child('zoya7/staff/' + auth.uid).exists()",
       ".write": "auth != null && root.child('zoya7/staff/' + auth.uid + '/r').val() === 0",
-      "staff": {
-        "$uid": {
-          ".write": "auth != null && auth.uid === $uid && !root.child('zoya7/staff').exists() && newData.child('r').val() === 0"
-        }
-      },
       "players": {
         ".write": "auth != null && root.child('zoya7/staff/' + auth.uid).exists()",
         "$pid": {

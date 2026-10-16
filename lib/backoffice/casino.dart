@@ -805,23 +805,6 @@ class Casino extends ChangeNotifier {
     _changed();
   }
 
-  /// First-time setup: nothing but [owner] and the game setup.
-  void startClean(Staff owner) {
-    players.clear();
-    txns.clear();
-    plays.clear();
-    seen.clear();
-    audit.clear();
-    logins.clear();
-    uids.clear();
-    staff
-      ..clear()
-      ..add(owner);
-    admin = owner;
-    _log('Set up the database');
-    _changed();
-  }
-
   // ── Reports ────────────────────────────────────────────────────────────────
   Report report(Period period) {
     final r = Report(period);
