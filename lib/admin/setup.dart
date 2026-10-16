@@ -19,11 +19,8 @@ String siteRoot() {
   return Uri(scheme: b.scheme, host: b.host, port: b.hasPort ? b.port : null, path: path).toString();
 }
 
-String _withDb(String url, CasinoSync? sync) =>
-    sync?.url == null ? url : '$url?db=${Uri.encodeComponent(sync!.url!)}';
-
-String playerAppLink(CasinoSync? sync) => _withDb(siteRoot(), sync);
-String adminAppLink(CasinoSync? sync) => _withDb('${siteRoot()}admin/', sync);
+String playerAppLink() => siteRoot();
+String adminAppLink() => '${siteRoot()}admin/';
 
 /// Database and install help, as a sheet (the phone's account menu).
 Future<void> showDatabaseSheet(BuildContext context) => kSheet<void>(
@@ -37,29 +34,9 @@ Future<void> showDatabaseSheet(BuildContext context) => kSheet<void>(
       ]),
     );
 
-/// Connect this device to the shared database, and how to make one.
-class DatabaseCard extends StatefulWidget {
+/// The shared database every device uses: whether this one is in step.
+class DatabaseCard extends StatelessWidget {
   const DatabaseCard({super.key});
-
-  @override
-  State<DatabaseCard> createState() => _DatabaseCardState();
-}
-
-class _DatabaseCardState extends State<DatabaseCard> {
-  final url = TextEditingController();
-  bool help = false;
-
-  @override
-  void initState() {
-    super.initState();
-    url.text = context.getInheritedWidgetOfExactType<SyncScope>()?.notifier?.url ?? '';
-  }
-
-  @override
-  void dispose() {
-    url.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,11 +44,9 @@ class _DatabaseCardState extends State<DatabaseCard> {
     final casino = CasinoScope.of(context);
     final owner = casino.admin?.isOwner ?? false;
     if (sync == null) return const SizedBox();
-    final on = sync.url != null;
     final status = switch (sync.state) {
-      SyncState.off => 'Not connected. Everything is kept on this device only, so other phones and computers can’t see it.',
-      SyncState.connecting => 'Connecting to ${sync.url}…',
-      SyncState.live => 'Live: every device on this database sees the same players, coins and games'
+      SyncState.off || SyncState.connecting => 'Connecting…',
+      SyncState.live => 'Live: every phone and computer sees the same players, coins and games'
           '${sync.lastSync == null ? '' : ' (synced ${ago(sync.lastSync!, casino.now)})'}.',
       SyncState.offline => 'Can’t reach the database${sync.error == null ? '' : ': ${sync.error}'}. Changes are kept and sent when it’s back.',
     };
@@ -86,61 +61,14 @@ class _DatabaseCardState extends State<DatabaseCard> {
         ]),
         const SizedBox(height: 8),
         Text(status, style: kt(14, c: K.sub, h: 1.4)),
-        const SizedBox(height: 12),
-        KField(label: 'Firebase Realtime Database URL', controller: url, hint: 'https://your-project-default-rtdb.firebaseio.com', keyboard: TextInputType.url),
-        const SizedBox(height: 10),
-        Wrap(spacing: 8, runSpacing: 8, children: [
-          KButton(on ? 'Reconnect' : 'Connect', icon: Icons.link_rounded, height: 42, onTap: () async {
-            if (CasinoSync.normalize(url.text) == null) {
-              kToast(context, 'Paste the database URL from Firebase');
-              return;
-            }
-            await sync.connect(url.text);
-            if (context.mounted) kToast(context, sync.state == SyncState.live ? 'Connected' : (sync.error ?? 'Couldn’t connect'));
-          }),
-          if (on)
-            KButton('Disconnect', tone: KTone.light, height: 42, onTap: () {
-              sync.disconnect();
-              kToast(context, 'This device works on its own now');
-            }),
-          KButton(help ? 'Hide steps' : 'How to make one (free)', tone: KTone.ghost, height: 42, onTap: () => setState(() => help = !help)),
-        ]),
-        if (help) ...[
-          const SizedBox(height: 12),
-          KCard(
-            color: K.field,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              for (final (i, step) in const [
-                'Open console.firebase.google.com and add a project (free; Analytics can be off).',
-                'In the project: Build → Realtime Database → Create database → pick a location → Start in test mode.',
-                'Copy the URL at the top of the Data tab (…firebaseio.com or …firebasedatabase.app).',
-                'Paste it above and tap Connect. If the database is empty, this device uploads its data.',
-                'Open the player and admin links below on every phone and computer once — they connect by themselves after that.',
-              ].indexed)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Container(
-                      width: 22,
-                      height: 22,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(shape: BoxShape.circle, color: K.green),
-                      child: Text('${i + 1}', style: kt(12, w: FontWeight.w700, c: Colors.white)),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(child: Text(step, style: kt(14, h: 1.4))),
-                  ]),
-                ),
-              Text('Test mode lets anyone with the URL read and write, and Firebase switches it off after 30 days — '
-                  'fine for trying it out; lock the rules down before real use.',
-                  style: kt(13, c: K.amber, h: 1.4)),
-            ]),
-          ),
+        if (sync.url != null) ...[
+          const SizedBox(height: 4),
+          Text(sync.url!, maxLines: 1, overflow: TextOverflow.ellipsis, style: kt(13, c: K.faint)),
         ],
         const SizedBox(height: 14),
-        _LinkRow('Player app link', playerAppLink(sync)),
-        _LinkRow('Admin app link', adminAppLink(sync)),
-        if (owner && on) ...[
+        _LinkRow('Player app link', playerAppLink()),
+        _LinkRow('Admin app link', adminAppLink()),
+        if (owner && sync.url != null) ...[
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 8, children: [
             KButton('Upload this device’s data', tone: KTone.light, icon: Icons.cloud_upload_outlined, height: 40, onTap: () async {
@@ -246,7 +174,7 @@ class _InstallCardState extends State<InstallCard> {
             padding: const EdgeInsets.only(bottom: 6),
             child: Text('${i + 1}.  $s', style: kt(14, c: K.text, h: 1.4)),
           ),
-        if (!onAdminPage) _LinkRow('Admin app link', adminAppLink(SyncScope.of(context))),
+        if (!onAdminPage) _LinkRow('Admin app link', adminAppLink()),
       ]),
     );
     return widget.always ? card : Padding(padding: const EdgeInsets.only(bottom: 14), child: card);

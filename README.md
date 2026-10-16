@@ -33,29 +33,25 @@ off (*coin out*). No money amounts, payment methods or payouts are recorded anyw
   suspend / ban / delete); coin ledger; reports (starting / ending amount, coin in / out, per game,
   per player, by staff — CSV);
   games (live / off / hidden, featured, ribbons, bet limits); game math (slot RTP solver, reel
-  stops, spin simulator, blackjack rules); settings (starting amount, daily coin-in limit, database,
+  stops, spin simulator, blackjack rules); settings (starting amount, daily coin-in limit, database status,
   clean start); staff & audit log.
 
 **Players need a player ID.** There is no sign-up or guest play: the game's log-in takes the
 player ID (or username) and password made in the admin panel, and the device remembers it. A
 player who is suspended, banned or deleted is logged out on the spot.
 
-**Shared database (temporary, free).** The game and the panel share one back office
-(`lib/backoffice/casino.dart`). To share it between phones and computers, connect a Firebase
-Realtime Database (`lib/backoffice/sync.dart`, plain REST — no SDK):
-
-1. console.firebase.google.com → add a project → Build → Realtime Database → Create → *test mode*.
-2. Copy its URL (`https://<project>-default-rtdb.firebaseio.com`).
-3. Either paste it in the admin panel (Settings → Shared database → Connect) and open the
-   *player / admin links* it shows on each device once, **or** add it as the repository variable
-   `ZOYA7_DB_URL` (Settings → Secrets and variables → Actions → Variables) so every build
-   connects by itself.
+**Shared database.** The game and the panel share one back office
+(`lib/backoffice/casino.dart`), kept in the Firebase Realtime Database
+`https://lilly-55024-default-rtdb.firebaseio.com` (`lib/backoffice/sync.dart`, plain REST — no
+SDK). Every phone and computer connects to it by itself; nothing to set up per device. The
+first device to find it empty uploads its data. A build can point elsewhere with the repository
+variable `ZOYA7_DB_URL`.
 
 Devices sync every few seconds, record by record (players, ledger lines, play, games, settings),
 so two devices changing different things never lose each other's work; balances are worked out
 from the ledger, never stored. Offline changes are sent when the connection is back. Test-mode
 databases are open to anyone with the URL and expire after 30 days — lock the rules before real
-use. Without a database each device keeps its own copy (browser storage).
+use. While a device can't reach the database it keeps working on its own copy (browser storage).
 
 **Landscape everywhere.** The Android and iOS builds lock to landscape. Browsers can't lock
 orientation, so when the window is taller than wide (phone held upright) the game draws itself

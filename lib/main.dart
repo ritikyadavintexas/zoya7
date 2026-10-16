@@ -20,7 +20,6 @@ import 'app/theme.dart';
 import 'app/web_env.dart';
 import 'app/web_safe_area.dart';
 import 'backoffice/casino.dart';
-import 'backoffice/storage.dart';
 import 'backoffice/sync.dart';
 
 /// Set by CI (`--dart-define=BUILD_SHA=…`) so you can tell which build is on your phone.
@@ -32,9 +31,6 @@ Future<void> main() async {
   // …/#/admin link opens the panel too.
   final adminApp = pageApp() == 'admin';
   Nav.adminMode.value = adminApp || (kIsWeb && (Uri.base.fragment.startsWith('/admin') || Uri.base.queryParameters.containsKey('admin')));
-  // A link with ?db=… points this device at the shared database.
-  final db = kIsWeb ? Uri.base.queryParameters['db'] : null;
-  if (db != null && CasinoSync.normalize(db) != null) save('zoya7.db', CasinoSync.normalize(db)!);
   if (!Nav.adminMode.value) await _lockLandscape();
   final casino = Casino.load();
   final sync = CasinoSync(casino)..start();

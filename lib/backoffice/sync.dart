@@ -7,10 +7,11 @@ import 'casino.dart';
 import 'net.dart';
 import 'storage.dart';
 
-/// Where the shared database is: set at build time (`--dart-define=DB_URL=…`,
-/// from the repo variable ZOYA7_DB_URL), or on a device from the admin
-/// panel's Settings or a link with `?db=…`.
-const buildDbUrl = String.fromEnvironment('DB_URL');
+/// The shared database every device uses. A build can point elsewhere with
+/// `--dart-define=DB_URL=…` (the repo variable ZOYA7_DB_URL).
+const defaultDbUrl = 'https://lilly-55024-default-rtdb.firebaseio.com';
+const _buildDbUrl = String.fromEnvironment('DB_URL');
+const buildDbUrl = _buildDbUrl == '' ? defaultDbUrl : _buildDbUrl;
 
 enum SyncState { off, connecting, live, offline }
 
@@ -42,7 +43,6 @@ class CasinoSync extends ChangeNotifier {
   final bool autoSync;
   final String storagePrefix;
 
-  static const _urlKey = 'zoya7.db';
   String get _syncedKey => '$storagePrefix.synced';
   String get _dirtyKey => '$storagePrefix.dirty';
 
@@ -62,13 +62,8 @@ class CasinoSync extends ChangeNotifier {
   bool _busy = false;
   bool _again = false;
 
-  /// Database URL this device should use, or null.
-  static String? configuredUrl() {
-    final saved = loadSaved(_urlKey);
-    if (saved == 'off') return null;
-    if (saved != null && saved.isNotEmpty) return saved;
-    return buildDbUrl.isEmpty ? null : buildDbUrl;
-  }
+  /// The database every device uses: built in, not chosen per device.
+  static String configuredUrl() => buildDbUrl;
 
   /// Turn "https://x.firebaseio.com/" (or a console link) into the REST base.
   static String? normalize(String input) {
@@ -85,21 +80,17 @@ class CasinoSync extends ChangeNotifier {
 
   String get _root => '$url/zoya7.json';
 
-  /// Start syncing with the configured database (if there is one).
-  void start() {
-    final u = configuredUrl();
-    if (u != null) connect(u, remember: false);
-  }
+  /// Start syncing with the built-in database.
+  void start() => connect(configuredUrl());
 
-  /// Use [databaseUrl] on this device from now on.
-  Future<void> connect(String databaseUrl, {bool remember = true}) async {
+  /// Sync with [databaseUrl].
+  Future<void> connect(String databaseUrl) async {
     final u = normalize(databaseUrl);
     if (u == null) {
       error = 'That doesn’t look like a database URL';
       notifyListeners();
       return;
     }
-    if (remember && autoSync) save(_urlKey, u);
     if (u != url) {
       url = u;
       // A different database: start from what it holds.
@@ -117,15 +108,6 @@ class CasinoSync extends ChangeNotifier {
   }
 
   /// Stop syncing; this device keeps its copy.
-  void disconnect() {
-    save(_urlKey, 'off');
-    _poll?.cancel();
-    _push?.cancel();
-    url = null;
-    state = SyncState.off;
-    notifyListeners();
-  }
-
   void _localChange() {
     if (url == null) return;
     // Note what changed now (so a reload before the write still knows).
