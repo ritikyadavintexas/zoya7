@@ -19,8 +19,8 @@ settlement live in `engine.dart` (no UI, unit-tested); `controller.dart` paces t
 
 **Admin panel (Cash App style, portrait) — its own app.** Open `…/admin/` (e.g.
 https://ritikyadavintexas.github.io/zoya7/admin/) and add it to the home screen: it installs as
-**Z7 Admin**, separate from the game, upright, with its own green icon. Sign in once with a PIN
-(demo: Owner `1234`, Manager `2580`, Cashier `1111`); the device stays signed in until *Lock*.
+**Z7 Admin**, separate from the game, upright, with its own green icon. Sign in once with your staff PIN;
+the device stays signed in until *Lock*.
 
 - *Phone* — the basics, in four tabs: **Today** (net cash, in/out, approvals, drawer), **Players**
   (search, create a player ID, profile with cash in/out), **Cash** (Cash App keypad: pick a player,
