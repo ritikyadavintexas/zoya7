@@ -6,6 +6,7 @@ import 'admin_app.dart';
 import 'cash.dart';
 import 'kit.dart';
 import 'players.dart';
+import 'setup.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -117,6 +118,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final r = casino.report(Period.standard(casino.now).first);
     final pending = casino.pendingCashOuts;
     return ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+      const InstallCard(),
       // Cash App's balance: one big number.
       KCard(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),

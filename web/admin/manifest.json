@@ -1,0 +1,19 @@
+{
+    "name": "Zoya7 Admin",
+    "short_name": "Z7 Admin",
+    "id": "./",
+    "start_url": "./",
+    "scope": "./",
+    "display": "standalone",
+    "background_color": "#00D632",
+    "theme_color": "#00D632",
+    "description": "Zoya7 admin panel — players, cash in and out, reports, games.",
+    "orientation": "portrait",
+    "prefer_related_applications": false,
+    "icons": [
+        { "src": "icons/admin-192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "icons/admin-512.png", "sizes": "512x512", "type": "image/png" },
+        { "src": "icons/admin-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+        { "src": "icons/admin-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    ]
+}

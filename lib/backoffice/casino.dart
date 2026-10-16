@@ -74,6 +74,9 @@ class Player {
   String email;
   String note;
   PlayerStatus status;
+
+  /// Balances and last seen are worked out from the ledger and play records
+  /// ([Casino.recompute]), so two devices can never overwrite each other's money.
   double gc;
   double sc;
 
@@ -93,13 +96,10 @@ class Player {
         'em': email,
         'no': note,
         'st': status.index,
-        'gc': gc,
-        'sc': sc,
         'sgc': startGc,
         'ssc': startSc,
         'c': created.millisecondsSinceEpoch,
         'by': createdBy,
-        'ls': lastSeen.millisecondsSinceEpoch,
       };
 
   static Player fromJson(Map<String, dynamic> j) => Player(
@@ -111,13 +111,10 @@ class Player {
         email: j['em'] as String? ?? '',
         note: j['no'] as String? ?? '',
         status: PlayerStatus.values[j['st'] as int],
-        gc: (j['gc'] as num).toDouble(),
-        sc: (j['sc'] as num).toDouble(),
         startGc: (j['sgc'] as num).toDouble(),
         startSc: (j['ssc'] as num).toDouble(),
         created: DateTime.fromMillisecondsSinceEpoch(j['c'] as int),
         createdBy: j['by'] as String? ?? '',
-        lastSeen: DateTime.fromMillisecondsSinceEpoch(j['ls'] as int),
       );
 }
 
@@ -340,17 +337,21 @@ class Play {
   int rounds = 0;
   double wGc = 0, winGc = 0, wSc = 0, winSc = 0;
 
+  /// When the last round was played (ms since epoch).
+  int last = 0;
+
   double get netGc => winGc - wGc;
   double get netSc => winSc - wSc;
 
-  List<Object> toJson() => [day, gameId, playerId, rounds, wGc, winGc, wSc, winSc];
+  List<Object> toJson() => [day, gameId, playerId, rounds, wGc, winGc, wSc, winSc, last];
 
   static Play fromJson(List<dynamic> j) => Play(j[0] as int, j[1] as String, j[2] as String)
-    ..rounds = j[3] as int
+    ..rounds = (j[3] as num).toInt()
     ..wGc = (j[4] as num).toDouble()
     ..winGc = (j[5] as num).toDouble()
     ..wSc = (j[6] as num).toDouble()
-    ..winSc = (j[7] as num).toDouble();
+    ..winSc = (j[7] as num).toDouble()
+    ..last = j.length > 8 ? (j[8] as num).toInt() : 0;
 }
 
 class Staff {
@@ -372,9 +373,21 @@ class AuditEntry {
   final String by;
   final String action;
 
+  /// Stable key for syncing (time + a hash of who and what).
+  String get key => '${at.millisecondsSinceEpoch}_${fnv('$by|$action')}';
+
   List<Object> toJson() => [at.millisecondsSinceEpoch, by, action];
   static AuditEntry fromJson(List<dynamic> j) =>
-      AuditEntry(DateTime.fromMillisecondsSinceEpoch(j[0] as int), j[1] as String, j[2] as String);
+      AuditEntry(DateTime.fromMillisecondsSinceEpoch((j[0] as num).toInt()), j[1] as String, j[2] as String);
+}
+
+/// 32-bit FNV-1a, as 8 hex digits (same on every platform, unlike hashCode).
+String fnv(String s) {
+  var h = 0x811c9dc5;
+  for (final c in s.codeUnits) {
+    h = ((h ^ c) * 0x01000193) & 0xffffffff;
+  }
+  return h.toRadixString(16).padLeft(8, '0');
 }
 
 class CasinoSettings {
@@ -537,7 +550,7 @@ class Casino extends ChangeNotifier {
 
   static const storageKey = 'zoya7.backoffice.v1';
 
-  /// The demo player the app on this device plays as.
+  /// The demo account (player123 / zoya7demo).
   static const meId = 'Z7-100123';
 
   /// Save every change to this device's storage.
@@ -553,8 +566,15 @@ class Casino extends ChangeNotifier {
   final shifts = <Shift>[];
   var settings = CasinoSettings();
   String featured = 'classic777';
-  int _nextPlayer = 100124;
-  int _nextTxn = 1;
+
+  /// When each player last opened the game (ms since epoch).
+  final seen = <String, int>{};
+
+  /// Seeding: skip the full balance pass after every change.
+  bool _batch = false;
+
+  /// Told about every local change (the database sync pushes it).
+  VoidCallback? onLocalChange;
 
   /// Who is signed in to the admin panel (stamped on the ledger and audit log).
   Staff? admin;
@@ -570,7 +590,31 @@ class Casino extends ChangeNotifier {
     return null;
   }
 
+  /// The demo account.
   Player get me => player(meId)!;
+
+  /// Log a player in by player ID or username.
+  Player login(String who, String password) {
+    final w = who.trim().toLowerCase();
+    if (w.isEmpty) throw CasinoError('Enter your player ID or username');
+    Player? p;
+    for (final x in players) {
+      if (x.id.toLowerCase() == w || x.username.toLowerCase() == w || x.id.toLowerCase() == 'z7-$w') p = x;
+    }
+    if (p == null) throw CasinoError('No player with that ID. Ask your cashier for one.');
+    if (p.password != password) throw CasinoError('Wrong password');
+    if (p.status != PlayerStatus.active) {
+      throw CasinoError(p.status == PlayerStatus.banned ? 'This account is closed' : 'This account is on hold — talk to your cashier');
+    }
+    touchSeen(p.id);
+    return p;
+  }
+
+  /// The player has the game open.
+  void touchSeen(String playerId) {
+    seen[playerId] = now.millisecondsSinceEpoch;
+    _changed();
+  }
 
   GameConfig config(String gameId) => configs.putIfAbsent(gameId, () => GameConfig(id: gameId));
 
@@ -633,7 +677,7 @@ class Casino extends ChangeNotifier {
     if (usernameTaken(u)) throw CasinoError('“$u” is taken');
     final when = at ?? now;
     final p = Player(
-      id: 'Z7-${_nextPlayer++}',
+      id: _newPlayerId(),
       username: u,
       password: (password == null || password.isEmpty) ? newPassword() : password,
       name: (name == null || name.trim().isEmpty) ? u : name.trim(),
@@ -695,7 +739,6 @@ class Casino extends ChangeNotifier {
   }
 
   void deletePlayer(Player p) {
-    if (p.id == meId) throw CasinoError('The demo player can’t be deleted');
     players.remove(p);
     _log('Deleted player ${p.username} (${p.id})');
     _changed();
@@ -788,11 +831,6 @@ class Casino extends ChangeNotifier {
       ..settledBy = actor
       ..settledAt = now;
     if (reason.isNotEmpty) t.note = reason;
-    final p = player(t.playerId);
-    if (p != null) {
-      p.gc -= t.gc;
-      p.sc = _r2(p.sc - t.sc);
-    }
     _log('Rejected cash out ${t.id}${reason.isEmpty ? '' : ': $reason'}');
     _changed();
   }
@@ -840,8 +878,7 @@ class Casino extends ChangeNotifier {
       p.wSc = _r2(p.wSc + staked);
       p.winSc = _r2(p.winSc + returned);
     }
-    final pl = player(playerId);
-    if (pl != null && when.isAfter(pl.lastSeen)) pl.lastSeen = when;
+    p.last = max(p.last, when.millisecondsSinceEpoch);
     _changed(notify: at == null);
   }
 
@@ -852,12 +889,16 @@ class Casino extends ChangeNotifier {
     _changed();
   }
 
-  Staff? signIn(String pin) {
+  Staff? signIn(String pin, {bool log = true}) {
     for (final s in staff) {
       if (s.pin == pin) {
         admin = s;
-        _log('Signed in');
-        _changed();
+        if (log) {
+          _log('Signed in');
+          _changed();
+        } else {
+          notifyListeners();
+        }
         return s;
       }
     }
@@ -885,6 +926,18 @@ class Casino extends ChangeNotifier {
     if (s.isOwner && staff.where((x) => x.isOwner).length == 1) throw CasinoError('Keep at least one owner');
     staff.remove(s);
     _log('Removed ${s.role.name} ${s.name}');
+    _changed();
+  }
+
+  /// Remove every player, the ledger, play records and shifts — a clean start
+  /// for real use. Staff, settings and game setup stay.
+  void clearAll() {
+    players.clear();
+    txns.clear();
+    plays.clear();
+    shifts.clear();
+    seen.clear();
+    _log('Cleared all players and the ledger');
     _changed();
   }
 
@@ -1090,7 +1143,58 @@ class Casino extends ChangeNotifier {
   }
 
   // ── Internals ──────────────────────────────────────────────────────────────
-  String _txnId() => 'T${(_nextTxn++).toString().padLeft(6, '0')}';
+  /// Unique across devices: time, then random letters.
+  String _txnId() =>
+      'T${now.millisecondsSinceEpoch.toRadixString(36)}${List.generate(4, (_) => _idChars[_rng.nextInt(_idChars.length)]).join()}';
+  static const _idChars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+
+  /// Z7- and six digits nobody has.
+  String _newPlayerId() {
+    while (true) {
+      final id = 'Z7-${100000 + _rng.nextInt(900000)}';
+      if (player(id) == null) return id;
+    }
+  }
+
+  /// Work every balance and last-seen out again from the ledger and play.
+  void recompute() {
+    final byId = {for (final p in players) p.id: p};
+    for (final p in players) {
+      p
+        ..gc = 0
+        ..sc = 0
+        ..lastSeen = p.created;
+    }
+    void saw(Player p, DateTime t) {
+      if (t.isAfter(p.lastSeen)) p.lastSeen = t;
+    }
+
+    for (final t in txns) {
+      final p = byId[t.playerId];
+      if (p == null) continue;
+      if (t.counts) {
+        p.gc += t.gc;
+        p.sc += t.sc;
+      }
+      saw(p, t.at);
+    }
+    for (final pl in plays.values) {
+      final p = byId[pl.playerId];
+      if (p == null) continue;
+      p.gc += pl.netGc;
+      p.sc += pl.netSc;
+      if (pl.last > 0) saw(p, DateTime.fromMillisecondsSinceEpoch(pl.last));
+    }
+    for (final e in seen.entries) {
+      final p = byId[e.key];
+      if (p != null) saw(p, DateTime.fromMillisecondsSinceEpoch(e.value));
+    }
+    for (final p in players) {
+      p
+        ..gc = p.gc.roundToDouble()
+        ..sc = _r2(p.sc);
+    }
+  }
 
   Txn _post(Txn t) {
     txns.add(t);
@@ -1105,18 +1209,82 @@ class Casino extends ChangeNotifier {
 
   void _log(String action) => audit.add(AuditEntry(now, actor, action));
 
-  /// Coins moved by play in the player app (balance only; the round itself
-  /// goes through [recordRound]).
-  void moveMine({double gc = 0, double sc = 0}) {
-    me.gc += gc;
-    me.sc = _r2(me.sc + sc);
-    me.lastSeen = now;
-    _changed();
+  void _changed({bool notify = true}) {
+    if (_batch) return;
+    recompute();
+    if (persist) save(storageKey, jsonEncode(toJson()));
+    onLocalChange?.call();
+    if (notify) notifyListeners();
   }
 
-  void _changed({bool notify = true}) {
+  /// Save this device's copy (after the sync merged in other devices' changes).
+  void saveLocal() {
     if (persist) save(storageKey, jsonEncode(toJson()));
-    if (notify) notifyListeners();
+  }
+
+  // ── Records, for the database ──────────────────────────────────────────────
+  /// Everything as separate records keyed by path ("players/Z7-123456"), so
+  /// devices can sync record by record.
+  Map<String, Map<String, dynamic>> toRecords() => {
+        for (final p in players) 'players/${p.id}': p.toJson(),
+        for (final t in txns) 'txns/${t.id}': t.toJson(),
+        for (final c in configs.values) 'games/${c.id}': c.toJson(),
+        for (final e in plays.entries) 'plays/${e.key}': {'p': e.value.toJson()},
+        for (final a in audit.length > 500 ? audit.sublist(audit.length - 500) : audit) 'audit/${a.key}': {'a': a.toJson()},
+        for (final sh in shifts) 'shifts/${sh.id}': sh.toJson(),
+        for (final e in seen.entries) 'seen/${e.key}': {'t': e.value},
+        'meta/settings': {...settings.toJson(), 'featured': featured},
+        'meta/staff': {'list': [for (final st in staff) st.toJson()]},
+      };
+
+  /// Replace everything with [records] (what [toRecords] makes).
+  void loadRecords(Map<String, Map<String, dynamic>> records) {
+    players.clear();
+    txns.clear();
+    plays.clear();
+    audit.clear();
+    shifts.clear();
+    seen.clear();
+    for (final MapEntry(key: path, value: j) in records.entries) {
+      final slash = path.indexOf('/');
+      final kind = path.substring(0, slash), key = path.substring(slash + 1);
+      try {
+        switch (kind) {
+          case 'players':
+            players.add(Player.fromJson(j));
+          case 'txns':
+            txns.add(Txn.fromJson(j));
+          case 'games':
+            configs[key] = GameConfig.fromJson(j);
+          case 'plays':
+            plays[key] = Play.fromJson(j['p'] as List);
+          case 'audit':
+            audit.add(AuditEntry.fromJson(j['a'] as List));
+          case 'shifts':
+            shifts.add(Shift.fromJson(j));
+          case 'seen':
+            seen[key] = (j['t'] as num).toInt();
+          case 'meta' when key == 'settings':
+            settings = CasinoSettings.fromJson(j);
+            featured = j['featured'] as String? ?? featured;
+          case 'meta' when key == 'staff':
+            final list = j['list'];
+            final items = list is List ? list : (list as Map).values.toList();
+            staff
+              ..clear()
+              ..addAll([for (final x in items) Staff.fromJson((x as Map).cast<String, dynamic>())]);
+        }
+      } catch (_) {
+        // A record this version can't read is skipped, not fatal.
+      }
+    }
+    players.sort((a, b) => a.created.compareTo(b.created));
+    txns.sort((a, b) => a.at.compareTo(b.at));
+    audit.sort((a, b) => a.at.compareTo(b.at));
+    if (admin != null) admin = staff.where((x) => x.pin == admin!.pin).firstOrNull;
+    recompute();
+    saveLocal();
+    notifyListeners();
   }
 
   static String _gameName(String id) => games.firstWhere((g) => g.id == id, orElse: () => games.first).name;
@@ -1133,10 +1301,9 @@ class Casino extends ChangeNotifier {
         'staff': [for (final s in staff) s.toJson()],
         'audit': [for (final a in audit.length > 500 ? audit.sublist(audit.length - 500) : audit) a.toJson()],
         'shifts': [for (final s in shifts) s.toJson()],
+        'seen': seen,
         'settings': settings.toJson(),
         'featured': featured,
-        'np': _nextPlayer,
-        'nt': _nextTxn,
       };
 
   static Casino fromJson(Map<String, dynamic> j, {bool persist = false}) {
@@ -1156,9 +1323,10 @@ class Casino extends ChangeNotifier {
     c.shifts.addAll([for (final s in j['shifts'] as List? ?? const []) Shift.fromJson(s as Map<String, dynamic>)]);
     c.settings = CasinoSettings.fromJson(j['settings'] as Map<String, dynamic>);
     c.featured = j['featured'] as String? ?? 'classic777';
-    c._nextPlayer = j['np'] as int;
-    c._nextTxn = j['nt'] as int;
-    if (c.player(meId) == null) throw const FormatException('no demo player');
+    for (final e in (j['seen'] as Map? ?? const {}).entries) {
+      c.seen[e.key as String] = (e.value as num).toInt();
+    }
+    c.recompute();
     return c;
   }
 
@@ -1187,8 +1355,9 @@ class Casino extends ChangeNotifier {
       ..addAll(o.shifts);
     settings = o.settings;
     featured = o.featured;
-    _nextPlayer = o._nextPlayer;
-    _nextTxn = o._nextTxn;
+    seen
+      ..clear()
+      ..addAll(o.seen);
     admin = keep == null ? null : staff.where((s) => s.pin == keep.pin).firstOrNull ?? staff.first;
   }
 
@@ -1211,7 +1380,7 @@ class Casino extends ChangeNotifier {
   /// cashing out, so every screen and report has something to show.
   factory Casino.demo({DateTime? now, DateTime Function()? clock}) {
     final at = now ?? clock?.call() ?? DateTime.now();
-    final c = Casino._(clock: clock ?? (now == null ? null : () => now));
+    final c = Casino._(clock: clock ?? (now == null ? null : () => now)).._batch = true;
     final r = Random(7);
     c.staff.addAll([Staff('Owner', StaffRole.owner, '1234'), Staff('Maya', StaffRole.manager, '2580'), Staff('Leo', StaffRole.cashier, '1111')]);
 
@@ -1370,10 +1539,7 @@ class Casino extends ChangeNotifier {
     for (final e in events) {
       e.$2();
     }
-    // Rounding in the split above: land exactly on the app's balances.
-    me.gc = 125000;
-    me.sc = 250.5;
-    me.lastSeen = at;
+    c.seen[meId] = at.millisecondsSinceEpoch;
     c.txns.sort((a, b) => a.at.compareTo(b.at));
 
     for (final (ago, by, what) in const [
@@ -1392,6 +1558,8 @@ class Casino extends ChangeNotifier {
       sh.counted = i == 0 ? sum.expected : sum.expected - 5;
     }
     c.audit.sort((a, b) => a.at.compareTo(b.at));
+    c._batch = false;
+    c.recompute();
     return c;
   }
 }

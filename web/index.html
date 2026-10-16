@@ -49,6 +49,9 @@
   <script>
     // Flutter web reports no safe-area padding, so the app reads the notch /
     // home-indicator insets from CSS here: [top, right, bottom, left] in CSS px.
+    window.zoyaStandalone = function () {
+      return !!(navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches));
+    };
     window.zoyaSafeArea = function () {
       var p = document.getElementById('zoya-safe-area');
       if (!p) {

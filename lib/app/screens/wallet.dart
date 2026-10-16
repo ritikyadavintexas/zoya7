@@ -206,7 +206,7 @@ class WalletPageState extends State<WalletPage> {
 
     // The latest moves on this account, from the back office's ledger.
     final hist = [
-      for (final t in s.casino.txnsOf(Casino.meId).take(6))
+      for (final t in s.casino.txnsOf(s.playerId ?? '').take(6))
         (
           t.sc != 0 && t.gc == 0 ? 'SC' : 'GC',
           t.note.isNotEmpty

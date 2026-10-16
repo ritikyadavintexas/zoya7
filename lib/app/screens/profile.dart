@@ -68,7 +68,7 @@ class ProfilePage extends StatelessWidget {
       ('Help & support', P.chat, () => Nav.push(R.chat, 'support'), 0),
       ('Responsible gaming', P.shield, () => Nav.push(R.settings, 'responsible'), 0),
       ('Settings', P.gear, () => Nav.push(R.settings), 0),
-      ('Log out', P.back, () => Nav.reset(R.welcome), 0),
+      ('Log out', P.back, () => logOut(context), 0),
     ];
     return ZPage(
       gradient: Z.pageGlow(ry: .36, top: const Color(0xFF4A2A0A)),

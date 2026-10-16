@@ -17,30 +17,42 @@ up to four hands (split Aces one card each). Bets in GC or SC from the app balan
 settlement live in `engine.dart` (no UI, unit-tested); `controller.dart` paces the deal and dealer;
 `blackjack_game.dart` draws the table, cards and chips.
 
-**Admin panel (Cash App style, portrait):** open `…/#/admin` (or *Admin panel* in the game's
-options menu) and sign in with a PIN — demo PINs: Owner `1234`, Manager `2580`, Cashier `1111`.
+**Admin panel (Cash App style, portrait) — its own app.** Open `…/admin/` (e.g.
+https://ritikyadavintexas.github.io/zoya7/admin/) and add it to the home screen: it installs as
+**Z7 Admin**, separate from the game, upright, with its own green icon. Sign in once with a PIN
+(demo: Owner `1234`, Manager `2580`, Cashier `1111`); the device stays signed in until *Lock*.
 
 - *Phone* — the basics, in four tabs: **Today** (net cash, in/out, approvals, drawer), **Players**
   (search, create a player ID, profile with cash in/out), **Cash** (Cash App keypad: pick a player,
   type an amount, cash in or out; pending queue; history) and **Games** (on/off switches,
-  maintenance mode).
-- *Desktop* — everything: dashboard with 14-day chart; players table with side-pane profiles,
-  bulk ID creation (CSV of logins), bonuses, adjustments, password reset, suspend / ban / delete;
-  cash in/out with the full ledger and approval queue; drawer shifts (starting amount → expected
-  cash → counted, over/short); **reports** for today / yesterday / 7 / 30 days / month / all time
-  (starting amount, cash in, cash out, pending, net cash, ending amount, SC start-to-end
-  reconciliation, each game's rounds / hold / actual vs set RTP, each player, by staff, shifts —
-  copy as CSV); **games** (live / off / hidden, featured game, NEW / HOT ribbons, bet limits);
-  **game math** (slot RTP solver that re-weights the reels, editable reel stops with hit rate and
-  jackpot odds, 100,000-spin simulator; blackjack rules with house edge; roulette wheel; target
-  RTP for games still in development); **settings** (starting amount for new IDs, GC/SC per $1,
-  cash-in bonus %, limits, auto-pay, sign-ups, daily bonus, backup / reset); **staff & audit log**
-  with owner / manager / cashier roles.
+  maintenance mode). The avatar menu has *Database & install*.
+- *Desktop* — everything: dashboard; players (bulk IDs, bonuses, adjustments, password reset,
+  suspend / ban / delete); cash ledger, approvals and drawer shifts (starting amount → expected →
+  counted); reports (starting / ending amount, cash in / out, per game, per player, by staff — CSV);
+  games (live / off / hidden, featured, ribbons, bet limits); game math (slot RTP solver, reel
+  stops, spin simulator, blackjack rules); settings (starting amount, rates, limits, database,
+  clean start); staff & audit log.
 
-The game and the panel share one back office (`lib/backoffice/casino.dart`): balances, purchases
-and redemptions in the game land in the ledger, every round is recorded for the reports, and game
-switches, bet limits and math apply the next time a game opens. Without a server it's kept on the
-device (browser storage on the web) — swap `lib/backoffice/storage*.dart` for API calls to share it.
+**Players need a player ID.** There is no sign-up or guest play: the game's log-in takes the
+player ID (or username) and password made in the admin panel, and the device remembers it. A
+player who is suspended, banned or deleted is logged out on the spot.
+
+**Shared database (temporary, free).** The game and the panel share one back office
+(`lib/backoffice/casino.dart`). To share it between phones and computers, connect a Firebase
+Realtime Database (`lib/backoffice/sync.dart`, plain REST — no SDK):
+
+1. console.firebase.google.com → add a project → Build → Realtime Database → Create → *test mode*.
+2. Copy its URL (`https://<project>-default-rtdb.firebaseio.com`).
+3. Either paste it in the admin panel (Settings → Shared database → Connect) and open the
+   *player / admin links* it shows on each device once, **or** add it as the repository variable
+   `ZOYA7_DB_URL` (Settings → Secrets and variables → Actions → Variables) so every build
+   connects by itself.
+
+Devices sync every few seconds, record by record (players, ledger lines, play, games, settings),
+so two devices changing different things never lose each other's work; balances are worked out
+from the ledger, never stored. Offline changes are sent when the connection is back. Test-mode
+databases are open to anyone with the URL and expire after 30 days — lock the rules before real
+use. Without a database each device keeps its own copy (browser storage).
 
 **Landscape everywhere.** The Android and iOS builds lock to landscape. Browsers can't lock
 orientation, so when the window is taller than wide (phone held upright) the game draws itself

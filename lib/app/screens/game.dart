@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../backoffice/casino.dart';
 import '../../games/gold/gold_game.dart';
 import '../nav.dart';
 import '../state.dart';
@@ -50,9 +49,7 @@ class _Recorded implements GoldOutcomeSource {
     required Map<JackpotTier, double> jackpots,
   }) async {
     final o = await math.spin(bet: bet, currency: currency, jackpots: jackpots);
-    final net = o.win - bet;
-    currency == Currency.gc ? s.adjust(gc: net) : s.adjust(sc: net);
-    s.casino.recordRound(gameId, Casino.meId, currency, bet, o.win);
+    s.recordRound(gameId, currency, bet, o.win);
     return o;
   }
 }

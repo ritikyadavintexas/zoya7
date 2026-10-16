@@ -113,7 +113,7 @@ class Hud extends StatelessWidget {
                                       border: Border.all(color: const Color(0x99C99A3E)),
                                     ),
                                     child: Text(
-                                      s.guest ? 'GUEST' : 'VIP BRONZE',
+                                      'VIP BRONZE',
                                       maxLines: 1,
                                       softWrap: false,
                                       overflow: TextOverflow.fade,
@@ -223,8 +223,7 @@ void showOptionsMenu(BuildContext context) {
     ('Settings', P.gear, () => Nav.push(R.settings)),
     ('Help & support', P.chat, () => Nav.push(R.chat, 'support')),
     ('Rules & terms', P.doc, () => Nav.push(R.legal)),
-    ('Admin panel', P.lock, () => Nav.adminMode.value = true),
-    ('Log out', P.back, () => Nav.reset(R.welcome)),
+    ('Log out', P.back, () => logOut(context)),
   ];
   showGeneralDialog<void>(
     context: context,

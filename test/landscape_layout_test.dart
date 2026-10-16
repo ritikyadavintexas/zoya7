@@ -55,7 +55,6 @@ void main() {
     'splash': () => const SplashScreen(),
     'welcome': () => const WelcomeScreen(),
     'log in': () => const LoginScreen(),
-    'sign up': () => const LoginScreen(signup: true),
     'forgot password': () => const ForgotPasswordScreen(),
     'offline': () => const OfflineScreen(),
     'lobby': () => const HomeScreen(),

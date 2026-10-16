@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../backoffice/casino.dart';
+import '../backoffice/storage.dart';
+import '../backoffice/sync.dart';
 
 /// The admin panel's look: Cash App — white, black type, one bright green.
 class K {
@@ -699,4 +701,71 @@ class CasinoScope extends InheritedNotifier<Casino> {
 
   static Casino of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<CasinoScope>()!.notifier!;
   static Casino read(BuildContext context) => context.getInheritedWidgetOfExactType<CasinoScope>()!.notifier!;
+}
+
+// ── Staying signed in ────────────────────────────────────────────────────────
+const _adminKey = 'zoya7.admin';
+
+/// Sign in and keep this device signed in until Lock.
+Staff? signInAndRemember(Casino c, String pin) {
+  final s = c.signIn(pin);
+  if (s != null) save(_adminKey, pin);
+  return s;
+}
+
+/// Sign back in with the PIN this device remembers (no PIN screen).
+void restoreAdmin(Casino c) {
+  if (c.admin != null) return;
+  final pin = loadSaved(_adminKey);
+  if (pin != null && c.signIn(pin, log: false) == null) clearSaved(_adminKey);
+}
+
+/// Lock: forget the PIN on this device and go back to the PIN screen.
+void lockAdmin(Casino c) {
+  clearSaved(_adminKey);
+  c.signOut();
+}
+
+// ── Database ─────────────────────────────────────────────────────────────────
+class SyncScope extends InheritedNotifier<CasinoSync> {
+  const SyncScope({super.key, required CasinoSync? sync, required super.child}) : super(notifier: sync);
+
+  static CasinoSync? of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<SyncScope>()?.notifier;
+}
+
+/// A dot and a word: is this device on the shared database?
+class SyncChip extends StatelessWidget {
+  const SyncChip({super.key, this.onTap, this.compact = false});
+  final VoidCallback? onTap;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final sync = SyncScope.of(context);
+    final state = sync?.state ?? SyncState.off;
+    final (color, label) = switch (state) {
+      SyncState.off => (K.faint, 'This device only'),
+      SyncState.connecting => (K.amber, 'Connecting…'),
+      SyncState.live => (K.green, 'Live database'),
+      SyncState.offline => (K.red, 'Offline — retrying'),
+    };
+    return Semantics(
+      button: onTap != null,
+      label: 'Database: $label',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 8, vertical: 6),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 9, height: 9, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+            if (!compact) ...[
+              const SizedBox(width: 7),
+              Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: kt(13, w: FontWeight.w600, c: K.sub))),
+            ],
+          ]),
+        ),
+      ),
+    );
+  }
 }

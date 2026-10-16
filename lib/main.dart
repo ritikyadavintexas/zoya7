@@ -17,18 +17,28 @@ import 'app/screens/shell.dart';
 import 'app/screens/wallet.dart';
 import 'app/state.dart';
 import 'app/theme.dart';
+import 'app/web_env.dart';
 import 'app/web_safe_area.dart';
 import 'backoffice/casino.dart';
+import 'backoffice/storage.dart';
+import 'backoffice/sync.dart';
 
 /// Set by CI (`--dart-define=BUILD_SHA=…`) so you can tell which build is on your phone.
 const _buildSha = String.fromEnvironment('BUILD_SHA');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // …/#/admin (or ?admin) opens the admin panel instead of the game.
-  Nav.adminMode.value = kIsWeb && (Uri.base.fragment.startsWith('/admin') || Uri.base.queryParameters.containsKey('admin'));
+  // …/admin/ is the separate admin app (its own home-screen icon); the older
+  // …/#/admin link opens the panel too.
+  final adminApp = pageApp() == 'admin';
+  Nav.adminMode.value = adminApp || (kIsWeb && (Uri.base.fragment.startsWith('/admin') || Uri.base.queryParameters.containsKey('admin')));
+  // A link with ?db=… points this device at the shared database.
+  final db = kIsWeb ? Uri.base.queryParameters['db'] : null;
+  if (db != null && CasinoSync.normalize(db) != null) save('zoya7.db', CasinoSync.normalize(db)!);
   if (!Nav.adminMode.value) await _lockLandscape();
-  runApp(Zoya7Root(state: AppState(casino: Casino.load())));
+  final casino = Casino.load();
+  final sync = CasinoSync(casino)..start();
+  runApp(Zoya7Root(state: AppState(casino: casino, playerId: AppState.rememberedPlayer()), sync: sync, adminApp: adminApp));
 }
 
 /// The game is landscape. Browsers can't lock it, so ForceLandscape turns it there.
@@ -41,8 +51,12 @@ Future<void> _lockLandscape() async {
 /// The game, or the admin panel (portrait, Cash App style) over the same
 /// back office.
 class Zoya7Root extends StatefulWidget {
-  const Zoya7Root({super.key, required this.state});
+  const Zoya7Root({super.key, required this.state, this.sync, this.adminApp = false});
   final AppState state;
+  final CasinoSync? sync;
+
+  /// Opened as the separate admin app: no way into the game from it.
+  final bool adminApp;
 
   @override
   State<Zoya7Root> createState() => _Zoya7RootState();
@@ -58,11 +72,14 @@ class _Zoya7RootState extends State<Zoya7Root> {
         builder: (context, admin, _) => admin
             ? AdminApp(
                 casino: widget.state.casino,
-                onExit: () {
-                  _startAt = R.home;
-                  _lockLandscape();
-                  Nav.adminMode.value = false;
-                },
+                sync: widget.sync,
+                onExit: widget.adminApp
+                    ? null
+                    : () {
+                        _startAt = R.home;
+                        _lockLandscape();
+                        Nav.adminMode.value = false;
+                      },
               )
             : Zoya7App(state: widget.state, startAt: _startAt),
       );
@@ -94,7 +111,9 @@ class Zoya7App extends StatelessWidget {
         initialRoute: startAt,
         // A link to a page (…/#/wallet) opens it over the lobby; the admin
         // panel's link and a return from the panel start at [startAt].
-        onGenerateInitialRoutes: (name) => name == R.splash || name.startsWith('/admin') || startAt != R.splash
+        onGenerateInitialRoutes: (name) => !state.signedIn
+            ? [_route(const RouteSettings(name: R.splash))]
+            : name == R.splash || name.startsWith('/admin') || startAt != R.splash
             ? [_route(RouteSettings(name: startAt))]
             : [
                 _route(const RouteSettings(name: R.home)),
@@ -102,7 +121,9 @@ class Zoya7App extends StatelessWidget {
               ],
         onGenerateRoute: _route,
         builder: (context, child) => WebSafeArea(
-          child: ForceLandscape(
+          child: _SessionGuard(
+            state: state,
+            child: ForceLandscape(
             child: Stack(children: [
               child!,
               if (_buildSha.isNotEmpty)
@@ -115,6 +136,7 @@ class Zoya7App extends StatelessWidget {
                   ),
                 ),
             ]),
+            ),
           ),
         ),
       ),
@@ -132,7 +154,7 @@ class Zoya7App extends StatelessWidget {
       case R.login:
         page = const LoginScreen();
       case R.signup:
-        page = const LoginScreen(signup: true);
+        page = const LoginScreen();
       case R.forgot:
         page = const ForgotPasswordScreen();
       case R.home:
@@ -194,4 +216,44 @@ class Zoya7App extends StatelessWidget {
     }
     return MaterialPageRoute<void>(settings: s, builder: (_) => page);
   }
+}
+
+/// When the back office closes or removes the account being played, go to
+/// the log-in page (which says why).
+class _SessionGuard extends StatefulWidget {
+  const _SessionGuard({required this.state, required this.child});
+  final AppState state;
+  final Widget child;
+
+  @override
+  State<_SessionGuard> createState() => _SessionGuardState();
+}
+
+class _SessionGuardState extends State<_SessionGuard> {
+  late bool _wasIn = widget.state.signedIn;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.state.addListener(_check);
+  }
+
+  @override
+  void dispose() {
+    widget.state.removeListener(_check);
+    super.dispose();
+  }
+
+  void _check() {
+    final inNow = widget.state.signedIn;
+    if (_wasIn && !inNow && widget.state.kickedOut != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (Nav.navigatorKey.currentState != null && !widget.state.signedIn) Nav.reset(R.login);
+      });
+    }
+    _wasIn = inNow;
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

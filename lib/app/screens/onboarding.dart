@@ -33,7 +33,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         t.cancel();
         Future.delayed(const Duration(milliseconds: 350), () {
           // Only advance when the splash is on top (a deep link may have opened a page over it).
-          if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) Nav.replace(R.welcome);
+          if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
+            Nav.replace(AppScope.read(context).signedIn ? R.home : R.welcome);
+          }
         });
       }
     });
@@ -153,23 +155,16 @@ class WelcomeScreen extends StatelessWidget {
                         constraints: const BoxConstraints(maxWidth: 380),
                         child: Column(children: [
                           CtaButton(
-                            'GET STARTED',
+                            'LOG IN',
                             height: 60,
                             fontSize: 22,
                             ls: .02,
                             trailing: const StrokeIco(P.forward, size: 20, color: Z.ctaText),
-                            onTap: () => Nav.push(R.signup),
+                            onTap: () => Nav.push(R.login),
                           ),
                           const SizedBox(height: 14),
-                          FractionallySizedBox(
-                            widthFactor: .82,
-                            child: GhostButton('LOG IN', fontSize: 18, onTap: () => Nav.push(R.login)),
-                          ),
-                          const SizedBox(height: 8),
-                          LinkText('Continue as Guest', size: 17, underline: true, onTap: () {
-                            AppScope.read(context).signIn(asGuest: true);
-                            Nav.reset(R.home);
-                          }),
+                          Text('Play with the player ID your cashier gives you.',
+                              textAlign: TextAlign.center, style: outfit(15, c: Z.body, h: 1.35)),
                           const SizedBox(height: 18),
                           const ResponsibleFooter(parts: ['Play Responsibly.', 'Terms & Conditions Apply.']),
                         ]),
@@ -189,37 +184,45 @@ class WelcomeScreen extends StatelessWidget {
 // ── Log in / Sign up ─────────────────────────────────────────────────────────
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, this.signup = false});
-  final bool signup;
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
+/// Players log in with the player ID (or username) and password made for
+/// them in the admin panel. There is no sign-up and no guest play.
 class _LoginScreenState extends State<LoginScreen> {
-  late bool signup = widget.signup;
+  final _who = TextEditingController();
+  final _pw = TextEditingController();
   bool showPw = false;
-  bool agreed = false;
+  String? error;
+
+  @override
+  void dispose() {
+    _who.dispose();
+    _pw.dispose();
+    super.dispose();
+  }
 
   void _submit() {
-    if (signup && !agreed) {
-      showToast(context, 'Please confirm you are 18+ and agree to the Terms');
-      return;
-    }
     final s = AppScope.read(context);
-    if (signup && !s.casino.settings.registrationOpen) {
-      showToast(context, 'New sign-ups are closed right now. Ask the cashier for a player ID.');
+    final e = s.logIn(_who.text, _pw.text);
+    if (e != null) {
+      setState(() => error = e);
       return;
     }
-    s.signIn();
-    _enter(s);
+    s.casino.settings.dailyBonus ? Nav.homeWithBonus() : Nav.reset(R.home);
   }
 
   @override
   Widget build(BuildContext context) {
+    final kicked = AppScope.of(context).kickedOut;
+    final who = ZField(label: 'PLAYER ID OR USERNAME', hint: 'Z7-123456', controller: _who);
     final password = ZField(
       label: 'PASSWORD',
       hint: '••••••••',
+      controller: _pw,
       obscure: !showPw,
       suffix: Semantics(
         label: showPw ? 'Hide password' : 'Show password',
@@ -232,14 +235,12 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
-    const email = ZField(label: 'EMAIL', hint: 'you@example.com', keyboard: TextInputType.emailAddress);
-    const username = ZField(label: 'USERNAME', hint: 'Player name');
     return ZPage(
       gradient: Z.pageGlow(ry: .5, rx: .7),
       child: Panes(
         sideFraction: .4,
         minSide: 210,
-        // Brand, quick sign-in and help on the left; the form on the right.
+        // Brand and how to get an ID on the left; the form on the right.
         side: Padding(
           padding: const EdgeInsets.fromLTRB(14, 8, 10, 10),
           child: Column(children: [
@@ -249,22 +250,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 builder: (context, box) => Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Image.asset(A.logo,
                       height: (box.maxHeight * .3).clamp(40.0, 82.0), fit: BoxFit.contain, semanticLabel: 'Zoya7'),
+                  const SizedBox(height: 8),
+                  Text('Welcome back — your seat is waiting', textAlign: TextAlign.center, style: outfit(14, c: Z.body)),
                   const SizedBox(height: 6),
-                  Text(
-                    signup ? 'Create your account and claim your welcome bonus' : 'Welcome back — your seat is waiting',
-                    textAlign: TextAlign.center,
-                    style: outfit(14, c: Z.body),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(children: [
-                    Expanded(child: _SocialBtn('Google', onTap: _socialIn)),
-                    const SizedBox(width: 8),
-                    Expanded(child: _SocialBtn('Apple', onTap: _socialIn)),
-                  ]),
-                  LinkText('Continue as Guest', size: 14, underline: true, onTap: () {
-                    AppScope.read(context).signIn(asGuest: true);
-                    Nav.reset(R.home);
-                  }),
+                  Text('No player ID yet? Your cashier makes one for you.',
+                      textAlign: TextAlign.center, style: outfit(13, c: Z.muted2, h: 1.35)),
                 ]),
               ),
             ),
@@ -272,15 +262,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ]),
         ),
         main: LayoutBuilder(builder: (context, box) {
-          // Fields pair up when there's room for two side by side.
           final pairs = box.maxWidth >= 300;
-          Widget row(Widget a, Widget b) => pairs
-              ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Expanded(child: a),
-                  const SizedBox(width: 10),
-                  Expanded(child: b),
-                ])
-              : Column(children: [a, const SizedBox(height: 10), b]);
           return Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(6, 6, 20, 6),
@@ -288,16 +270,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 constraints: const BoxConstraints(maxWidth: 520),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
                   Row(children: [
-                    Expanded(
-                      child: SegTabs(
-                        labels: const ['LOG IN', 'SIGN UP'],
-                        index: signup ? 1 : 0,
-                        height: 36,
-                        fontSize: 14,
-                        onChanged: (i) => setState(() => signup = i == 1),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
+                    Expanded(child: Text('LOG IN', style: outfit(20, w: FontWeight.w800, ls: .08, c: Z.goldHi))),
                     Press(
                       label: 'Need help? Chat with support',
                       onTap: () => Nav.push(R.chat, 'support'),
@@ -305,31 +278,22 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ]),
                   const SizedBox(height: 10),
-                  if (signup) ...[
-                    row(username, email),
+                  if (pairs)
+                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Expanded(child: who),
+                      const SizedBox(width: 10),
+                      Expanded(child: password),
+                    ])
+                  else ...[
+                    who,
                     const SizedBox(height: 10),
                     password,
-                    const SizedBox(height: 10),
-                    Press(
-                      onTap: () => setState(() => agreed = !agreed),
-                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        _Check(on: agreed),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text('I am 18 or older and agree to the Terms & Conditions and Privacy Policy.',
-                              style: outfit(12, c: Z.body, h: 1.35)),
-                        ),
-                      ]),
-                    ),
-                  ] else ...[
-                    row(email, password),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: LinkText('Forgot password?', size: 13, onTap: () => Nav.push(R.forgot)),
-                    ),
                   ],
+                  const SizedBox(height: 6),
+                  Text(error ?? kicked ?? 'Forgot your password? Your cashier can reset it.',
+                      style: outfit(13, w: FontWeight.w600, c: error != null || kicked != null ? Z.coral : Z.muted2)),
                   const SizedBox(height: 10),
-                  CtaButton(signup ? 'CREATE ACCOUNT' : 'LOG IN', height: 46, fontSize: 18, ls: .03, onTap: _submit),
+                  CtaButton('LOG IN', height: 46, fontSize: 18, ls: .03, onTap: _submit),
                 ]),
               ),
             ),
@@ -338,56 +302,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
-  void _socialIn() {
-    final s = AppScope.read(context)..signIn();
-    _enter(s);
-  }
-
-  /// Into the lobby, with the daily bonus when the back office has it on.
-  void _enter(AppState s) => s.casino.settings.dailyBonus ? Nav.homeWithBonus() : Nav.reset(R.home);
-}
-
-class _Check extends StatelessWidget {
-  const _Check({required this.on});
-  final bool on;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-        checked: on,
-        child: Container(
-          width: 20,
-          height: 20,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-            color: on ? Z.ghostBorder : Z.field,
-            border: Border.all(color: on ? Z.ghostBorder : Z.chip, width: 1.5),
-          ),
-          child: on ? const StrokeIco(P.check, size: 16, color: Z.brown, width: 3.2) : null,
-        ),
-      );
-}
-
-class _SocialBtn extends StatelessWidget {
-  const _SocialBtn(this.label, {required this.onTap});
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Press(
-        onTap: onTap,
-        label: 'Continue with $label',
-        child: Container(
-          height: 42,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Z.chip, width: 1.5),
-            color: Z.field,
-          ),
-          child: Text(label, style: outfit(15, w: FontWeight.w600)),
-        ),
-      );
 }
 
 // ── Forgot password (3 steps + done) ─────────────────────────────────────────

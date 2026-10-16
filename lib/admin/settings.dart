@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../backoffice/casino.dart';
 import 'admin_app.dart';
 import 'kit.dart';
+import 'setup.dart';
 
 /// Rules for the whole casino: starting amount, cash in/out rates and limits.
 class SettingsPage extends StatefulWidget {
@@ -75,6 +76,9 @@ class _SettingsPageState extends State<SettingsPage> {
       sub: 'Starting amount, what cash buys, and the limits on cash in and out',
       actions: [KButton('Save changes', icon: Icons.check_rounded, onTap: _save)],
       children: [
+        const InstallCard(),
+        const DatabaseCard(),
+        const SizedBox(height: 16),
         KGrid(min: 380, gap: 16, max: 2, children: [
           _card('New player IDs', Icons.person_add_alt_1_rounded, [
             Row(children: [
@@ -113,12 +117,25 @@ class _SettingsPageState extends State<SettingsPage> {
           ]),
           _card('Data', Icons.storage_rounded, [
             Text(
-                'Everything is kept on this device (in the browser on the web). Copy a backup before clearing site data. '
-                'Connect a server to share it between devices.',
+                'Without the shared database everything is kept on this device only. Copy a backup any time; '
+                'start clean before real use.',
                 style: kt(14, c: K.sub, h: 1.4)),
             const SizedBox(height: 12),
             Wrap(spacing: 10, runSpacing: 10, children: [
               KButton('Copy backup', tone: KTone.light, icon: Icons.copy_rounded, height: 42, onTap: () => copy(context, jsonEncode(casino.toJson()), 'Backup')),
+              if (casino.admin?.isOwner ?? false)
+                KButton('Clear players & ledger', tone: KTone.red, icon: Icons.delete_sweep_outlined, height: 42, onTap: () async {
+                  if (await kConfirm(context,
+                          title: 'Start clean?',
+                          message: 'Every player ID, the cash ledger, play records and shifts are removed — on every device '
+                              'on the shared database. Staff, settings and games stay.',
+                          action: 'Clear everything',
+                          danger: true) &&
+                      context.mounted) {
+                    casino.clearAll();
+                    kToast(context, 'All players and the ledger are cleared');
+                  }
+                }),
               if (casino.admin?.isOwner ?? false)
                 KButton('Reset demo data', tone: KTone.red, icon: Icons.restart_alt_rounded, height: 42, onTap: () async {
                   if (await kConfirm(context,

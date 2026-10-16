@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../app/web_safe_area.dart';
 import '../backoffice/casino.dart';
+import '../backoffice/sync.dart';
 import 'cash.dart';
 import 'dashboard.dart';
 import 'games.dart';
@@ -10,12 +12,16 @@ import 'kit.dart';
 import 'players.dart';
 import 'reports.dart';
 import 'settings.dart';
+import 'setup.dart';
 
 /// The Zoya7 admin panel: portrait on a phone (the basics: today, players,
 /// cash in/out, games on/off), everything on a desktop.
 class AdminApp extends StatefulWidget {
-  const AdminApp({super.key, required this.casino, this.onExit, this.initialSection = Section.dashboard});
+  const AdminApp({super.key, required this.casino, this.sync, this.onExit, this.initialSection = Section.dashboard});
   final Casino casino;
+
+  /// The shared database connection (status and setup in Settings).
+  final CasinoSync? sync;
 
   /// The page to open on after signing in.
   final Section initialSection;
@@ -31,6 +37,8 @@ class _AdminAppState extends State<AdminApp> {
   @override
   void initState() {
     super.initState();
+    // Signed in once on this device: straight in.
+    restoreAdmin(widget.casino);
     // The game locks phones to landscape; the admin panel stands up.
     if (!kIsWeb) {
       SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
@@ -41,7 +49,10 @@ class _AdminAppState extends State<AdminApp> {
   @override
   Widget build(BuildContext context) => CasinoScope(
         casino: widget.casino,
-        child: MaterialApp(
+        child: SyncScope(
+          sync: widget.sync,
+          child: MaterialApp(
+          builder: (context, child) => WebSafeArea(child: child!),
           title: 'Zoya7 Admin',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
@@ -57,6 +68,7 @@ class _AdminAppState extends State<AdminApp> {
             builder: (context, _) => widget.casino.admin == null
                 ? PinGate(onExit: widget.onExit)
                 : AdminShell(onExit: widget.onExit, initial: widget.initialSection),
+          ),
           ),
         ),
       );
@@ -89,7 +101,7 @@ class _PinGateState extends State<PinGate> {
       wrong = false;
     });
     if (pin.length == 4) {
-      final ok = CasinoScope.read(context).signIn(pin) != null;
+      final ok = signInAndRemember(CasinoScope.read(context), pin) != null;
       if (!ok) {
         setState(() {
           wrong = true;
@@ -412,6 +424,15 @@ class _Sidebar extends StatelessWidget {
                 ),
             ]),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SyncChip(
+                onTap: () => sections.contains(Section.settings) ? onPick(Section.settings) : showDatabaseSheet(context),
+              ),
+            ),
+          ),
           if (casino.settings.maintenance)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
@@ -439,7 +460,7 @@ class _Sidebar extends StatelessWidget {
                     Text(statusName(me.role), style: kt(13, c: K.sub)),
                   ]),
                 ),
-                KIconButton(Icons.lock_outline_rounded, tooltip: 'Lock', size: 36, onTap: casino.signOut),
+                KIconButton(Icons.lock_outline_rounded, tooltip: 'Lock', size: 36, onTap: () => lockAdmin(casino)),
               ]),
               if (onExit != null) ...[
                 const SizedBox(height: 12),
@@ -472,17 +493,24 @@ class _PhoneTopBar extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(children: [
               Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: kt(28, w: FontWeight.w800))),
+              SyncChip(compact: true, onTap: () => showDatabaseSheet(context)),
+              const SizedBox(width: 6),
               PopupMenuButton<String>(
                 tooltip: 'Account',
                 color: K.card,
                 surfaceTintColor: Colors.transparent,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                onSelected: (v) => v == 'lock' ? casino.signOut() : onExit?.call(),
+                onSelected: (v) => switch (v) {
+                  'lock' => lockAdmin(casino),
+                  'db' => showDatabaseSheet(context),
+                  _ => onExit?.call(),
+                },
                 itemBuilder: (_) => [
                   PopupMenuItem(
                     enabled: false,
                     child: Text('${me.name} · ${statusName(me.role)}', style: kt(14, w: FontWeight.w600, c: K.sub)),
                   ),
+                  PopupMenuItem(value: 'db', child: Text('Database & install', style: kt(15, w: FontWeight.w600))),
                   if (onExit != null)
                     PopupMenuItem(value: 'exit', child: Text('Open player app', style: kt(15, w: FontWeight.w600))),
                   PopupMenuItem(value: 'lock', child: Text('Lock', style: kt(15, w: FontWeight.w600))),
