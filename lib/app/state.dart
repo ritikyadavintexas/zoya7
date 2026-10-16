@@ -39,7 +39,18 @@ class AppState extends ChangeNotifier {
       : casino = casino ?? Casino.demo(),
         playerId = casino == null ? Casino.meId : playerId {
     this.casino.addListener(_casinoChanged);
-    if (this.playerId != null && player == null) this.playerId = null;
+    sync?.addListener(_syncChanged);
+  }
+
+  bool _ready = false;
+
+  /// The database answering for the first time decides whether the account
+  /// this device remembers still exists.
+  void _syncChanged() {
+    final ready = sync!.ready;
+    if (ready == _ready) return;
+    _ready = ready;
+    _casinoChanged();
   }
 
   final Casino casino;
@@ -49,13 +60,20 @@ class AppState extends ChangeNotifier {
   String? playerId;
 
   Player? get player => playerId == null ? null : casino.player(playerId!);
-  bool get signedIn => player != null;
+  bool get signedIn => playerId != null;
+
+  /// Signed in, waiting for the account to arrive from the database.
+  bool get loading => playerId != null && player == null && !(sync?.ready ?? true);
 
   /// Set when the back office closes or removes this account while it plays.
   String? kickedOut;
 
   void _casinoChanged() {
     final p = player;
+    if (loading) {
+      notifyListeners();
+      return;
+    }
     if (playerId != null && (p == null || p.status != PlayerStatus.active)) {
       kickedOut = p == null ? 'This player ID no longer exists' : Casino.blocked(p);
       signOut();

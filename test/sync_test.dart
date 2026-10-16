@@ -80,6 +80,34 @@ void main() {
     expect(admin.plays.values.where((x) => x.playerId == p.id).single.rounds, 1);
   });
 
+  test('nothing is kept on the phone: reopened, it signs back in and loads from the server', () async {
+    final (admin, sAdmin) = await join();
+    admin.signIn('owner');
+    final p = await newPlayer(admin, 'returner', 'secret77', startSc: 12);
+    await sAdmin.syncNow();
+    final prefix = 'test.${device++}';
+    final first = CasinoSync(Casino.empty(), transport: db.call, auth: FirebaseAuthApi(post: db.post), autoSync: false, storagePrefix: prefix);
+    await first.connect(dbUrl);
+    expect(await AppState(casino: first.casino, sync: first).logIn('returner', 'secret77'), isNull);
+
+    // The app is closed and opened again: an empty back office, the sign-in remembered.
+    final c = Casino.empty();
+    final s = CasinoSync(c, transport: db.call, auth: FirebaseAuthApi(post: db.post), autoSync: false, storagePrefix: prefix);
+    await s.connect(dbUrl);
+    final id = s.resumePlayer();
+    final app = AppState(casino: c, playerId: id, sync: s);
+    expect(c.players, isEmpty);
+    expect(app.loading, isTrue);
+    expect(app.kickedOut, isNull);
+    for (var i = 0; i < 50 && !s.ready; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(app.loading, isFalse);
+    expect(app.signedIn, isTrue);
+    expect(app.sc, 12);
+    expect(app.player!.id, p.id);
+  });
+
   test('a phone can’t give itself coins: changes it may not make are undone', () async {
     final (admin, sAdmin) = await join();
     admin.signIn('owner');

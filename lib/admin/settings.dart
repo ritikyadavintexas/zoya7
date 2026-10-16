@@ -81,8 +81,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ]),
           _card('Data', Icons.storage_rounded, [
             Text(
-                'Without the shared database everything is kept on this device only. Copy a backup any time; '
-                'start clean before real use.',
+                'Everything is kept on the server (Firebase), not on this device. Copy a backup any time.',
                 style: kt(14, c: K.sub, h: 1.4)),
             const SizedBox(height: 12),
             Wrap(spacing: 10, runSpacing: 10, children: [
@@ -91,25 +90,13 @@ class _SettingsPageState extends State<SettingsPage> {
                 KButton('Clear players & ledger', tone: KTone.red, icon: Icons.delete_sweep_outlined, height: 42, onTap: () async {
                   if (await kConfirm(context,
                           title: 'Start clean?',
-                          message: 'Every player ID, the coin ledger and play records are removed — on every device '
-                              'on the shared database. Staff, settings and games stay.',
+                          message: 'Every player ID, the coin ledger and play records are removed from the server. '
+                              'Staff, settings and games stay.',
                           action: 'Clear everything',
                           danger: true) &&
                       context.mounted) {
                     casino.clearAll();
                     kToast(context, 'All players and the ledger are cleared');
-                  }
-                }),
-              if (casino.admin?.isOwner ?? false)
-                KButton('Reset demo data', tone: KTone.red, icon: Icons.restart_alt_rounded, height: 42, onTap: () async {
-                  if (await kConfirm(context,
-                          title: 'Reset everything?',
-                          message: 'Players, ledger, game settings and reports go back to the demo data.',
-                          action: 'Reset',
-                          danger: true) &&
-                      context.mounted) {
-                    casino.resetDemo();
-                    kToast(context, 'Demo data restored');
                   }
                 }),
             ]),

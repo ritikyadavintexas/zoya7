@@ -45,7 +45,9 @@ back. A player who is suspended, banned or deleted is logged out on the spot.
 **Database: Firebase (project `lilly-55024`, free Spark plan).** The game and the panel share
 one back office (`lib/backoffice/casino.dart`), kept in the Realtime Database
 `https://lilly-55024-default-rtdb.firebaseio.com` and synced over REST
-(`lib/backoffice/sync.dart`, no SDK). Every phone and computer connects by itself.
+(`lib/backoffice/sync.dart`, no SDK). Every phone and computer connects by itself. **Nothing is
+kept on the device:** the app opens empty and loads from the server; the only thing a device
+remembers is who is signed in.
 
 - **Sign-in** is Firebase Authentication (email and password, `lib/backoffice/auth.dart`).
   Nobody types an email: staff use a username and players their player ID or username; the app
@@ -58,8 +60,8 @@ one back office (`lib/backoffice/casino.dart`), kept in the Realtime Database
   Each device syncs only what it may read and never sends what it may not write.
 - **Sync:** every few seconds, record by record (players, ledger lines, play, games, settings),
   three-way merged so two devices changing different things never lose each other's work;
-  balances are worked out from the ledger, never stored. Offline changes are sent when the
-  connection is back.
+  balances are worked out from the ledger, never stored. Changes made while the connection drops
+  are sent when it's back, as long as the app stays open.
 
 **Setting it up (once):**
 1. Firebase console → Authentication → Sign-in method → turn on **Email/Password**; under

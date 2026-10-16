@@ -51,8 +51,6 @@ class CasinoSync extends ChangeNotifier {
   final bool autoSync;
   final String storagePrefix;
 
-  String get _syncedKey => '$storagePrefix.synced';
-  String get _dirtyKey => '$storagePrefix.dirty';
   String get _staffKey => '$storagePrefix.staff';
   String get _playerKey => '$storagePrefix.player';
 
@@ -71,7 +69,11 @@ class CasinoSync extends ChangeNotifier {
   /// [_base] holds a real agreed copy (not just "nothing yet").
   bool _haveBase = false;
 
-  /// Paths changed here and not yet written (survives a reload).
+  /// The database has answered since this device signed in (until then the
+  /// back office is empty, not "no such player").
+  bool get ready => _haveBase;
+
+  /// Paths changed here and not yet written (until the database has them).
   final _dirty = <String, int>{};
 
   Timer? _poll;
@@ -234,11 +236,9 @@ class CasinoSync extends ChangeNotifier {
     if (u != url) {
       url = u;
       // A different database: start from what it holds.
-      final synced = loadSaved(_syncedKey);
       _base = {};
       _haveBase = false;
       _dirty.clear();
-      if (synced == u) _restoreDirty();
     }
     state = signedIn ? SyncState.connecting : SyncState.off;
     error = null;
@@ -250,7 +250,7 @@ class CasinoSync extends ChangeNotifier {
 
   void _localChange() {
     if (url == null) return;
-    // Note what changed now (so a reload before the write still knows).
+    // Note what changed now (sent with the next write).
     final now = casino.now.millisecondsSinceEpoch;
     final local = _texts(casino.toRecords());
     for (final e in local.entries) {
@@ -259,7 +259,6 @@ class CasinoSync extends ChangeNotifier {
     for (final p in _base.keys) {
       if (!local.containsKey(p)) _dirty.putIfAbsent(p, () => now);
     }
-    _saveDirty();
     _push?.cancel();
     if (autoSync) _push = Timer(const Duration(milliseconds: 400), syncNow);
   }
@@ -294,7 +293,6 @@ class CasinoSync extends ChangeNotifier {
         _flatten(s, jsonDecode(res.body), remote);
       }
       final role = _role(remote);
-      final firstTime = loadSaved(_syncedKey) != url;
       final local = {
         for (final e in _texts(casino.toRecords()).entries)
           if (_inScope(e.key, scopes)) e.key: e.value,
@@ -302,32 +300,27 @@ class CasinoSync extends ChangeNotifier {
       final merged = <String, String>{};
       final upload = <String, String?>{};
 
-      if (firstTime && remote.isNotEmpty) {
-        // Joining a database that's already in use: take what it holds.
-        merged.addAll(remote.map((k, v) => MapEntry(k, v.text)));
-      } else {
-        // Nothing agreed yet since start-up: only changes made here count as
-        // local (an empty database gets this device's copy).
-        final fill = !_haveBase && remote.isEmpty;
-        final paths = {...local.keys, ...remote.keys, ..._base.keys.where((p) => _inScope(p, scopes))};
-        for (final p in paths) {
-          final l = local[p], r = remote[p]?.text, b = _base[p];
-          final localChanged = _dirty.containsKey(p) || fill || (_haveBase && l != b);
-          String? m;
-          if (l == r) {
-            m = l;
-          } else if (!localChanged) {
-            m = r; // only the database changed
-          } else if (r == b) {
-            m = l; // only this device changed
-          } else {
-            m = _resolve(p, l, r, _dirty[p] ?? casino.now.millisecondsSinceEpoch, remote[p]?.up ?? 0);
-          }
-          // A change this device may not make doesn't stick.
-          if (m != r && !_canWrite(p, m, role)) m = r;
-          if (m != null) merged[p] = m;
-          if (m != r) upload[p] = m;
+      // Nothing agreed yet since start-up: only changes made here count as
+      // local (an empty database gets this device's copy).
+      final fill = !_haveBase && remote.isEmpty;
+      final paths = {...local.keys, ...remote.keys, ..._base.keys.where((p) => _inScope(p, scopes))};
+      for (final p in paths) {
+        final l = local[p], r = remote[p]?.text, b = _base[p];
+        final localChanged = _dirty.containsKey(p) || fill || (_haveBase && l != b);
+        String? m;
+        if (l == r) {
+          m = l;
+        } else if (!localChanged) {
+          m = r; // only the database changed
+        } else if (r == b) {
+          m = l; // only this device changed
+        } else {
+          m = _resolve(p, l, r, _dirty[p] ?? casino.now.millisecondsSinceEpoch, remote[p]?.up ?? 0);
         }
+        // A change this device may not make doesn't stick.
+        if (m != r && !_canWrite(p, m, role)) m = r;
+        if (m != null) merged[p] = m;
+        if (m != r) upload[p] = m;
       }
 
       if (upload.isNotEmpty) {
@@ -356,8 +349,6 @@ class CasinoSync extends ChangeNotifier {
       _base = merged;
       _haveBase = true;
       _dirty.clear();
-      _saveDirty();
-      save(_syncedKey, url!);
       if (!mapEquals(local, merged) || local.length != casino.toRecords().length) {
         casino.loadRecords({for (final e in merged.entries) e.key: jsonDecode(e.value) as Map<String, dynamic>});
       }
@@ -428,26 +419,9 @@ class CasinoSync extends ChangeNotifier {
     return v;
   }
 
-  void _saveDirty() {
-    if (url == null) return;
-    save(_dirtyKey, jsonEncode({'url': url, 'paths': _dirty}));
-  }
-
-  void _restoreDirty() {
-    final raw = loadSaved(_dirtyKey);
-    if (raw == null) return;
-    try {
-      final j = jsonDecode(raw) as Map<String, dynamic>;
-      if (j['url'] != url) return;
-      for (final e in (j['paths'] as Map).entries) {
-        _dirty[e.key as String] = (e.value as num).toInt();
-      }
-    } catch (_) {}
-  }
-
   // ── Whole-database writes (owner) ──────────────────────────────────────────
-  /// Write this device's whole copy over the database (owner's "upload").
-  Future<void> uploadAll() async {
+  /// Write this copy over the whole database (first-time setup).
+  Future<void> _uploadAll() async {
     if (url == null) return;
     final recs = casino.toRecords();
     final tree = <String, dynamic>{};
@@ -465,8 +439,6 @@ class CasinoSync extends ChangeNotifier {
     _base = _texts(recs);
     _haveBase = true;
     _dirty.clear();
-    _saveDirty();
-    save(_syncedKey, url!);
     lastSync = casino.now;
     state = SyncState.live;
     notifyListeners();
@@ -486,7 +458,7 @@ class CasinoSync extends ChangeNotifier {
     }
     if (w.status != 200) throw AuthError('The database refused the setup (${w.status})');
     casino.startClean(owner);
-    await uploadAll();
+    await _uploadAll();
     save(_staffKey, jsonEncode(s.toJson()));
     _poll?.cancel();
     if (autoSync) _poll = Timer.periodic(every, (_) => syncNow());

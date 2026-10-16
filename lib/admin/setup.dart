@@ -34,7 +34,7 @@ Future<void> showDatabaseSheet(BuildContext context) => kSheet<void>(
       ]),
     );
 
-/// The shared database every device uses: whether this one is in step.
+/// The server (Firebase) every device works on: whether this one is in step.
 class DatabaseCard extends StatelessWidget {
   const DatabaseCard({super.key});
 
@@ -42,13 +42,12 @@ class DatabaseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final sync = SyncScope.of(context);
     final casino = CasinoScope.of(context);
-    final owner = casino.admin?.isOwner ?? false;
     if (sync == null) return const SizedBox();
     final status = switch (sync.state) {
-      SyncState.off || SyncState.connecting => 'Connecting…',
+      SyncState.off || SyncState.connecting => 'Connecting to the server…',
       SyncState.live => 'Live: every phone and computer sees the same players, coins and games'
           '${sync.lastSync == null ? '' : ' (synced ${ago(sync.lastSync!, casino.now)})'}.',
-      SyncState.offline => 'Can’t reach the database${sync.error == null ? '' : ': ${sync.error}'}. Changes are kept and sent when it’s back.',
+      SyncState.offline => 'Can’t reach the server${sync.error == null ? '' : ': ${sync.error}'}. Changes made now are sent when it’s back — keep the app open.',
     };
     return KCard(
       padding: const EdgeInsets.all(18),
@@ -56,7 +55,7 @@ class DatabaseCard extends StatelessWidget {
         Row(children: [
           const Icon(Icons.cloud_sync_outlined, color: K.sub, size: 20),
           const SizedBox(width: 8),
-          Expanded(child: Text('Shared database', style: kt(18, w: FontWeight.w700))),
+          Expanded(child: Text('Server (Firebase)', style: kt(18, w: FontWeight.w700))),
           const SyncChip(),
         ]),
         const SizedBox(height: 8),
@@ -68,26 +67,6 @@ class DatabaseCard extends StatelessWidget {
         const SizedBox(height: 14),
         _LinkRow('Player app link', playerAppLink()),
         _LinkRow('Admin app link', adminAppLink()),
-        if (owner && sync.url != null) ...[
-          const SizedBox(height: 10),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            KButton('Upload this device’s data', tone: KTone.light, icon: Icons.cloud_upload_outlined, height: 40, onTap: () async {
-              if (!await kConfirm(context,
-                  title: 'Replace the database?',
-                  message: 'Everything in the database is replaced by what this device has. Other devices pick it up within seconds.',
-                  action: 'Replace',
-                  danger: true)) {
-                return;
-              }
-              try {
-                await sync.uploadAll();
-                if (context.mounted) kToast(context, 'Database replaced');
-              } catch (e) {
-                if (context.mounted) kToast(context, '$e');
-              }
-            }),
-          ]),
-        ],
       ]),
     );
   }

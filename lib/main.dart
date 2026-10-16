@@ -33,7 +33,8 @@ Future<void> main() async {
   final adminApp = pageApp() == 'admin';
   Nav.adminMode.value = adminApp || (kIsWeb && (Uri.base.fragment.startsWith('/admin') || Uri.base.queryParameters.containsKey('admin')));
   if (!Nav.adminMode.value) await _lockLandscape();
-  final casino = Casino.load();
+  // Nothing is kept on the device: everything comes from the database.
+  final casino = Casino.empty();
   final sync = CasinoSync(casino, auth: FirebaseAuthApi())..start();
   // The game picks up the player signed in here before; the admin panel its staff member.
   final playerId = Nav.adminMode.value ? null : sync.resumePlayer();

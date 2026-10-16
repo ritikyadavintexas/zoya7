@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -7,7 +6,6 @@ import '../app/assets.dart' show games;
 import '../games/blackjack/engine.dart' show BjRules;
 import '../games/gold/src/math.dart';
 import 'slot_math.dart';
-import 'storage.dart';
 
 /// The casino's back office: player accounts, the coin ledger, each game's
 /// settings and math, and the play records the reports are built from.
@@ -15,9 +13,9 @@ import 'storage.dart';
 /// Coins only: coins have no cash value. Staff put coins on an account
 /// (coin in) and take them off (coin out); no money is recorded or paid out.
 ///
-/// The player app and the admin panel share one [Casino]. Without a server
-/// it lives on the device (the browser's storage on the web); swap
-/// [loadSaved]/[save] for API calls to run it for real.
+/// The player app and the admin panel share one [Casino]. Nothing is kept on
+/// the device: it starts empty and holds what the database (the server) sends
+/// ([CasinoSync]), only while the app is open.
 
 enum PlayerStatus { active, suspended, banned }
 
@@ -463,15 +461,12 @@ DateTime dayStart(int day) {
 }
 
 class Casino extends ChangeNotifier {
-  Casino._({this.persist = false, DateTime Function()? clock}) : clock = clock ?? DateTime.now;
+  Casino._({DateTime Function()? clock}) : clock = clock ?? DateTime.now;
 
-  static const storageKey = 'zoya7.backoffice.v2';
 
   /// The demo account (tests and previews).
   static const meId = 'Z7-100123';
 
-  /// Save every change to this device's storage.
-  final bool persist;
   final DateTime Function() clock;
 
   final players = <Player>[];
@@ -827,14 +822,6 @@ class Casino extends ChangeNotifier {
     _changed();
   }
 
-  /// Start over with the demo data (and clear this device's saved copy).
-  void resetDemo() {
-    final fresh = Casino.demo(now: now);
-    _adopt(fresh);
-    _log('Reset to demo data');
-    _changed();
-  }
-
   // ── Reports ────────────────────────────────────────────────────────────────
   Report report(Period period) {
     final r = Report(period);
@@ -1048,14 +1035,8 @@ class Casino extends ChangeNotifier {
   void _changed({bool notify = true}) {
     if (_batch) return;
     recompute();
-    if (persist) save(storageKey, jsonEncode(toJson()));
     onLocalChange?.call();
     if (notify) notifyListeners();
-  }
-
-  /// Save this device's copy (after the sync merged in other devices' changes).
-  void saveLocal() {
-    if (persist) save(storageKey, jsonEncode(toJson()));
   }
 
   // ── Records, for the database ──────────────────────────────────────────────
@@ -1121,7 +1102,6 @@ class Casino extends ChangeNotifier {
     audit.sort((a, b) => a.at.compareTo(b.at));
     if (admin != null) admin = staff.where((x) => x.uid == admin!.uid).firstOrNull;
     recompute();
-    saveLocal();
     notifyListeners();
   }
 
@@ -1145,8 +1125,8 @@ class Casino extends ChangeNotifier {
         'featured': featured,
       };
 
-  static Casino fromJson(Map<String, dynamic> j, {bool persist = false}) {
-    final c = Casino._(persist: persist);
+  static Casino fromJson(Map<String, dynamic> j) {
+    final c = Casino._();
     c.players.addAll([for (final p in j['players'] as List) Player.fromJson(p as Map<String, dynamic>)]);
     c.txns.addAll([for (final t in j['txns'] as List) Txn.fromJson(t as Map<String, dynamic>)]);
     for (final g in j['games'] as List) {
@@ -1177,54 +1157,18 @@ class Casino extends ChangeNotifier {
     return c;
   }
 
-  void _adopt(Casino o) {
-    players
-      ..clear()
-      ..addAll(o.players);
-    txns
-      ..clear()
-      ..addAll(o.txns);
-    configs
-      ..clear()
-      ..addAll(o.configs);
-    plays
-      ..clear()
-      ..addAll(o.plays);
-    final keep = admin;
-    staff
-      ..clear()
-      ..addAll(o.staff);
-    audit
-      ..clear()
-      ..addAll(o.audit);
-    logins
-      ..clear()
-      ..addAll(o.logins);
-    uids
-      ..clear()
-      ..addAll(o.uids);
-    settings = o.settings;
-    featured = o.featured;
-    seen
-      ..clear()
-      ..addAll(o.seen);
-    admin = keep == null ? null : staff.where((s) => s.uid == keep.uid).firstOrNull;
-  }
+  /// Before the database has answered: no players, the games' starting setup.
+  factory Casino.empty() => Casino._()..configs.addAll(_startingGames());
 
-  /// This device's saved back office, or fresh demo data.
-  static Casino load() {
-    final saved = loadSaved(storageKey);
-    if (saved != null) {
-      try {
-        return fromJson(jsonDecode(saved) as Map<String, dynamic>, persist: true);
-      } catch (_) {
-        clearSaved(storageKey);
-      }
-    }
-    final c = Casino.demo();
-    final p = Casino._(persist: true).._adopt(c);
-    return p;
-  }
+  /// How the games start out (until staff change them).
+  static Map<String, GameConfig> _startingGames() => {
+        'classic777': GameConfig(id: 'classic777', weights: SlotMath.solve(.95), badge: 'HOT'),
+        'fruitspin': GameConfig(id: 'fruitspin', weights: SlotMath.solve(.94)),
+        'blackjack': GameConfig(id: 'blackjack', badge: 'NEW'),
+        'roulette': GameConfig(id: 'roulette', minGc: 100, maxGc: 100000, minSc: .1, maxSc: 100),
+        'plinko': GameConfig(id: 'plinko', targetRtp: .97, minGc: 100, maxGc: 50000, minSc: .1, maxSc: 50),
+        'megareels': GameConfig(id: 'megareels', targetRtp: .955),
+      };
 
   /// A month of believable history: 24 players given coins, playing and
   /// having coins taken off, so every screen and report has something to show.
@@ -1238,14 +1182,7 @@ class Casino extends ChangeNotifier {
       Staff('leo', 'Leo', StaffRole.cashier, username: 'leo'),
     ]);
 
-    c.configs.addAll({
-      'classic777': GameConfig(id: 'classic777', weights: SlotMath.solve(.95), badge: 'HOT'),
-      'fruitspin': GameConfig(id: 'fruitspin', weights: SlotMath.solve(.94)),
-      'blackjack': GameConfig(id: 'blackjack', badge: 'NEW'),
-      'roulette': GameConfig(id: 'roulette', minGc: 100, maxGc: 100000, minSc: .1, maxSc: 100),
-      'plinko': GameConfig(id: 'plinko', targetRtp: .97, minGc: 100, maxGc: 50000, minSc: .1, maxSc: 50),
-      'megareels': GameConfig(id: 'megareels', targetRtp: .955),
-    });
+    c.configs.addAll(_startingGames());
 
     final today = DateTime(at.year, at.month, at.day);
     DateTime when(int daysAgo) {
