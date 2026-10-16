@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../app/web_env.dart';
 import '../backoffice/storage.dart';
 import '../backoffice/sync.dart';
+import 'admin_app.dart' show AdminLogo;
 import 'kit.dart';
 
 /// Where the app is published (the game at the root, the admin app in admin/).
@@ -129,13 +130,7 @@ class _InstallCardState extends State<InstallCard> {
       padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
-          Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: K.green, borderRadius: BorderRadius.circular(10)),
-            child: Text('\$', style: kt(22, w: FontWeight.w800, c: Colors.white, h: 1)),
-          ),
+          const AdminLogo(size: 40),
           const SizedBox(width: 10),
           Expanded(
             child: Text(installed && widget.always ? 'Admin app is installed' : 'Add the admin app to your home screen',

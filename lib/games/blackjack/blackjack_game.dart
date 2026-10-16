@@ -62,15 +62,8 @@ class _BlackjackGameState extends State<BlackjackGame> {
   @override
   Widget build(BuildContext context) {
     final h = MediaQuery.sizeOf(context).height;
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment(0, -.2),
-          radius: 1.1,
-          colors: [Color(0xFF1D6B45), Color(0xFF0E4429), Color(0xFF06200F)],
-          stops: [0, .55, 1],
-        ),
-      ),
+    return CustomPaint(
+      painter: const _TablePainter(),
       child: SafeArea(
         child: Material(
           type: MaterialType.transparency,
@@ -91,6 +84,83 @@ class _BlackjackGameState extends State<BlackjackGame> {
   }
 }
 
+/// The room and the table: a dark backdrop, a burgundy felt that ends in a
+/// curved padded rail with gold trim, above the chips and buttons.
+class _TablePainter extends CustomPainter {
+  const _TablePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final all = Offset.zero & size;
+    canvas.drawRect(
+      all,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(0, -.4),
+          radius: 1.2,
+          colors: [Color(0xFF2B1210), Color(0xFF140807), Color(0xFF080303)],
+          stops: [0, .55, 1],
+        ).createShader(all),
+    );
+
+    // The felt: the top of a wide ellipse whose lower edge curves across the
+    // table just above the controls.
+    final railH = (h * .05).clamp(12.0, 26.0);
+    final bottom = h * .8;
+    final felt = Rect.fromCenter(center: Offset(w / 2, bottom - h * 1.25), width: w * 1.5, height: h * 2.5);
+    final rail = felt.inflate(railH);
+    canvas.drawOval(rail.shift(const Offset(0, 6)), Paint()..color = const Color(0x99000000)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10));
+    canvas.drawOval(
+      rail,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF3A1A0E), Color(0xFF6B3A1E), Color(0xFF2A1208)],
+          stops: [.88, .96, 1],
+        ).createShader(rail),
+    );
+    canvas.drawOval(
+      felt.inflate(2),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..shader = const LinearGradient(colors: [Color(0xFF8A5A1C), Color(0xFFFFE08A), Color(0xFF8A5A1C)]).createShader(felt),
+    );
+    canvas.save();
+    canvas.clipPath(Path()..addOval(felt));
+    canvas.drawRect(
+      all,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(0, -.15),
+          radius: .95,
+          colors: [Color(0xFF9A2034), Color(0xFF6A0F1F), Color(0xFF3A0610)],
+          stops: [0, .6, 1],
+        ).createShader(all),
+    );
+    // A little nap in the cloth.
+    final rnd = math.Random(7), dot = Paint();
+    for (var i = 0; i < 1400; i++) {
+      dot.color = (i.isEven ? const Color(0xFFFFFFFF) : const Color(0xFF000000)).withValues(alpha: .035);
+      canvas.drawCircle(Offset(rnd.nextDouble() * w, rnd.nextDouble() * bottom), .8 + rnd.nextDouble(), dot);
+    }
+    // Printed gold line following the rail.
+    canvas.drawOval(
+      felt.deflate(h * .06),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4
+        ..color = const Color(0x55E8C06A),
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_TablePainter old) => false;
+}
+
 // ── Top strip ────────────────────────────────────────────────────────────────
 
 class _TopStrip extends StatelessWidget {
@@ -107,7 +177,7 @@ class _TopStrip extends StatelessWidget {
           Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('BLACKJACK', style: playfair(20, w: FontWeight.w800, c: Z.goldHi, h: 1)),
             const SizedBox(height: 2),
-            Text('Pays ${payLabel(c.rules.blackjackPays)}', style: outfit(11, w: FontWeight.w600, ls: .06, c: const Color(0xFFB8D8C2))),
+            Text('Pays ${payLabel(c.rules.blackjackPays)}', style: outfit(11, w: FontWeight.w600, ls: .06, c: const Color(0xFFE6CDB8))),
           ]),
           const Spacer(),
           _CurrencyToggle(c: c),
@@ -117,7 +187,7 @@ class _TopStrip extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(4, 0, 14, 0),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              color: const Color(0xCC07150D),
+              color: const Color(0xCC140708),
               border: Border.all(color: c.currency == Currency.gc ? Z.goldEdge : const Color(0xFF2FB58E), width: 1.5),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -151,7 +221,7 @@ class _CurrencyToggle extends StatelessWidget {
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          color: const Color(0xCC07150D),
+          color: const Color(0xCC140708),
           border: Border.all(color: const Color(0x66C99A3E)),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -202,7 +272,7 @@ void _showRules(BuildContext context, BjRules rules) => showGeneralDialog<void>(
             child: GoldFrame(
               radius: 20,
               inner: ellipseGradient(
-                  cx: .5, cy: 0, rx: .9, ry: .8, colors: const [Color(0xFF1D4A31), Color(0xFF0B1A11)], stops: const [0, .8]),
+                  cx: .5, cy: 0, rx: .9, ry: .8, colors: const [Color(0xFF4A1A22), Color(0xFF14070A)], stops: const [0, .8]),
               padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
               child: SingleChildScrollView(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
@@ -228,7 +298,7 @@ void _showRules(BuildContext context, BjRules rules) => showGeneralDialog<void>(
                   ])
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
-                      child: Text('•  $r', style: outfit(13, c: const Color(0xFFDDEBE1), h: 1.35)),
+                      child: Text('•  $r', style: outfit(13, c: const Color(0xFFF2E6DA), h: 1.35)),
                     ),
                 ]),
               ),
@@ -329,7 +399,7 @@ class _Middle extends StatelessWidget {
       case Phase.insurance:
         return Text('Dealer shows an Ace — insurance?', style: outfit(16, w: FontWeight.w800, c: Z.goldHi));
       case Phase.dealer:
-        return Text('Dealer plays…', style: outfit(15, w: FontWeight.w700, c: const Color(0xFFDDEBE1)));
+        return Text('Dealer plays…', style: outfit(15, w: FontWeight.w700, c: const Color(0xFFF2E6DA)));
       case Phase.settled:
         final net = c.net;
         final cur = curLabel(c.currency);
@@ -337,12 +407,12 @@ class _Middle extends StatelessWidget {
         final (text, color) = net > 0
             ? ('${blackjack ? 'BLACKJACK! ' : 'YOU WIN '}+${fmtAmount(net, c.currency)} $cur', Z.goldHi)
             : net == 0
-                ? ('PUSH — BET RETURNED', const Color(0xFFDDEBE1))
+                ? ('PUSH — BET RETURNED', const Color(0xFFF2E6DA))
                 : (c.round.dealerBlackjack ? 'DEALER BLACKJACK' : 'DEALER WINS', Z.coral);
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
           decoration: BoxDecoration(
-            color: const Color(0xCC07150D),
+            color: const Color(0xCC140708),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: color.withValues(alpha: .7), width: 1.5),
             boxShadow: net > 0 ? [bs(0, 0, 18, const Color(0x80FFC850))] : null,
@@ -398,7 +468,7 @@ class _HandView extends StatelessWidget {
         final (tag, tagColor) = switch (outcome) {
           Outcome.blackjack => ('BLACKJACK', Z.goldHi),
           Outcome.win => ('WIN', Z.greenHi),
-          Outcome.push => ('PUSH', const Color(0xFFDDEBE1)),
+          Outcome.push => ('PUSH', const Color(0xFFF2E6DA)),
           Outcome.lose => ('LOSE', Z.coral),
           Outcome.bust => ('BUST', Z.coral),
           null => (null, Z.cream),
@@ -407,13 +477,13 @@ class _HandView extends StatelessWidget {
           SizedBox(
             height: 22,
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Text(label, style: outfit(11, w: FontWeight.w800, ls: .12, c: active ? Z.goldHi : const Color(0xB3DDEBE1))),
+              Text(label, style: outfit(11, w: FontWeight.w800, ls: .12, c: active ? Z.goldHi : const Color(0xB3F2E6DA))),
               if (total != null) ...[
                 const SizedBox(width: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
                   decoration: BoxDecoration(
-                    color: total! > 21 ? const Color(0xFF8A1A1A) : const Color(0xE607150D),
+                    color: total! > 21 ? const Color(0xFF8A1A1A) : const Color(0xE6140708),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: active ? Z.goldBright : const Color(0x66E8C06A)),
                   ),
@@ -619,7 +689,7 @@ class _BetCircle extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(color: const Color(0x99E8C06A), width: 2),
-            color: const Color(0x2207150D),
+            color: const Color(0x22140708),
           ),
           alignment: Alignment.center,
           child: c.bet > 0
@@ -629,7 +699,7 @@ class _BetCircle extends StatelessWidget {
         const SizedBox(width: 14),
         Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(c.bet > 0 ? 'YOUR BET' : 'PLACE YOUR BET',
-              style: outfit(12, w: FontWeight.w800, ls: .12, c: const Color(0xB3DDEBE1))),
+              style: outfit(12, w: FontWeight.w800, ls: .12, c: const Color(0xB3F2E6DA))),
           const SizedBox(height: 2),
           Text(c.bet > 0 ? '${fmtAmount(c.bet, c.currency)} ${curLabel(c.currency)}' : 'Tap chips below',
               style: outfit(18, w: FontWeight.w800, c: Z.cream)),
@@ -743,7 +813,7 @@ class _Controls extends StatelessWidget {
               return Row(children: [
                 Expanded(
                   child: Text('Insurance costs ${fmtAmount(c.insuranceCost, c.currency)} $cur and pays 2 to 1 if the dealer has blackjack.',
-                      maxLines: 2, style: outfit(13, c: const Color(0xFFDDEBE1), h: 1.3)),
+                      maxLines: 2, style: outfit(13, c: const Color(0xFFF2E6DA), h: 1.3)),
                 ),
                 const SizedBox(width: 10),
                 _ActionBtn('NO THANKS', kind: _Kind.ghost, height: h, onTap: () => c.insurance(false)),
@@ -809,7 +879,7 @@ class _ActionBtn extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(height / 2),
             gradient: gradient,
-            color: gradient == null ? const Color(0xCC07150D) : null,
+            color: gradient == null ? const Color(0xCC140708) : null,
             border: Border.all(color: kind == _Kind.ghost ? Z.border : Z.rimBright, width: 1.5),
             boxShadow: onTap != null && kind != _Kind.ghost ? [bs(0, 0, 12, const Color(0x40FFC846))] : null,
           ),

@@ -5,7 +5,7 @@
     "start_url": "./",
     "scope": "./",
     "display": "standalone",
-    "background_color": "#00D632",
+    "background_color": "#000000",
     "theme_color": "#00D632",
     "description": "Zoya7 admin panel — players, cash in and out, reports, games.",
     "orientation": "portrait",

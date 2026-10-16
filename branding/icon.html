@@ -1,0 +1,35 @@
+<!doctype html><html><head><style>
+@font-face { font-family: P; src: url(../test/fonts/PlayfairDisplay_800.ttf); }
+html,body { margin:0; background: transparent; }
+</style></head><body>
+<svg id="s" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="70%"><stop offset="0" stop-color="#26201a"/><stop offset=".55" stop-color="#0d0b09"/><stop offset="1" stop-color="#000"/></radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff6cf"/><stop offset=".35" stop-color="#ffd76a"/><stop offset=".62" stop-color="#c98a1c"/><stop offset="1" stop-color="#ffe9a0"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb36b"/><stop offset=".4" stop-color="#ff3b2e"/><stop offset="1" stop-color="#8a0710"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8a5a1c"/><stop offset=".5" stop-color="#ffe08a"/><stop offset="1" stop-color="#8a5a1c"/></linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ffcc55" stop-opacity=".35"/><stop offset="1" stop-color="#ffcc55" stop-opacity="0"/></radialGradient>
+    <clipPath id="clip"><rect id="shape" x="0" y="0" width="512" height="512" rx="ROUND"/></clipPath>
+    <filter id="sh"><feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#000" flood-opacity=".8"/></filter>
+  </defs>
+  <g clip-path="url(#clip)">
+    <rect width="512" height="512" fill="url(#bg)"/>
+    <ellipse cx="256" cy="268" rx="230" ry="120" fill="url(#glow)"/>
+    <rect x="BORDERX" y="BORDERX" width="BORDERW" height="BORDERW" rx="BORDERR" fill="none" stroke="url(#rim)" stroke-width="BORDERS" opacity="BORDERO"/>
+  </g>
+  <g transform="translate(256 SHIFTY) scale(SCALE) translate(-256 -256)">
+    <g filter="url(#sh)">
+      <path d="M196 196 L184 132 L222 166 L256 116 L290 166 L328 132 L316 196 Z" fill="url(#gold)" stroke="#5a3606" stroke-width="5" stroke-linejoin="round"/>
+      <rect x="194" y="194" width="124" height="18" rx="4" fill="url(#gold)" stroke="#5a3606" stroke-width="5"/>
+      <circle cx="184" cy="128" r="9" fill="url(#gold)" stroke="#5a3606" stroke-width="4"/><circle cx="256" cy="110" r="10" fill="url(#gold)" stroke="#5a3606" stroke-width="4"/><circle cx="328" cy="128" r="9" fill="url(#gold)" stroke="#5a3606" stroke-width="4"/>
+      <circle cx="256" cy="176" r="8" fill="#e8243a" stroke="#5a0610" stroke-width="3"/>
+      <text x="226" y="330" text-anchor="middle" font-family="P" font-size="118" fill="url(#gold)" stroke="#3a2004" stroke-width="7" paint-order="stroke" letter-spacing="-2">ZOYA</text>
+      <text x="400" y="336" text-anchor="middle" font-family="P" font-size="150" fill="url(#red)" stroke="#3a0408" stroke-width="7" paint-order="stroke">7</text>
+    </g>
+  </g>
+  LABEL
+</svg></body></html>

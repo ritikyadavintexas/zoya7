@@ -179,7 +179,7 @@ class _SignInGateState extends State<SignInGate> {
                 constraints: const BoxConstraints(maxWidth: 360),
                 child: widget.resuming
                     ? Column(mainAxisSize: MainAxisSize.min, children: [
-                        const AdminLogo(size: 64, inverted: true),
+                        const AdminLogo(size: 72),
                         const SizedBox(height: 18),
                         const CircularProgressIndicator(color: white),
                         const SizedBox(height: 14),
@@ -187,7 +187,7 @@ class _SignInGateState extends State<SignInGate> {
                       ])
                     : AutofillGroup(
                         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                          const Center(child: AdminLogo(size: 64, inverted: true)),
+                          const Center(child: AdminLogo(size: 72)),
                           const SizedBox(height: 16),
                           Text('Zoya7 Admin', textAlign: TextAlign.center, style: kt(28, w: FontWeight.w800, c: white)),
                           const SizedBox(height: 4),
@@ -278,19 +278,13 @@ class Keypad extends StatelessWidget {
   }
 }
 
+/// The Zoya7 app icon: the crowned ZOYA7 on a rounded black square.
 class AdminLogo extends StatelessWidget {
-  const AdminLogo({super.key, this.size = 36, this.inverted = false});
+  const AdminLogo({super.key, this.size = 36});
   final double size;
-  final bool inverted;
 
   @override
-  Widget build(BuildContext context) => Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(color: inverted ? Colors.white : K.green, borderRadius: BorderRadius.circular(size * .28)),
-        child: Text('\$', style: kt(size * .62, w: FontWeight.w800, c: inverted ? K.green : Colors.white, h: 1)),
-      );
+  Widget build(BuildContext context) => Image.asset('assets/app/icon.png', width: size, height: size, semanticLabel: 'Zoya7');
 }
 
 // ── Shell ────────────────────────────────────────────────────────────────────

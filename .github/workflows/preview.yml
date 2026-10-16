@@ -57,13 +57,18 @@ jobs:
         run: |
           name=$(grep -m1 '^name:' pubspec.yaml | awk '{print $2}')
           missing=""
-          # web/ holds only our index.html, manifest.json, flutter_bootstrap.js; create adds icons etc. and keeps those
+          # web/ holds our own pages, manifests and Zoya7 icons; create fills in anything missing
           [ -f web/favicon.png ] || missing="$missing,web"
           [ -d android ] || missing="$missing,android"
           if [ -n "$missing" ]; then
             flutter create . --project-name "$name" --org com.zoya7 --platforms "${missing#,}"
             # flutter create adds a counter-app test that doesn't belong to this project
             if grep -qs "MyApp" test/widget_test.dart; then rm test/widget_test.dart; fi
+          fi
+          # The Zoya7 icon and name on Android (create makes Flutter's).
+          if [ -d android/app/src/main/res ]; then
+            cp -r branding/android/. android/app/src/main/res/
+            sed -i 's/android:label="[^"]*"/android:label="Zoya7"/' android/app/src/main/AndroidManifest.xml
           fi
 
       - name: Get packages
