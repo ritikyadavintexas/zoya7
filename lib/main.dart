@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'app/landscape.dart';
 import 'app/nav.dart';
+import 'app/screens/blackjack.dart';
 import 'app/screens/chat.dart';
 import 'app/screens/game.dart';
 import 'app/screens/games.dart';
@@ -100,6 +101,8 @@ class Zoya7App extends StatelessWidget {
         page = const ProfilePage();
       case R.gold:
         page = const GoldScreen();
+      case R.blackjack:
+        page = const BlackjackScreen();
       case R.chat:
         page = ChatScreen(room: arg is String ? arg : 'community');
       case R.notifications:

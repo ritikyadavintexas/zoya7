@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:zoya7_gold/app/assets.dart';
 import 'package:zoya7_gold/app/landscape.dart';
 import 'package:zoya7_gold/app/nav.dart';
+import 'package:zoya7_gold/app/screens/blackjack.dart';
 import 'package:zoya7_gold/app/screens/chat.dart';
 import 'package:zoya7_gold/app/screens/game.dart';
 import 'package:zoya7_gold/app/screens/games.dart';
@@ -75,6 +76,7 @@ void main() {
     'support chat': () => const ChatScreen(room: 'support'),
     'coming soon': () => const ComingSoonScreen(gameId: 'blackjack'),
     'gold game': () => const GoldScreen(),
+    'blackjack': () => const BlackjackScreen(),
   };
 
   // Full reports (which widget overflowed, where, by how much) for failures.

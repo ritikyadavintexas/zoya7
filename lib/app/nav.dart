@@ -13,6 +13,7 @@ class R {
   static const wallet = '/wallet';
   static const profile = '/profile';
   static const gold = '/gold';
+  static const blackjack = '/blackjack';
   static const chat = '/chat';
   static const notifications = '/notifications';
   static const settings = '/settings';

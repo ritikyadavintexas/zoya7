@@ -12,8 +12,13 @@ import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
 
-/// Open a game tile: Classic 777 / Fruit Spin play Gold, others show "coming soon".
-void openGame(GameInfo g) => g.playable ? Nav.push(R.gold) : Nav.push(R.comingSoon, g.id);
+/// Open a game tile: Blackjack has its table, Classic 777 / Fruit Spin play
+/// Gold, and the rest show "coming soon".
+void openGame(GameInfo g) => switch (g.id) {
+      'blackjack' => Nav.push(R.blackjack),
+      _ when g.playable => Nav.push(R.gold),
+      _ => Nav.push(R.comingSoon, g.id),
+    };
 
 /// Jackpot meters tick up on a shared clock, so the lobby icon and the
 /// jackpot popup always agree.

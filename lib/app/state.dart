@@ -105,6 +105,13 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Add (or with a negative amount, take) coins — game bets and wins.
+  void adjust({double gc = 0, double sc = 0}) {
+    this.gc += gc;
+    this.sc = ((this.sc + sc) * 100).roundToDouble() / 100;
+    notifyListeners();
+  }
+
   void setGc(double v) {
     gc = v;
     notifyListeners();

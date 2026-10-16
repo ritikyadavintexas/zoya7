@@ -58,6 +58,8 @@ const games = [
     name: 'Blackjack',
     cat: 'TABLE',
     image: A.blackjack,
+    playable: true,
+    players: '642',
     category: 'TABLE GAME',
     blurb: 'Classic 21 against the dealer with split, double and side bets.',
     tags: ['Split & double', 'Side bets', 'Live table chat'],

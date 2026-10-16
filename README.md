@@ -11,6 +11,12 @@ chat (community + support, mute / report), legal (terms / privacy / sweeps rules
 **Game (landscape):** base game, Big / Super / Mega / Jackpot wins, paytable, in-game settings,
 not-enough-coins and table chat.
 
+**Blackjack:** a full table (`lib/games/blackjack/`): 6-deck shoe, blackjack pays 3 to 2, dealer
+stands on all 17s and peeks under an Ace or ten, insurance 2 to 1, double (also after split), split
+up to four hands (split Aces one card each). Bets in GC or SC from the app balances. Rules and
+settlement live in `engine.dart` (no UI, unit-tested); `controller.dart` paces the deal and dealer;
+`blackjack_game.dart` draws the table, cards and chips.
+
 **Landscape everywhere.** The Android and iOS builds lock to landscape. Browsers can't lock
 orientation, so when the window is taller than wide (phone held upright) the app draws itself
 turned sideways (`lib/app/landscape.dart`). Pages use a left side rail for navigation and a
