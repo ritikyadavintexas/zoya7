@@ -13,7 +13,8 @@
   <!-- Its own home-screen app: own name, icon and (portrait) orientation. -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <!-- The app draws under the status bar and fills it with its green. -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Z7 Admin">
   <link rel="apple-touch-icon" href="admin/icons/admin-apple-180.png">
   <link rel="icon" type="image/png" href="admin/icons/admin-192.png">
@@ -22,7 +23,7 @@
   <title>Zoya7 Admin</title>
 
   <style>
-    html, body { margin: 0; height: 100%; overflow: hidden; background: #F4F4F5; overscroll-behavior: none; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #00D632; overscroll-behavior: none; }
     #app { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
   </style>
 
@@ -47,6 +48,7 @@
 </head>
 <body>
   <div id="app"></div>
+  <script src="viewport.js"></script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

@@ -70,23 +70,7 @@
 </head>
 <body>
   <div id="app"></div>
-  <script>
-    // iPhone home-screen app: iOS reports a window shorter than the screen, so
-    // size #app to the whole screen (no browser bars there) for the current orientation.
-    (function () {
-      if (!navigator.standalone) return;
-      var app = document.getElementById('app');
-      function fit() {
-        var a = Math.min(screen.width, screen.height), b = Math.max(screen.width, screen.height);
-        var landscape = window.matchMedia('(orientation: landscape)').matches;
-        app.style.width = Math.max(window.innerWidth, landscape ? b : a) + 'px';
-        app.style.height = Math.max(window.innerHeight, landscape ? a : b) + 'px';
-      }
-      fit();
-      window.addEventListener('resize', fit);
-      window.addEventListener('orientationchange', function () { setTimeout(fit, 300); });
-    })();
-  </script>
+  <script src="viewport.js"></script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

@@ -7,7 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:zoya7_gold/admin/admin_app.dart';
 import 'package:zoya7_gold/admin/coins.dart';
 import 'package:zoya7_gold/admin/games.dart' show showBetLimits;
-import 'package:zoya7_gold/admin/kit.dart' show lockAdmin;
+import 'package:zoya7_gold/admin/kit.dart' show K, lockAdmin;
 import 'package:zoya7_gold/admin/players.dart';
 import 'package:zoya7_gold/app/assets.dart';
 import 'package:zoya7_gold/app/landscape.dart';
@@ -190,6 +190,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(c.admin, isNull);
     expect(find.text('Sign in'), findsWidgets);
+    await clear(tester);
+  });
+
+  testWidgets('under an iPhone status bar the strip is admin green and pages start below it', (tester) async {
+    tester.view.padding = const FakeViewPadding(top: 47);
+    addTearDown(tester.view.resetPadding);
+    await show(tester, const Size(390, 844), uid: null);
+    final band = tester.widget<ColoredBox>(find.descendant(of: find.byType(StatusBand), matching: find.byType(ColoredBox)).first);
+    expect(band.color, K.green);
+    expect(tester.getTopLeft(find.byType(SignInGate)).dy, 47);
     await clear(tester);
   });
 

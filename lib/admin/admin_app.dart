@@ -70,7 +70,7 @@ class _AdminAppState extends State<AdminApp> {
         child: SyncScope(
           sync: widget.sync,
           child: MaterialApp(
-          builder: (context, child) => WebSafeArea(child: child!),
+          builder: (context, child) => WebSafeArea(child: StatusBand(child: child!)),
           title: 'Zoya7 Admin',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
@@ -255,6 +255,26 @@ class Keypad extends StatelessWidget {
       ])
         Row(children: [for (final k in row) key(k)]),
     ]);
+  }
+}
+
+/// The strip under the phone's status bar (clock, battery) is the admin
+/// green on every screen, and the pages start below it.
+class StatusBand extends StatelessWidget {
+  const StatusBand({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top;
+    if (top <= 0) return child;
+    return ColoredBox(
+      color: K.green,
+      child: Padding(
+        padding: EdgeInsets.only(top: top),
+        child: MediaQuery.removePadding(context: context, removeTop: true, child: child),
+      ),
+    );
   }
 }
 
