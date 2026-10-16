@@ -120,7 +120,7 @@ class _ChatScreenState extends State<ChatScreen> {
         .reversed
         .toList();
     final quick = support
-        ? const ['Coins not credited', 'Redemption help', 'Account access']
+        ? const ['Coins not credited', 'Coin balance help', 'Account access']
         : const ['Good luck!', 'Congrats!', 'Which game is hot?'];
     return ZPage(
       child: Scaffold(

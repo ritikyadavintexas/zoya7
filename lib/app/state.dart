@@ -28,7 +28,7 @@ const coinPacks = [
 ];
 
 /// Session state shared by every page. Who's playing, their balances,
-/// purchases, redemptions and the games on offer come from the back office
+/// coin packs and the games on offer come from the back office
 /// ([Casino]), which the admin panel manages. Players can only log in with a
 /// player ID made in the admin panel; this device remembers who logged in.
 class AppState extends ChangeNotifier {
@@ -94,7 +94,6 @@ class AppState extends ChangeNotifier {
   double get gc => player?.gc ?? 0;
   double get sc => player?.sc ?? 0;
 
-  double get redeemableSc => sc;
   String get name => player?.name ?? 'Player';
 
   /// Daily-bonus streak: today is day 4 of 7.
@@ -145,20 +144,8 @@ class AppState extends ChangeNotifier {
   void completePurchase(CoinPack p, {int bonusGc = 0}) {
     final me = player;
     if (me == null) return;
-    casino.purchase(me, p.price,
+    casino.purchase(me,
         gc: (p.gc + bonusGc).toDouble(), sc: p.sc.toDouble(), note: '${p.gcLabel} GC package');
-  }
-
-  /// Ask for a payout of [amount] SC; returns an error to show, or null.
-  String? requestRedemption(double amount, String method) {
-    final me = player;
-    if (me == null) return 'Log in first';
-    try {
-      casino.cashOut(me, amount, method: method);
-      return null;
-    } on CasinoError catch (e) {
-      return e.message;
-    }
   }
 
   void setAvatarFrame(int i) {

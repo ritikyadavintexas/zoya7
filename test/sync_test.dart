@@ -83,7 +83,7 @@ void main() {
     final (phone, sPhone) = await join();
 
     final p = admin.createPlayer(username: 'newphone', startGc: 1000, startSc: 10);
-    admin.cashIn(p, 20, method: 'Cash');
+    admin.coinIn(p, sc: 20, gc: 200000);
     await sAdmin.syncNow();
     await sPhone.syncNow();
 
@@ -107,19 +107,18 @@ void main() {
     const id = 'Z7-100101';
 
     final before = admin.player(id)!.sc;
-    // Neither has synced: the cashier loads the account while the player plays.
-    admin.cashIn(admin.player(id)!, 50, method: 'Cash App');
+    // Neither has synced: the cashier adds coins while the player plays.
+    admin.coinIn(admin.player(id)!, sc: 50);
     phone.recordRound('fruitspin', id, Currency.sc, 10, 4);
-    final pending = admin.pendingCashOuts.first;
-    admin.approve(pending);
+    final out = admin.coinOut(admin.player(id)!, sc: 5);
 
     await sPhone.syncNow();
     await sAdmin.syncNow();
     await sPhone.syncNow();
 
     expect(admin.player(id)!.sc, phone.player(id)!.sc);
-    expect(admin.player(id)!.sc, closeTo(before + 50 - 6, .001));
-    expect(phone.txns.firstWhere((t) => t.id == pending.id).status, TxnStatus.approved);
+    expect(admin.player(id)!.sc, closeTo(before + 50 - 5 - 6, .001));
+    expect(phone.txns.any((t) => t.id == out.id), isTrue);
   });
 
   test('removing a player and closing an account reach the other devices', () async {

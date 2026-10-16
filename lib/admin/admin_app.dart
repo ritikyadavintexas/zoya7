@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import '../app/web_safe_area.dart';
 import '../backoffice/casino.dart';
 import '../backoffice/sync.dart';
-import 'cash.dart';
+import 'coins.dart';
 import 'dashboard.dart';
 import 'games.dart';
 import 'kit.dart';
@@ -15,7 +15,7 @@ import 'settings.dart';
 import 'setup.dart';
 
 /// The Zoya7 admin panel: portrait on a phone (the basics: today, players,
-/// cash in/out, games on/off), everything on a desktop.
+/// coin in/out, games on/off), everything on a desktop.
 class AdminApp extends StatefulWidget {
   const AdminApp({super.key, required this.casino, this.sync, this.onExit, this.initialSection = Section.dashboard});
   final Casino casino;
@@ -253,13 +253,13 @@ class AdminLogo extends StatelessWidget {
 }
 
 // ── Shell ────────────────────────────────────────────────────────────────────
-enum Section { dashboard, players, cash, reports, games, math, settings, staff }
+enum Section { dashboard, players, coins, reports, games, math, settings, staff }
 
 extension SectionInfo on Section {
   String get label => switch (this) {
         Section.dashboard => 'Home',
         Section.players => 'Players',
-        Section.cash => 'Cash in / out',
+        Section.coins => 'Coin in / out',
         Section.reports => 'Reports',
         Section.games => 'Games',
         Section.math => 'Game math',
@@ -268,12 +268,12 @@ extension SectionInfo on Section {
       };
 
   /// Shorter, for the phone's tab bar.
-  String get tab => this == Section.cash ? 'Cash' : label;
+  String get tab => this == Section.coins ? 'Coins' : label;
 
   IconData get icon => switch (this) {
         Section.dashboard => Icons.home_rounded,
         Section.players => Icons.people_alt_rounded,
-        Section.cash => Icons.attach_money_rounded,
+        Section.coins => Icons.toll_rounded,
         Section.reports => Icons.bar_chart_rounded,
         Section.games => Icons.sports_esports_rounded,
         Section.math => Icons.functions_rounded,
@@ -285,12 +285,12 @@ extension SectionInfo on Section {
 /// What each role can open.
 List<Section> sectionsFor(Staff s, {required bool desktop}) {
   final all = switch (s.role) {
-    StaffRole.cashier => const [Section.dashboard, Section.players, Section.cash],
+    StaffRole.cashier => const [Section.dashboard, Section.players, Section.coins],
     StaffRole.manager => Section.values.where((x) => x != Section.staff).toList(),
     StaffRole.owner => Section.values,
   };
   // A phone gets the basics.
-  const phone = [Section.dashboard, Section.players, Section.cash, Section.games];
+  const phone = [Section.dashboard, Section.players, Section.coins, Section.games];
   return desktop ? all : all.where(phone.contains).toList();
 }
 
@@ -320,7 +320,7 @@ class _AdminShellState extends State<AdminShell> {
   Widget _page(Section s) => switch (s) {
         Section.dashboard => const DashboardPage(),
         Section.players => const PlayersPage(),
-        Section.cash => const CashPage(),
+        Section.coins => const CoinsPage(),
         Section.reports => const ReportsPage(),
         Section.games => const GamesAdminPage(),
         Section.math => const MathPage(),
@@ -370,7 +370,6 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final casino = CasinoScope.of(context);
     final me = casino.admin!;
-    final pending = casino.pendingCashOuts.length;
     return Container(
       width: 248,
       color: K.card,
@@ -408,12 +407,6 @@ class _Sidebar extends StatelessWidget {
                             child: Text(s.label,
                                 style: kt(15, w: s == current ? FontWeight.w700 : FontWeight.w600, c: s == current ? K.greenInk : K.text)),
                           ),
-                          if (s == Section.cash && pending > 0)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(color: K.red, borderRadius: BorderRadius.circular(10)),
-                              child: Text('$pending', style: kt(12, w: FontWeight.w700, c: Colors.white)),
-                            ),
                         ]),
                       ),
                     ),
@@ -530,7 +523,6 @@ class _TabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pending = CasinoScope.of(context).pendingCashOuts.length;
     return Container(
       decoration: const BoxDecoration(color: K.card, border: Border(top: BorderSide(color: K.line))),
       child: SafeArea(
@@ -547,12 +539,7 @@ class _TabBar extends StatelessWidget {
                   child: InkResponse(
                     onTap: () => onPick(s),
                     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Badge(
-                        isLabelVisible: s == Section.cash && pending > 0,
-                        backgroundColor: K.red,
-                        label: Text('$pending'),
-                        child: Icon(s.icon, size: 26, color: s == current ? K.green : K.ink),
-                      ),
+                      Icon(s.icon, size: 26, color: s == current ? K.green : K.ink),
                       const SizedBox(height: 2),
                       ExcludeSemantics(
                         child: Text(s.tab, style: kt(11, w: FontWeight.w600, c: s == current ? K.green : K.sub)),

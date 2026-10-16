@@ -11,7 +11,7 @@ import 'promotions.dart' show RaysBurst;
 class WalletPage extends StatefulWidget {
   const WalletPage({super.key, this.initialTab = 'buy'});
 
-  /// 'buy', 'redeem' or 'history'.
+  /// 'buy' or 'history'.
   final String initialTab;
 
   @override
@@ -19,31 +19,8 @@ class WalletPage extends StatefulWidget {
 }
 
 class WalletPageState extends State<WalletPage> {
-  static const tabs = ['buy', 'redeem', 'history'];
-  late int tab = tabs.indexOf(widget.initialTab).clamp(0, 2);
-  int payout = 0;
-  final _redeemAmount = TextEditingController();
-
-  @override
-  void dispose() {
-    _redeemAmount.dispose();
-    super.dispose();
-  }
-
-  void _requestRedemption(AppState s) {
-    final amount = double.tryParse(_redeemAmount.text.trim().replaceAll(',', ''));
-    if (amount == null || amount <= 0) {
-      showToast(context, 'Enter how many SC to redeem');
-      return;
-    }
-    final error = s.requestRedemption(amount, const ['Bank', 'Gift card'][payout]);
-    if (error != null) {
-      showToast(context, error);
-      return;
-    }
-    _redeemAmount.clear();
-    showToast(context, 'Redemption request submitted');
-  }
+  static const tabs = ['buy', 'history'];
+  late int tab = tabs.indexOf(widget.initialTab).clamp(0, 1);
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +56,7 @@ class WalletPageState extends State<WalletPage> {
                   const SizedBox(width: 8),
                   _BalanceChip(
                     coin: const Coin(label: 'SC', size: 30, fontSize: 10, teal: true),
-                    label: narrow ? 'SWEEPS COINS' : 'SWEEPS · ${fmtSc(s.redeemableSc)} REDEEMABLE',
+                    label: 'SWEEPS COINS',
                     labelColor: Z.teal,
                     value: fmtSc(s.sc),
                   ),
@@ -90,7 +67,7 @@ class WalletPageState extends State<WalletPage> {
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 380),
                         child: SegTabs(
-                          labels: narrow ? const ['BUY', 'REDEEM', 'HISTORY'] : const ['BUY COINS', 'REDEEM', 'HISTORY'],
+                          labels: narrow ? const ['BUY', 'HISTORY'] : const ['BUY COINS', 'HISTORY'],
                           index: tab,
                           height: 36,
                           fontSize: 12,
@@ -106,7 +83,6 @@ class WalletPageState extends State<WalletPage> {
               Expanded(
                 child: switch (tab) {
                   0 => _buy(s),
-                  1 => _redeem(s),
                   _ => _history(s),
                 },
               ),
@@ -139,7 +115,7 @@ class WalletPageState extends State<WalletPage> {
         const SizedBox(height: 10),
         Row(children: [
           Expanded(
-            child: Text('Sweeps Coins are a free bonus with Gold Coin packages. No purchase necessary.',
+            child: Text('Coins are for play only and have no cash value. Sweeps Coins are a free bonus with Gold Coin packages.',
                 style: outfit(12, c: Z.muted2, h: 1.35)),
           ),
           const SizedBox(width: 12),
@@ -149,49 +125,6 @@ class WalletPageState extends State<WalletPage> {
                 height: 46, fontSize: 16, ls: .03, onTap: () => Nav.push(R.checkout)),
           ),
         ]),
-      ]);
-
-  // Amount on the left, how to be paid on the right.
-  Widget _redeem(AppState s) => Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF2F6E5A), width: 1.5),
-                color: const Color(0x1414B38A),
-              ),
-              child: Row(children: [
-                Expanded(child: Text('Redeemable SC', style: outfit(14, c: Z.body))),
-                Text(fmtSc(s.redeemableSc), style: outfit(20, w: FontWeight.w800, c: Z.teal)),
-              ]),
-            ),
-            const SizedBox(height: 10),
-            ZField(
-                label: 'AMOUNT TO REDEEM',
-                hint: 'Minimum ${fmtInt(s.casino.settings.minCashOut)} SC',
-                controller: _redeemAmount,
-                keyboard: const TextInputType.numberWithOptions(decimal: true)),
-            const SizedBox(height: 8),
-            Text('Identity verification is required before your first redemption.',
-                style: outfit(12, c: Z.muted2, h: 1.35)),
-          ]),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text('PAYOUT METHOD', style: outfit(13, w: FontWeight.w600, c: Z.label)),
-            const SizedBox(height: 6),
-            for (final (i, m) in const ['Bank transfer', 'Gift card'].indexed) ...[
-              RadioRow(label: m, selected: payout == i, onTap: () => setState(() => payout = i)),
-              const SizedBox(height: 6),
-            ],
-            const SizedBox(height: 4),
-            CtaButton('REQUEST REDEMPTION',
-                height: 46, fontSize: 16, onTap: () => _requestRedemption(s)),
-          ]),
-        ),
       ]);
 
   // Two columns of compact entries.
@@ -209,12 +142,8 @@ class WalletPageState extends State<WalletPage> {
       for (final t in s.casino.txnsOf(s.playerId ?? '').take(6))
         (
           t.sc != 0 && t.gc == 0 ? 'SC' : 'GC',
-          t.note.isNotEmpty
-              ? t.note
-              : t.type == TxnType.cashOut
-                  ? 'Redemption${t.method.isEmpty ? '' : ' — ${t.method.toLowerCase()}'}'
-                  : statusName(t.type),
-          '${when(t.at)}${t.status == TxnStatus.approved ? '' : ' · ${statusName(t.status)}'}',
+          t.note.isNotEmpty ? t.note : statusName(t.type),
+          when(t.at),
           t.gc != 0 ? '${t.gc > 0 ? '+' : '−'}${fmtInt(t.gc.abs())} GC' : '${t.sc > 0 ? '+' : '−'}${fmtSc(t.sc.abs())} SC',
           t.gc + t.sc >= 0,
         ),

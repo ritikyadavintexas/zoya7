@@ -71,7 +71,7 @@ class _DatabaseCardState extends State<DatabaseCard> {
     final status = switch (sync.state) {
       SyncState.off => 'Not connected. Everything is kept on this device only, so other phones and computers can’t see it.',
       SyncState.connecting => 'Connecting to ${sync.url}…',
-      SyncState.live => 'Live: every device on this database sees the same players, cash and games'
+      SyncState.live => 'Live: every device on this database sees the same players, coins and games'
           '${sync.lastSync == null ? '' : ' (synced ${ago(sync.lastSync!, casino.now)})'}.',
       SyncState.offline => 'Can’t reach the database${sync.error == null ? '' : ': ${sync.error}'}. Changes are kept and sent when it’s back.',
     };

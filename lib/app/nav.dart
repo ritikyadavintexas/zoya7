@@ -41,7 +41,7 @@ class Nav {
   static NavigatorState get _nav => navigatorKey.currentState!;
 
   /// Open a section: back to the lobby, then the section's page on top of
-  /// it (the wallet on [walletTab] — 'buy', 'redeem' or 'history').
+  /// it (the wallet on [walletTab] — 'buy' or 'history').
   static void tab(AppTab tab, {String? walletTab}) {
     var home = false;
     _nav.popUntil((r) {

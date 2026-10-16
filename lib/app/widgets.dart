@@ -371,7 +371,7 @@ class LinkText extends StatelessWidget {
       );
 }
 
-/// Gold pill segmented tabs (LOG IN / SIGN UP, BUY / REDEEM / HISTORY …).
+/// Gold pill segmented tabs (LOG IN / SIGN UP, BUY / HISTORY …).
 class SegTabs extends StatelessWidget {
   const SegTabs({super.key, required this.labels, required this.index, required this.onChanged, this.height = 40, this.fontSize = 13, this.ls = .06});
   final List<String> labels;

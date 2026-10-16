@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../app/assets.dart' show A, games;
 import '../backoffice/casino.dart';
 import 'admin_app.dart';
-import 'cash.dart';
+import 'coins.dart';
 import 'kit.dart';
 import 'players.dart';
 import 'setup.dart';
@@ -27,7 +27,6 @@ class _DashboardPageState extends State<DashboardPage> {
     final periods = Period.standard(now);
     final p = [periods[0], periods[2], periods[3]][period];
     final r = casino.report(p);
-    final pending = casino.pendingCashOuts;
     final greeting = now.hour < 12 ? 'Good morning' : now.hour < 18 ? 'Good afternoon' : 'Good evening';
     final manage = casino.admin!.canManage;
     return DeskPage(
@@ -36,20 +35,19 @@ class _DashboardPageState extends State<DashboardPage> {
       actions: [
         KSegment(values: const [0, 1, 2], selected: period, label: (i) => const ['Today', '7 days', '30 days'][i], onChanged: (i) => setState(() => period = i)),
         KButton('New player ID', tone: KTone.light, icon: Icons.person_add_alt_1_rounded, onTap: () => showCreatePlayer(context)),
-        KButton('Cash in', icon: Icons.south_west_rounded, onTap: () => showCashIn(context)),
+        KButton('Coin in', icon: Icons.south_west_rounded, onTap: () => showCoinIn(context)),
       ],
       children: [
         KGrid(min: 200, children: [
-          KStat(label: 'Cash in', value: usd(r.cashInUsd), sub: '${r.cashIns} payments', icon: Icons.south_west_rounded, color: K.greenInk),
-          KStat(label: 'Cash out', value: usd(r.cashOutUsd), sub: '${r.cashOuts} payouts', icon: Icons.north_east_rounded),
-          KStat(label: 'Net cash', value: usd(r.netCash), sub: 'Cash in − cash out', icon: Icons.account_balance_wallet_outlined, color: r.netCash < 0 ? K.red : K.text),
+          KStat(label: 'Coin in', value: scAmt(r.coinInSc), sub: '${r.coinIns} times · ${compact(r.coinInGc)} GC', icon: Icons.south_west_rounded, color: K.greenInk),
+          KStat(label: 'Coin out', value: scAmt(r.coinOutSc), sub: '${r.coinOuts} times · ${compact(r.coinOutGc)} GC', icon: Icons.north_east_rounded),
+          KStat(label: 'Net coin in', value: scAmt(r.netSc), sub: 'Coin in − coin out', icon: Icons.account_balance_wallet_outlined, color: r.netSc < 0 ? K.red : K.text),
           KStat(
-            label: 'Pending cash outs',
-            value: usd(pending.fold(0, (a, t) => a + t.usd)),
-            sub: '${pending.length} waiting',
-            icon: Icons.schedule_rounded,
-            color: pending.isEmpty ? K.text : K.amber,
-            onTap: () => AdminNav.to(context, Section.cash),
+            label: 'Player balances',
+            value: scAmt(r.closeSc),
+            sub: '${compact(r.closeGc)} GC · all players',
+            icon: Icons.toll_rounded,
+            onTap: () => AdminNav.to(context, Section.coins),
           ),
           KStat(label: 'Players who played', value: '${r.active.length}', sub: '${r.rounds} rounds', icon: Icons.sports_esports_outlined),
           KStat(label: 'New player IDs', value: '${r.newPlayers}', sub: '${casino.players.length} in total', icon: Icons.person_add_alt_outlined),
@@ -57,34 +55,13 @@ class _DashboardPageState extends State<DashboardPage> {
           KStat(label: 'Online now', value: '${casino.online}', sub: 'Seen in the last 15 min', icon: Icons.wifi_tethering_rounded),
         ]),
         const SizedBox(height: 16),
-        LayoutBuilder(builder: (context, box) {
-          final chart = KCard(
-            padding: const EdgeInsets.all(18),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              KTitle('Cash in vs cash out · last 14 days', trailing: manage ? KButton('Reports', tone: KTone.ghost, height: 32, onTap: () => AdminNav.to(context, Section.reports)) : null),
-              KBarChart(days: casino.daily(14), height: 200),
-            ]),
-          );
-          final queue = KCard(
-            padding: const EdgeInsets.all(18),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              KTitle('Waiting for approval', trailing: KButton('All', tone: KTone.ghost, height: 32, onTap: () => AdminNav.to(context, Section.cash))),
-              if (pending.isEmpty) const KEmpty('All caught up', icon: Icons.task_alt_rounded),
-              for (final t in pending.take(4)) PendingTile(t),
-            ]),
-          );
-          return box.maxWidth >= 980
-              ? IntrinsicHeight(
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    Expanded(flex: 3, child: chart),
-                    const SizedBox(width: 16),
-                    Expanded(flex: 2, child: queue),
-                  ]),
-                )
-              : Column(children: [chart, const SizedBox(height: 16), queue]);
-        }),
-        const SizedBox(height: 16),
-        const ShiftCard(),
+        KCard(
+          padding: const EdgeInsets.all(18),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            KTitle('Coin in vs coin out (SC) · last 14 days', trailing: manage ? KButton('Reports', tone: KTone.ghost, height: 32, onTap: () => AdminNav.to(context, Section.reports)) : null),
+            KBarChart(days: casino.daily(14), height: 200),
+          ]),
+        ),
         const SizedBox(height: 16),
         LayoutBuilder(builder: (context, box) {
           final gamesCard = KCard(
@@ -116,48 +93,39 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _phone(BuildContext context) {
     final casino = CasinoScope.of(context);
     final r = casino.report(Period.standard(casino.now).first);
-    final pending = casino.pendingCashOuts;
     return ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
       const InstallCard(),
-      // Cash App's balance: one big number.
+      // Cash App's balance: one big number (in coins).
       KCard(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Net cash today', style: kt(15, c: K.sub)),
+          Text('Net coin in today', style: kt(15, c: K.sub)),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(usd(r.netCash), style: kt(46, w: FontWeight.w700, c: r.netCash < 0 ? K.red : K.text, num: true, h: 1.2)),
+            child: Text(scAmt(r.netSc), style: kt(46, w: FontWeight.w700, c: r.netSc < 0 ? K.red : K.text, num: true, h: 1.2)),
           ),
           const SizedBox(height: 4),
           Row(children: [
-            Expanded(child: _flow(Icons.south_west_rounded, 'In', usd(r.cashInUsd), K.greenInk)),
-            Expanded(child: _flow(Icons.north_east_rounded, 'Out', usd(r.cashOutUsd), K.text)),
+            Expanded(child: _flow(Icons.south_west_rounded, 'In', scAmt(r.coinInSc), K.greenInk)),
+            Expanded(child: _flow(Icons.north_east_rounded, 'Out', scAmt(r.coinOutSc), K.text)),
           ]),
         ]),
       ),
       const SizedBox(height: 14),
       Row(children: [
         Expanded(child: _Quick(Icons.person_add_alt_1_rounded, 'New ID', () => showCreatePlayer(context))),
-        Expanded(child: _Quick(Icons.south_west_rounded, 'Cash in', () => showCashIn(context))),
-        Expanded(child: _Quick(Icons.north_east_rounded, 'Cash out', () => showCashOut(context))),
+        Expanded(child: _Quick(Icons.south_west_rounded, 'Coin in', () => showCoinIn(context))),
+        Expanded(child: _Quick(Icons.north_east_rounded, 'Coin out', () => showCoinOut(context))),
       ]),
-      const SizedBox(height: 14),
-      const ShiftCard(),
-      const SizedBox(height: 14),
-      KCard(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          KTitle('Waiting for approval', size: 17, trailing: pending.length > 3 ? KButton('All ${pending.length}', tone: KTone.ghost, height: 30, onTap: () => AdminNav.to(context, Section.cash)) : null),
-          if (pending.isEmpty) const KEmpty('All caught up', icon: Icons.task_alt_rounded),
-          for (final t in pending.take(3)) PendingTile(t),
-        ]),
-      ),
       const SizedBox(height: 14),
       KGrid(min: 150, gap: 10, max: 2, children: [
         _small('Players who played', '${r.active.length}'),
         _small('New player IDs', '${r.newPlayers}'),
         _small('Hold (SC)', grouped(r.ggrSc)),
         _small('Online now', '${casino.online}'),
+        _small('Player balances', scAmt(r.closeSc)),
+        _small('Coin ins today', '${r.coinIns}'),
       ]),
       const SizedBox(height: 14),
       KCard(

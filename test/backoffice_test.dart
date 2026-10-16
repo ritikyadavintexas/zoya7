@@ -18,16 +18,16 @@ void main() {
       expect(c.me.gc, 125000);
       expect(c.me.sc, 250.5);
       expect(c.players.every((p) => p.sc >= 0 && p.gc >= 0), isTrue);
-      expect(c.txns.where((t) => t.type == TxnType.cashIn).length, greaterThan(50));
-      expect(c.pendingCashOuts, isNotEmpty);
+      expect(c.txns.where((t) => t.type == TxnType.coinIn).length, greaterThan(50));
+      expect(c.txns.where((t) => t.type == TxnType.coinOut), isNotEmpty);
     });
 
-    test('every report balances: starting amount + money in − money out ± play = ending amount', () {
+    test('every report balances: starting amount + coin in − coin out ± play = ending amount', () {
       final c = demo();
       for (final p in Period.standard(now)) {
         final r = c.report(p);
-        final sc = r.openSc + r.cashInSc + r.startSc + r.bonusSc + r.adjustSc - r.cashOutSc + (r.wonSc - r.wageredSc);
-        final gc = r.openGc + r.cashInGc + r.startGc + r.bonusGc + r.adjustGc + (r.wonGc - r.wageredGc);
+        final sc = r.openSc + r.coinInSc + r.startSc + r.bonusSc + r.adjustSc - r.coinOutSc + (r.wonSc - r.wageredSc);
+        final gc = r.openGc + r.coinInGc + r.startGc + r.bonusGc + r.adjustGc - r.coinOutGc + (r.wonGc - r.wageredGc);
         expect(sc, closeTo(r.closeSc, .05), reason: p.label);
         expect(gc, closeTo(r.closeGc, 1), reason: p.label);
       }
@@ -42,11 +42,11 @@ void main() {
       expect(back.players.length, c.players.length);
       expect(back.txns.length, c.txns.length);
       expect(back.config('classic777').rtp, closeTo(c.config('classic777').rtp, 1e-9));
-      expect(back.report(Period.standard(now)[3]).cashInUsd, c.report(Period.standard(now)[3]).cashInUsd);
+      expect(back.report(Period.standard(now)[3]).coinInSc, c.report(Period.standard(now)[3]).coinInSc);
     });
   });
 
-  group('players and cash', () {
+  group('players and coins', () {
     test('a new player ID gets the starting amount from settings', () {
       final c = demo();
       c.updateSettings('start', (s) => s
@@ -68,46 +68,35 @@ void main() {
       expect(made.map((p) => p.username), ['shop001', 'shop003', 'shop004']);
     });
 
-    test('cash in buys coins at the set rate and bonus', () {
+    test('coin in adds coins, up to the daily limit', () {
       final c = demo();
-      final p = c.createPlayer(username: 'payer', startGc: 0, startSc: 0);
-      c.updateSettings('bonus', (s) => s.cashInBonusPct = 10);
-      c.cashIn(p, 20, method: 'Cash');
-      expect(p.sc, 22);
-      expect(p.gc, 220000);
-      expect(() => c.cashIn(p, 5000), throwsA(isA<CasinoError>()));
+      final p = c.createPlayer(username: 'loaded', startGc: 0, startSc: 0);
+      c.updateSettings('limit', (s) => s.maxCoinInPerDay = 100);
+      final t = c.coinIn(p, sc: 60, gc: 600000, note: 'Promo');
+      expect((p.sc, p.gc), (60, 600000));
+      expect((t.type, t.by, t.note), (TxnType.coinIn, 'Owner', 'Promo'));
+      expect(() => c.coinIn(p, sc: 50), throwsA(isA<CasinoError>())); // over 100 SC today
+      expect(() => c.coinIn(p), throwsA(isA<CasinoError>())); // nothing to add
+      c.setPlayerStatus(p, PlayerStatus.suspended);
+      expect(() => c.coinIn(p, sc: 1), throwsA(isA<CasinoError>()));
     });
 
-    test('cash out holds SC until approved; rejecting gives it back', () {
+    test('coin out takes coins off at once, never below zero', () {
       final c = demo();
-      final p = c.createPlayer(username: 'winner', startGc: 0, startSc: 300);
-      final t = c.cashOut(p, 100);
-      expect(t.status, TxnStatus.pending);
-      expect(p.sc, 200);
-      c.reject(t, reason: 'ID check');
-      expect(p.sc, 300);
-      final t2 = c.cashOut(p, 120);
-      c.approve(t2);
-      expect(t2.settledBy, 'Owner');
-      expect(p.sc, 180);
-      expect(() => c.cashOut(p, 20), throwsA(isA<CasinoError>())); // under the minimum
-      expect(() => c.cashOut(p, 500), throwsA(isA<CasinoError>())); // more than they have
+      final p = c.createPlayer(username: 'spender', startGc: 1000, startSc: 300);
+      c.coinOut(p, sc: 120, gc: 400);
+      expect((p.sc, p.gc), (180, 600));
+      expect(() => c.coinOut(p, sc: 500), throwsA(isA<CasinoError>()));
+      expect(() => c.coinOut(p, gc: 601), throwsA(isA<CasinoError>()));
+      final r = c.report(Period.standard(now).first);
+      expect(r.coinOutSc, greaterThanOrEqualTo(120));
+      expect(r.players[p.id]!.coinOutSc, 120);
+      expect(r.players[p.id]!.netSc, -120);
     });
 
-    test('a shift expects its starting amount plus cash in minus cash out', () {
-      final c = demo();
-      final p = c.createPlayer(username: 'drawer', startGc: 0, startSc: 500);
-      final s = c.startShift(150);
-      c.cashIn(p, 40, method: 'Cash');
-      c.cashIn(p, 25, method: 'Cash App');
-      c.cashOut(p, 60, method: 'Cash', review: false);
-      final sum = c.summary(s);
-      expect(sum.cashIn, 65);
-      expect(sum.drawerIn, 40);
-      expect(sum.drawerOut, 60);
-      expect(sum.expected, 130);
-      c.closeShift(s, 125);
-      expect(c.summary(s).difference, -5);
+    test('older ledger lines with money fields still load; a turned-down one moves nothing', () {
+      final t = Txn.fromJson({'id': 'T1', 'p': 'Z7-1', 't': 2, 'at': 0, 'usd': 50, 'gc': 0, 'sc': -50, 'm': 'Bank', 's': 2});
+      expect((t.type, t.sc), (TxnType.coinOut, 0));
     });
   });
 

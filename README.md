@@ -4,9 +4,9 @@ Flutter build of the Zoya7 design: the full app and the **Gold** slot, all in la
 
 **App pages:** splash, welcome, log in / sign up, forgot password (3 steps), lobby with live
 jackpots, games (search + categories), coming soon (Mega Reels, Blackjack, Roulette, Plinko), promotions
-with the 7-day streak, daily-bonus popup, slots-race leaderboard, wallet (buy / redeem / history),
+with the 7-day streak, daily-bonus popup, slots-race leaderboard, wallet (buy / history),
 checkout, purchase success, profile, edit profile (avatar frames), VIP club, notifications, settings,
-chat (community + support, mute / report), legal (terms / privacy / sweeps rules) and no-connection.
+chat (community + support, mute / report), legal (terms / privacy / coin rules) and no-connection.
 
 **Game (landscape):** base game, Big / Super / Mega / Jackpot wins, paytable, in-game settings,
 not-enough-coins and table chat.
@@ -22,15 +22,18 @@ https://ritikyadavintexas.github.io/zoya7/admin/) and add it to the home screen:
 **Z7 Admin**, separate from the game, upright, with its own green icon. Sign in once with your staff PIN;
 the device stays signed in until *Lock*.
 
-- *Phone* — the basics, in four tabs: **Today** (net cash, in/out, approvals, drawer), **Players**
-  (search, create a player ID, profile with cash in/out), **Cash** (Cash App keypad: pick a player,
-  type an amount, cash in or out; pending queue; history) and **Games** (on/off switches,
+**Coins only.** Coins have no cash value: staff put coins on an account (*coin in*) and take them
+off (*coin out*). No money amounts, payment methods or payouts are recorded anywhere.
+
+- *Phone* — the basics, in four tabs: **Today** (net coin in, in/out, player balances), **Players**
+  (search, create a player ID, profile with coin in/out), **Coins** (Cash App–style keypad: pick a
+  player, type an amount of Sweeps or Gold Coins, coin in or out; history) and **Games** (on/off switches,
   maintenance mode). The avatar menu has *Database & install*.
 - *Desktop* — everything: dashboard; players (bulk IDs, bonuses, adjustments, password reset,
-  suspend / ban / delete); cash ledger, approvals and drawer shifts (starting amount → expected →
-  counted); reports (starting / ending amount, cash in / out, per game, per player, by staff — CSV);
+  suspend / ban / delete); coin ledger; reports (starting / ending amount, coin in / out, per game,
+  per player, by staff — CSV);
   games (live / off / hidden, featured, ribbons, bet limits); game math (slot RTP solver, reel
-  stops, spin simulator, blackjack rules); settings (starting amount, rates, limits, database,
+  stops, spin simulator, blackjack rules); settings (starting amount, daily coin-in limit, database,
   clean start); staff & audit log.
 
 **Players need a player ID.** There is no sign-up or guest play: the game's log-in takes the

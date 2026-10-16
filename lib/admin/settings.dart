@@ -7,7 +7,7 @@ import 'admin_app.dart';
 import 'kit.dart';
 import 'setup.dart';
 
-/// Rules for the whole casino: starting amount, cash in/out rates and limits.
+/// Rules for the whole casino: starting amount and the coin-in limit.
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -21,14 +21,7 @@ class _SettingsPageState extends State<SettingsPage> {
   late final f = {
     'ngc': TextEditingController(text: _n(s.newPlayerGc)),
     'nsc': TextEditingController(text: _n(s.newPlayerSc)),
-    'gpd': TextEditingController(text: _n(s.gcPerDollar)),
-    'spd': TextEditingController(text: _n(s.scPerDollar)),
-    'bon': TextEditingController(text: _n(s.cashInBonusPct)),
-    'mci': TextEditingController(text: _n(s.maxCashInPerDay)),
-    'ups': TextEditingController(text: _n(s.usdPerSc)),
-    'mco': TextEditingController(text: _n(s.minCashOut)),
-    'mcd': TextEditingController(text: _n(s.maxCashOutPerDay)),
-    'aau': TextEditingController(text: _n(s.autoApproveUnder)),
+    'cid': TextEditingController(text: _n(s.maxCoinInPerDay)),
   };
   late bool registration = s.registrationOpen, daily = s.dailyBonus;
 
@@ -44,36 +37,27 @@ class _SettingsPageState extends State<SettingsPage> {
 
   void _save() {
     final v = {for (final e in f.entries) e.key: amountOf(e.value.text)};
-    if (v.values.any((x) => x == null || x < 0) || v['ups'] == 0) {
+    if (v.values.any((x) => x == null || x < 0)) {
       kToast(context, 'Every field needs a number (0 or more)');
       return;
     }
-    casino.updateSettings('starting amount ${grouped(v['ngc']!, 0)} GC + ${grouped(v['nsc']!)} SC, rates and limits', (s) => s
+    casino.updateSettings('starting amount ${grouped(v['ngc']!, 0)} GC + ${grouped(v['nsc']!)} SC, coin-in limit ${grouped(v['cid']!)} SC', (s) => s
       ..newPlayerGc = v['ngc']!
       ..newPlayerSc = v['nsc']!
-      ..gcPerDollar = v['gpd']!
-      ..scPerDollar = v['spd']!
-      ..cashInBonusPct = v['bon']!
-      ..maxCashInPerDay = v['mci']!
-      ..usdPerSc = v['ups']!
-      ..minCashOut = v['mco']!
-      ..maxCashOutPerDay = v['mcd']!
-      ..autoApproveUnder = v['aau']!
+      ..maxCoinInPerDay = v['cid']!
       ..registrationOpen = registration
       ..dailyBonus = daily);
     kToast(context, 'Settings saved');
   }
 
-  Widget _num(String key, String label, {String? prefix, String? help}) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-        KField(label: label, controller: f[key], prefix: prefix, keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money),
-        if (help != null) ...[const SizedBox(height: 4), Text(help, style: kt(12, c: K.faint))],
-      ]);
+  Widget _num(String key, String label) =>
+      KField(label: label, controller: f[key], keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money);
 
   @override
   Widget build(BuildContext context) {
     return DeskPage(
       title: 'Settings',
-      sub: 'Starting amount, what cash buys, and the limits on cash in and out',
+      sub: 'Starting amount and coin-in limit · coins have no cash value',
       actions: [KButton('Save changes', icon: Icons.check_rounded, onTap: _save)],
       children: [
         const InstallCard(),
@@ -89,31 +73,10 @@ class _SettingsPageState extends State<SettingsPage> {
             KRow(title: 'Players can sign up in the app', trailing: KSwitch(label: 'Players can sign up', value: registration, onChanged: (v) => setState(() => registration = v))),
             KRow(title: 'Daily bonus', sub: 'The 7-day streak in the app', trailing: KSwitch(label: 'Daily bonus', value: daily, onChanged: (v) => setState(() => daily = v))),
           ]),
-          _card('Cash in', Icons.south_west_rounded, [
-            Row(children: [
-              Expanded(child: _num('gpd', 'GC per \$1')),
-              const SizedBox(width: 12),
-              Expanded(child: _num('spd', 'SC per \$1')),
-            ]),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: _num('bon', 'Bonus on every cash in (%)')),
-              const SizedBox(width: 12),
-              Expanded(child: _num('mci', 'Max per player per day', prefix: '\$ ')),
-            ]),
-          ]),
-          _card('Cash out', Icons.north_east_rounded, [
-            Row(children: [
-              Expanded(child: _num('ups', 'Value of 1 SC', prefix: '\$ ')),
-              const SizedBox(width: 12),
-              Expanded(child: _num('mco', 'Minimum (SC)')),
-            ]),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: _num('mcd', 'Max per player per day', prefix: '\$ ')),
-              const SizedBox(width: 12),
-              Expanded(child: _num('aau', 'Auto-pay up to (SC)', help: '0 = every request is reviewed')),
-            ]),
+          _card('Coin in', Icons.south_west_rounded, [
+            _num('cid', 'Most Sweeps Coins per player per day'),
+            const SizedBox(height: 10),
+            Text('Coins are for play only: they have no cash value and are never paid out.', style: kt(13, c: K.sub, h: 1.4)),
           ]),
           _card('Data', Icons.storage_rounded, [
             Text(
@@ -127,7 +90,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 KButton('Clear players & ledger', tone: KTone.red, icon: Icons.delete_sweep_outlined, height: 42, onTap: () async {
                   if (await kConfirm(context,
                           title: 'Start clean?',
-                          message: 'Every player ID, the cash ledger, play records and shifts are removed — on every device '
+                          message: 'Every player ID, the coin ledger and play records are removed — on every device '
                               'on the shared database. Staff, settings and games stay.',
                           action: 'Clear everything',
                           danger: true) &&
@@ -186,7 +149,7 @@ class _StaffPageState extends State<StaffPage> {
     final log = casino.audit.reversed.where((a) => q.isEmpty || '${a.by} ${a.action}'.toLowerCase().contains(q.toLowerCase())).take(150).toList();
     return DeskPage(
       title: 'Staff & log',
-      sub: 'Owners do everything · managers all but staff · cashiers players and cash',
+      sub: 'Owners do everything · managers all but staff · cashiers players and coins',
       actions: [KButton('Add staff', icon: Icons.person_add_alt_rounded, onTap: () => _add(context))],
       children: [
         KCard(

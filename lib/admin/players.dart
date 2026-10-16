@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../app/assets.dart' show games;
 import '../backoffice/casino.dart';
 import 'admin_app.dart';
-import 'cash.dart';
+import 'coins.dart';
 import 'kit.dart';
 
 /// Open a player's profile: beside the list on a wide screen, else full page.
@@ -25,7 +25,7 @@ class PlayersPage extends StatefulWidget {
   State<PlayersPage> createState() => _PlayersPageState();
 }
 
-enum _Sort { newest, balance, cashIn, lastSeen }
+enum _Sort { newest, balance, coinIn, lastSeen }
 
 class _PlayersPageState extends State<PlayersPage> {
   String q = '';
@@ -43,8 +43,8 @@ class _PlayersPageState extends State<PlayersPage> {
         l.sort((a, b) => b.created.compareTo(a.created));
       case _Sort.balance:
         l.sort((a, b) => b.sc.compareTo(a.sc));
-      case _Sort.cashIn:
-        final t = {for (final p in l) p.id: casino.cashInTotal(p.id)};
+      case _Sort.coinIn:
+        final t = {for (final p in l) p.id: casino.coinInTotal(p.id)};
         l.sort((a, b) => t[b.id]!.compareTo(t[a.id]!));
       case _Sort.lastSeen:
         l.sort((a, b) => b.lastSeen.compareTo(a.lastSeen));
@@ -67,7 +67,7 @@ class _PlayersPageState extends State<PlayersPage> {
           KSegment<_Sort>(
             values: _Sort.values,
             selected: sort,
-            label: (s) => switch (s) { _Sort.newest => 'Newest', _Sort.balance => 'Balance', _Sort.cashIn => 'Cash in', _Sort.lastSeen => 'Last seen' },
+            label: (s) => switch (s) { _Sort.newest => 'Newest', _Sort.balance => 'Balance', _Sort.coinIn => 'Coin in', _Sort.lastSeen => 'Last seen' },
             onChanged: (s) => setState(() => sort = s),
           ),
       ]);
@@ -123,7 +123,7 @@ class _PlayersPageState extends State<PlayersPage> {
               ? const KEmpty('No players match', icon: Icons.person_search_outlined)
               : KTable(
                   minWidth: 860,
-                  columns: const ['Player', 'ID', 'Sweeps Coins', 'Gold Coins', 'Cash in (all time)', 'Status', 'Last seen'],
+                  columns: const ['Player', 'ID', 'Sweeps Coins', 'Gold Coins', 'Coin in SC (all time)', 'Status', 'Last seen'],
                   numeric: const {2, 3, 4},
                   rows: [
                     for (final p in list)
@@ -141,7 +141,7 @@ class _PlayersPageState extends State<PlayersPage> {
                         cellText(p.id, c: K.sub, size: 13),
                         cellText(grouped(p.sc), w: FontWeight.w600),
                         cellText(compact(p.gc), c: K.sub),
-                        cellText(usd(casino.cashInTotal(p.id))),
+                        cellText(grouped(casino.coinInTotal(p.id))),
                         KBadge.player(p.status),
                         cellText(ago(p.lastSeen, casino.now), c: K.sub, size: 13),
                       ],
@@ -225,7 +225,7 @@ class _CreatePlayerState extends State<_CreatePlayer> {
   @override
   Widget build(BuildContext context) {
     final p = made;
-    if (p != null) return CredentialsCard(p, onDone: () => Navigator.of(context).pop(), offerCashIn: true);
+    if (p != null) return CredentialsCard(p, onDone: () => Navigator.of(context).pop(), offerCoinIn: true);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Row(children: [
         Expanded(child: KField(label: 'Username', controller: username, icon: Icons.alternate_email_rounded)),
@@ -281,10 +281,10 @@ class _CreatePlayerState extends State<_CreatePlayer> {
 
 /// The new account's login, ready to hand to the player.
 class CredentialsCard extends StatelessWidget {
-  const CredentialsCard(this.p, {super.key, required this.onDone, this.offerCashIn = false});
+  const CredentialsCard(this.p, {super.key, required this.onDone, this.offerCoinIn = false});
   final Player p;
   final VoidCallback onDone;
-  final bool offerCashIn;
+  final bool offerCoinIn;
 
   String get login => 'Zoya7 login\nPlayer ID: ${p.id}\nUsername: ${p.username}\nPassword: ${p.password}';
 
@@ -314,13 +314,13 @@ class CredentialsCard extends StatelessWidget {
         KButton('Copy login', tone: KTone.dark, icon: Icons.copy_rounded, expand: true, onTap: () => copy(context, login, 'Login')),
         const SizedBox(height: 10),
         Row(children: [
-          if (offerCashIn) ...[
+          if (offerCoinIn) ...[
             Expanded(
-              child: KButton('Cash in now', icon: Icons.south_west_rounded, onTap: () {
+              child: KButton('Coin in now', icon: Icons.south_west_rounded, onTap: () {
                 // The sheet closes; open the next one from the navigator.
                 final host = Navigator.of(context).context;
                 onDone();
-                showCashIn(host, player: p);
+                showCoinIn(host, player: p);
               }),
             ),
             const SizedBox(width: 10),
@@ -446,8 +446,8 @@ class _PlayerDetailState extends State<PlayerDetail> {
     final p = casino.player(widget.playerId);
     if (p == null) return const KEmpty('This player was deleted', icon: Icons.person_off_outlined);
     final txns = casino.txnsOf(p.id);
-    final cashIn = txns.where((t) => t.type == TxnType.cashIn).fold<double>(0, (a, t) => a + t.usd);
-    final cashOut = txns.where((t) => t.type == TxnType.cashOut && t.status == TxnStatus.approved).fold<double>(0, (a, t) => a + t.usd);
+    final coinIn = txns.where((t) => t.type == TxnType.coinIn).fold<double>(0, (a, t) => a + t.sc);
+    final coinOut = txns.where((t) => t.type == TxnType.coinOut).fold<double>(0, (a, t) => a - t.sc);
     final plays = casino.plays.values.where((x) => x.playerId == p.id);
     final byGame = <String, ({int rounds, double w, double win})>{};
     for (final x in plays) {
@@ -490,10 +490,10 @@ class _PlayerDetailState extends State<PlayerDetail> {
             alignment: Alignment.centerLeft,
             child: Text(grouped(p.sc), style: kt(40, w: FontWeight.w700, c: Colors.white, num: true)),
           ),
-          Text('${gcAmt(p.gc)} · worth ${usd(p.sc * casino.settings.usdPerSc)}', style: kt(14, c: const Color(0xB3FFFFFF))),
+          Text('${gcAmt(p.gc)} · no cash value', style: kt(14, c: const Color(0xB3FFFFFF))),
           const SizedBox(height: 14),
           Row(children: [
-            Expanded(child: KButton('Cash in', height: 44, onTap: p.status == PlayerStatus.active ? () => showCashIn(context, player: p) : null)),
+            Expanded(child: KButton('Coin in', height: 44, onTap: p.status == PlayerStatus.active ? () => showCoinIn(context, player: p) : null)),
             const SizedBox(width: 10),
             Expanded(
               child: Material(
@@ -501,8 +501,8 @@ class _PlayerDetailState extends State<PlayerDetail> {
                 shape: const StadiumBorder(),
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
-                  onTap: () => showCashOut(context, player: p),
-                  child: SizedBox(height: 44, child: Center(child: Text('Cash out', style: kt(16, w: FontWeight.w700, c: Colors.white)))),
+                  onTap: () => showCoinOut(context, player: p),
+                  child: SizedBox(height: 44, child: Center(child: Text('Coin out', style: kt(16, w: FontWeight.w700, c: Colors.white)))),
                 ),
               ),
             ),
@@ -527,7 +527,7 @@ class _PlayerDetailState extends State<PlayerDetail> {
           _Action(Icons.play_circle_outline_rounded, 'Reactivate', () => casino.setPlayerStatus(p, PlayerStatus.active)),
         if (canManage && p.status != PlayerStatus.banned)
           _Action(Icons.block_rounded, 'Ban', () async {
-            if (await kConfirm(context, title: 'Ban ${p.username}?', message: 'They won’t be able to log in or cash in.', action: 'Ban', danger: true)) {
+            if (await kConfirm(context, title: 'Ban ${p.username}?', message: 'They won’t be able to log in or get coins.', action: 'Ban', danger: true)) {
               casino.setPlayerStatus(p, PlayerStatus.banned);
             }
           }, danger: true),
@@ -562,11 +562,11 @@ class _PlayerDetailState extends State<PlayerDetail> {
         ]),
       ),
       const SizedBox(height: 18),
-      const KTitle('Money', size: 16),
+      const KTitle('Coins', size: 16),
       KGrid(min: 150, gap: 10, children: [
-        _stat('Cash in', usd(cashIn), K.greenInk),
-        _stat('Cash out', usd(cashOut)),
-        _stat('Net', usd(cashIn - cashOut), cashIn - cashOut < 0 ? K.red : K.text),
+        _stat('Coin in (SC)', grouped(coinIn), K.greenInk),
+        _stat('Coin out (SC)', grouped(coinOut)),
+        _stat('Net (SC)', grouped(coinIn - coinOut), coinIn - coinOut < 0 ? K.red : K.text),
         _stat('Starting amount', '${compact(p.startGc)} GC + ${grouped(p.startSc)} SC'),
         _stat('Played (SC)', grouped(wagered)),
         _stat('Won (SC)', grouped(won)),

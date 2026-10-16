@@ -398,8 +398,7 @@ class EditProfileScreen extends StatelessWidget {
                   child: ListView(scrollDirection: Axis.horizontal, children: [
                     _AccountAction('Change password', onTap: () => Nav.push(R.forgot)),
                     const SizedBox(width: 8),
-                    _AccountAction('Verify identity',
-                        highlight: true, onTap: () => Nav.tab(AppTab.wallet, walletTab: 'redeem')),
+                    _AccountAction('Verify identity', highlight: true, onTap: () => Nav.push(R.chat, 'support')),
                     const SizedBox(width: 8),
                     _AccountAction('Close account', danger: true, onTap: () => Nav.push(R.chat, 'support')),
                   ]),
@@ -453,9 +452,9 @@ class _VipScreenState extends State<VipScreen> {
   static const tiers = [
     ('Bronze', Color(0xFFD9915A), '0 – 9,999 pts', ['Daily bonus', 'Weekly promotions', 'Live chat support']),
     ('Silver', Color(0xFFD9DAE6), '10,000 pts', ['Bigger daily bonus', 'Birthday gift', 'Priority chat support']),
-    ('Gold', Color(0xFFF2C869), '50,000 pts', ['Gold daily bonus', 'Faster redemptions', 'Exclusive tournaments']),
+    ('Gold', Color(0xFFF2C869), '50,000 pts', ['Gold daily bonus', 'Bigger daily bonus', 'Exclusive tournaments']),
     ('Platinum', Color(0xFF9FD8FF), '150,000 pts', ['Platinum bonus wheel', 'Monthly cashback in GC', 'Dedicated VIP host']),
-    ('Diamond', Color(0xFFC99BFF), 'Invite only', ['Custom rewards', 'Event invitations', 'Top-priority redemptions']),
+    ('Diamond', Color(0xFFC99BFF), 'Invite only', ['Custom rewards', 'Event invitations', 'Priority support']),
   ];
 
   @override
@@ -918,7 +917,7 @@ class _Note extends StatelessWidget {
       );
 }
 
-// ── Terms, privacy & sweeps rules ────────────────────────────────────────────
+// ── Terms, privacy & coin rules ─────────────────────────────────────────────
 
 class LegalScreen extends StatefulWidget {
   const LegalScreen({super.key, this.doc = 'terms'});
@@ -936,7 +935,7 @@ class _LegalScreenState extends State<LegalScreen> {
     ('TERMS', 'Terms of Service', [
       ('1. Eligibility', '[Minimum age, eligible locations and excluded jurisdictions.]'),
       ('2. Your account', '[One account per person, accurate information, account security.]'),
-      ('3. Virtual currencies', '[Gold Coins have no monetary value. Sweeps Coins rules are set out in the Sweepstakes Rules.]'),
+      ('3. Virtual currencies', 'Gold Coins and Sweeps Coins are for play only. They have no cash value and can’t be redeemed for money or prizes.'),
       ('4. Purchases & refunds', '[Package purchases, payment methods, refund policy.]'),
       ('5. Prohibited conduct', '[Cheating, multiple accounts, abuse in chat, automated play.]'),
       ('6. Ending your account', '[Closure, suspension and what happens to balances.]'),
@@ -948,12 +947,12 @@ class _LegalScreenState extends State<LegalScreen> {
       ('Your choices', '[Access, correction, deletion, marketing opt-out.]'),
       ('Retention & security', '[How long data is kept and how it is protected.]'),
     ]),
-    ('SWEEPS RULES', 'Official Sweepstakes Rules', [
-      ('Sponsor', '[Legal name and address of the sponsor.]'),
-      ('Who can enter', '[Age requirement and eligible / excluded states or countries.]'),
-      ('How to get Sweeps Coins', '[Free bonus with Gold Coin packages, daily bonus, free entry method and its limits.]'),
-      ('Redeeming prizes', '[Minimum redemption, verification required, payout methods and timing.]'),
-      ('Odds & prizes', '[How winning outcomes are determined; prize values.]'),
+    ('COIN RULES', 'Coin Rules', [
+      ('Operator', '[Legal name and address of the operator.]'),
+      ('Who can play', '[Age requirement and eligible countries.]'),
+      ('Getting coins', '[Starting amount, daily bonus, coin packages, coins added by staff.]'),
+      ('No cash value', 'Coins can’t be exchanged, redeemed or paid out for money or prizes.'),
+      ('Odds', '[How game outcomes are determined.]'),
       ('Disputes', '[Governing law and how disputes are resolved.]'),
     ]),
   ];
@@ -1013,10 +1012,10 @@ class _LegalScreenState extends State<LegalScreen> {
                   border: Border.all(color: Z.goldEdge, width: 2),
                 ),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('NO PURCHASE NECESSARY', style: outfit(15, w: FontWeight.w800, ls: .06, c: Z.goldHi)),
+                  Text('NO CASH VALUE', style: outfit(15, w: FontWeight.w800, ls: .06, c: Z.goldHi)),
                   const SizedBox(height: 6),
                   Text(
-                      'A purchase does not increase your chances of winning. Free Sweeps Coins are available through [FREE ENTRY METHOD — e.g. mail-in request, daily bonus].',
+                      'Coins are for entertainment only. Winning coins never wins money or prizes.',
                       style: outfit(14, c: Z.soft, h: 1.5)),
                 ]),
               ),

@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:zoya7_gold/admin/admin_app.dart';
-import 'package:zoya7_gold/admin/cash.dart';
+import 'package:zoya7_gold/admin/coins.dart';
 import 'package:zoya7_gold/admin/games.dart' show showBetLimits;
 import 'package:zoya7_gold/admin/players.dart';
 import 'package:zoya7_gold/app/assets.dart';
@@ -79,7 +79,7 @@ void main() {
         await clear(tester);
       });
 
-      for (final section in desktop ? Section.values : const [Section.dashboard, Section.players, Section.cash, Section.games]) {
+      for (final section in desktop ? Section.values : const [Section.dashboard, Section.players, Section.coins, Section.games]) {
         testWidgets('${section.label} fits', (tester) async {
           await show(tester, size, section: section);
           expectFits(tester, section.label);
@@ -95,9 +95,9 @@ void main() {
       }
 
       if (!desktop) {
-        testWidgets('cash tab: pending and history fit', (tester) async {
-          await show(tester, size, section: Section.cash);
-          for (final tab in ['Pending', 'History']) {
+        testWidgets('coins tab: history fits', (tester) async {
+          await show(tester, size, section: Section.coins);
+          for (final tab in ['History']) {
             await tester.tap(find.textContaining(tab).first);
             await tester.pump(const Duration(milliseconds: 300));
             expectFits(tester, tab);
@@ -111,8 +111,8 @@ void main() {
         final ctx = tester.element(find.byType(AdminShell));
         final forms = <String, Future<void> Function()>{
           'new player': () => showCreatePlayer(ctx),
-          'cash in': () => showCashIn(ctx, player: c.player('Z7-100101')),
-          'cash out': () => showCashOut(ctx, player: c.player('Z7-100101')),
+          'coin in': () => showCoinIn(ctx, player: c.player('Z7-100101')),
+          'coin out': () => showCoinOut(ctx, player: c.player('Z7-100101')),
           'bonus': () => showCredit(ctx, c.player('Z7-100101')!, TxnType.bonus),
           'adjust': () => showCredit(ctx, c.player('Z7-100101')!, TxnType.adjust),
           if (desktop) 'bulk create': () => showBulkCreate(ctx),
@@ -160,7 +160,7 @@ void main() {
 
   testWidgets('a phone gets four tabs; a desktop the full sidebar', (tester) async {
     await show(tester, const Size(390, 844));
-    for (final t in ['Home', 'Players', 'Cash', 'Games']) {
+    for (final t in ['Home', 'Players', 'Coins', 'Games']) {
       expect(find.bySemanticsLabel(RegExp('^$t(\$|\n)')), findsWidgets, reason: t);
     }
     expect(find.text('Game math'), findsNothing);
@@ -172,9 +172,9 @@ void main() {
     await clear(tester);
   });
 
-  testWidgets('a cashier only sees home, players and cash', (tester) async {
+  testWidgets('a cashier only sees home, players and coins', (tester) async {
     await show(tester, const Size(1440, 900), pin: '1111');
-    expect(find.text('Cash in / out'), findsWidgets);
+    expect(find.text('Coin in / out'), findsWidgets);
     expect(find.text('Reports'), findsNothing);
     expect(find.text('Settings'), findsNothing);
     await clear(tester);
@@ -197,8 +197,8 @@ void main() {
     await clear(tester);
   });
 
-  testWidgets('the phone cash pad cashes a player in', (tester) async {
-    final c = await show(tester, const Size(390, 844), section: Section.cash);
+  testWidgets('the phone coin pad gives a player coins and takes them off', (tester) async {
+    final c = await show(tester, const Size(390, 844), section: Section.coins);
     await tester.tap(find.text('Choose player'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, 'lina');
@@ -211,13 +211,27 @@ void main() {
       await tester.tap(find.text(d).last);
     }
     await tester.pump();
-    expect(find.text('\$25'), findsOneWidget);
-    await tester.tap(find.text('Cash in').last);
+    expect(find.text('25 SC'), findsOneWidget);
+    await tester.tap(find.text('Coin in').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Cash in').last); // confirm
+    await tester.tap(find.text('Coin in').last); // confirm
     await tester.pumpAndSettle();
     expect(p.sc, closeTo(before + 25, .001));
-    expect(c.txns.last.method, 'Cash App');
+    expect(c.txns.last.type, TxnType.coinIn);
+
+    // Let the toast go so it doesn't cover the pad.
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    for (final d in ['1', '0']) {
+      await tester.tap(find.text(d).last);
+    }
+    await tester.pump();
+    await tester.tap(find.text('Coin out').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Coin out').last); // confirm
+    await tester.pumpAndSettle();
+    expect(p.sc, closeTo(before + 15, .001));
+    expect(c.txns.last.type, TxnType.coinOut);
     await clear(tester);
   });
 

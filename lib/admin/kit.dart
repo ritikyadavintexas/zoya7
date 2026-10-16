@@ -61,7 +61,6 @@ String grouped(double v, [int decimals = 2]) {
   return '${v < -1e-9 ? '−' : ''}$whole${dot < 0 ? '' : s.substring(dot)}';
 }
 
-String usd(double v, {bool cents = true}) => '${v < -1e-9 ? '−' : ''}\$${grouped(v.abs(), cents ? 2 : 0)}';
 String scAmt(double v) => '${grouped(v)} SC';
 String gcAmt(double v) => '${grouped(v, 0)} GC';
 
@@ -239,12 +238,6 @@ class KBadge extends StatelessWidget {
         PlayerStatus.active => const KBadge('Active'),
         PlayerStatus.suspended => const KBadge('Suspended', fg: K.amber, bg: K.amberSoft),
         PlayerStatus.banned => const KBadge('Banned', fg: K.red, bg: K.redSoft),
-      };
-
-  factory KBadge.txn(TxnStatus s) => switch (s) {
-        TxnStatus.approved => const KBadge('Paid'),
-        TxnStatus.pending => const KBadge('Pending', fg: K.amber, bg: K.amberSoft),
-        TxnStatus.rejected => const KBadge('Rejected', fg: K.red, bg: K.redSoft),
       };
 
   factory KBadge.game(GameStatus s) => switch (s) {
@@ -534,10 +527,10 @@ class KTable extends StatelessWidget {
 Widget cellText(String s, {Color c = K.text, FontWeight w = FontWeight.w500, double size = 14}) =>
     Text(s, maxLines: 1, overflow: TextOverflow.ellipsis, style: kt(size, w: w, c: c, num: true));
 
-/// Bars for money in (green) and out (black) per day.
+/// Bars for Sweeps Coins in (green) and out (black) per day.
 class KBarChart extends StatelessWidget {
   const KBarChart({super.key, required this.days, this.height = 180});
-  final List<({DateTime day, double cashIn, double cashOut})> days;
+  final List<({DateTime day, double coinIn, double coinOut})> days;
   final double height;
 
   @override
@@ -549,9 +542,9 @@ class KBarChart extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Row(children: [
-          _legend(K.green, 'Cash in'),
+          _legend(K.green, 'Coin in'),
           const SizedBox(width: 16),
-          _legend(K.ink, 'Cash out'),
+          _legend(K.ink, 'Coin out'),
         ]),
       ]);
 
@@ -564,7 +557,7 @@ class KBarChart extends StatelessWidget {
 
 class _BarsPainter extends CustomPainter {
   _BarsPainter(this.days, this.labelStyle);
-  final List<({DateTime day, double cashIn, double cashOut})> days;
+  final List<({DateTime day, double coinIn, double coinOut})> days;
   final TextStyle labelStyle;
 
   @override
@@ -572,7 +565,7 @@ class _BarsPainter extends CustomPainter {
     if (days.isEmpty) return;
     const labelH = 16.0;
     final h = size.height - labelH;
-    final top = days.fold<double>(1, (a, d) => math.max(a, math.max(d.cashIn, d.cashOut)));
+    final top = days.fold<double>(1, (a, d) => math.max(a, math.max(d.coinIn, d.coinOut)));
     final slot = size.width / days.length;
     final bar = math.min(14.0, slot * .32);
     final grid = Paint()..color = K.line;
@@ -591,8 +584,8 @@ class _BarsPainter extends CustomPainter {
         );
       }
 
-      draw(d.cashIn, -bar - 1, K.green);
-      draw(d.cashOut, 1, K.ink);
+      draw(d.coinIn, -bar - 1, K.green);
+      draw(d.coinOut, 1, K.ink);
       if (i % every == 0 || i == days.length - 1) {
         final tp = TextPainter(text: TextSpan(text: '${d.day.day}', style: labelStyle), textDirection: TextDirection.ltr)..layout();
         tp.paint(canvas, Offset(x - tp.width / 2, h + 3));

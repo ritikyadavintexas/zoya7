@@ -9,8 +9,11 @@ import '../games/gold/src/math.dart';
 import 'slot_math.dart';
 import 'storage.dart';
 
-/// The casino's back office: player accounts, the cash ledger, each game's
+/// The casino's back office: player accounts, the coin ledger, each game's
 /// settings and math, and the play records the reports are built from.
+///
+/// Coins only: coins have no cash value. Staff put coins on an account
+/// (coin in) and take them off (coin out); no money is recorded or paid out.
 ///
 /// The player app and the admin panel share one [Casino]. Without a server
 /// it lives on the device (the browser's storage on the web); swap
@@ -18,9 +21,8 @@ import 'storage.dart';
 
 enum PlayerStatus { active, suspended, banned }
 
-enum TxnType { start, cashIn, cashOut, bonus, adjust }
-
-enum TxnStatus { pending, approved, rejected }
+/// Stored by index, so the order never changes.
+enum TxnType { start, coinIn, coinOut, bonus, adjust }
 
 /// live: playable · maintenance: shown, can't be opened · hidden: not in the lobby.
 enum GameStatus { live, maintenance, hidden }
@@ -40,8 +42,8 @@ GameKind kindOf(String gameId) => switch (gameId) {
 
 String statusName(Enum e) => switch (e) {
       TxnType.start => 'Starting amount',
-      TxnType.cashIn => 'Cash in',
-      TxnType.cashOut => 'Cash out',
+      TxnType.coinIn => 'Coin in',
+      TxnType.coinOut => 'Coin out',
       TxnType.bonus => 'Bonus',
       TxnType.adjust => 'Adjustment',
       _ => '${e.name[0].toUpperCase()}${e.name.substring(1)}',
@@ -118,119 +120,54 @@ class Player {
       );
 }
 
-/// One line of the cash ledger. [gc]/[sc] are what the player's balance
-/// moved by (negative for a cash out); [usd] is the money that changed hands.
+/// One line of the coin ledger: what the player's balance moved by
+/// (negative for a coin out).
 class Txn {
   Txn({
     required this.id,
     required this.playerId,
     required this.type,
     required this.at,
-    this.usd = 0,
     this.gc = 0,
     this.sc = 0,
-    this.method = '',
-    this.status = TxnStatus.approved,
     this.by = '',
     this.note = '',
-    this.settledBy,
-    this.settledAt,
   });
 
   final String id;
   final String playerId;
   final TxnType type;
   final DateTime at;
-  final double usd;
   final double gc;
   final double sc;
-  final String method;
-  TxnStatus status;
   final String by;
-  String note;
-
-  /// Who paid (or turned down) a cash out, and when.
-  String? settledBy;
-  DateTime? settledAt;
-
-  /// A rejected cash out was refunded, so it moved nothing.
-  bool get counts => status != TxnStatus.rejected;
+  final String note;
 
   Map<String, Object> toJson() => {
         'id': id,
         'p': playerId,
         't': type.index,
         'at': at.millisecondsSinceEpoch,
-        'usd': usd,
         'gc': gc,
         'sc': sc,
-        'm': method,
-        's': status.index,
         'by': by,
         'no': note,
-        if (settledBy != null) 'sb': settledBy!,
-        if (settledAt != null) 'sa': settledAt!.millisecondsSinceEpoch,
       };
 
-  static Txn fromJson(Map<String, dynamic> j) => Txn(
-        id: j['id'] as String,
-        playerId: j['p'] as String,
-        type: TxnType.values[j['t'] as int],
-        at: DateTime.fromMillisecondsSinceEpoch(j['at'] as int),
-        usd: (j['usd'] as num).toDouble(),
-        gc: (j['gc'] as num).toDouble(),
-        sc: (j['sc'] as num).toDouble(),
-        method: j['m'] as String? ?? '',
-        status: TxnStatus.values[j['s'] as int],
-        by: j['by'] as String? ?? '',
-        note: j['no'] as String? ?? '',
-        settledBy: j['sb'] as String?,
-        settledAt: j['sa'] == null ? null : DateTime.fromMillisecondsSinceEpoch(j['sa'] as int),
-      );
-}
-
-/// A cashier's shift at the drawer: the starting amount they counted in, and
-/// what they counted out at the end.
-class Shift {
-  Shift({required this.id, required this.staff, required this.start, required this.startAmount, this.end, this.counted});
-  final String id;
-  final String staff;
-  final DateTime start;
-  final double startAmount;
-  DateTime? end;
-  double? counted;
-
-  bool get open => end == null;
-
-  Map<String, Object> toJson() => {
-        'id': id,
-        's': staff,
-        'st': start.millisecondsSinceEpoch,
-        'a': startAmount,
-        if (end != null) 'e': end!.millisecondsSinceEpoch,
-        if (counted != null) 'c': counted!,
-      };
-
-  static Shift fromJson(Map<String, dynamic> j) => Shift(
-        id: j['id'] as String,
-        staff: j['s'] as String,
-        start: DateTime.fromMillisecondsSinceEpoch(j['st'] as int),
-        startAmount: (j['a'] as num).toDouble(),
-        end: j['e'] == null ? null : DateTime.fromMillisecondsSinceEpoch(j['e'] as int),
-        counted: (j['c'] as num?)?.toDouble(),
-      );
-}
-
-/// Money a shift handled: everything, and the cash that went through the drawer.
-class ShiftSummary {
-  ShiftSummary(this.shift);
-  final Shift shift;
-  double cashIn = 0, cashOut = 0, drawerIn = 0, drawerOut = 0;
-  int ins = 0, outs = 0;
-
-  /// What should be in the drawer: starting amount + cash taken − cash paid.
-  double get expected => shift.startAmount + drawerIn - drawerOut;
-  double? get difference => shift.counted == null ? null : shift.counted! - expected;
+  static Txn fromJson(Map<String, dynamic> j) {
+    // Older records: a turned-down request ('s' 2) moved nothing.
+    final none = j['s'] == 2;
+    return Txn(
+      id: j['id'] as String,
+      playerId: j['p'] as String,
+      type: TxnType.values[j['t'] as int],
+      at: DateTime.fromMillisecondsSinceEpoch(j['at'] as int),
+      gc: none ? 0 : (j['gc'] as num).toDouble(),
+      sc: none ? 0 : (j['sc'] as num).toDouble(),
+      by: j['by'] as String? ?? '',
+      note: j['no'] as String? ?? '',
+    );
+  }
 }
 
 /// A game's settings and math.
@@ -395,21 +332,8 @@ class CasinoSettings {
   double newPlayerGc = 50000;
   double newPlayerSc = 2;
 
-  /// What $1 of cash in buys.
-  double gcPerDollar = 10000;
-  double scPerDollar = 1;
-
-  /// Extra on every cash in (percent).
-  double cashInBonusPct = 0;
-
-  /// $ value of 1 SC at cash out.
-  double usdPerSc = 1;
-  double minCashOut = 50;
-  double maxCashInPerDay = 1000;
-  double maxCashOutPerDay = 2000;
-
-  /// Cash outs up to this many SC are approved without review (0 = review all).
-  double autoApproveUnder = 0;
+  /// Most Sweeps Coins one player can be given by coin in in a day.
+  double maxCoinInPerDay = 1000;
 
   bool registrationOpen = true;
   bool dailyBonus = true;
@@ -421,14 +345,7 @@ class CasinoSettings {
   Map<String, Object> toJson() => {
         'ngc': newPlayerGc,
         'nsc': newPlayerSc,
-        'gpd': gcPerDollar,
-        'spd': scPerDollar,
-        'bon': cashInBonusPct,
-        'ups': usdPerSc,
-        'mco': minCashOut,
-        'mci': maxCashInPerDay,
-        'mcd': maxCashOutPerDay,
-        'aau': autoApproveUnder,
+        'cid': maxCoinInPerDay,
         'reg': registrationOpen,
         'db': dailyBonus,
         'mt': maintenance,
@@ -441,14 +358,7 @@ class CasinoSettings {
     return s
       ..newPlayerGc = d('ngc', s.newPlayerGc)
       ..newPlayerSc = d('nsc', s.newPlayerSc)
-      ..gcPerDollar = d('gpd', s.gcPerDollar)
-      ..scPerDollar = d('spd', s.scPerDollar)
-      ..cashInBonusPct = d('bon', s.cashInBonusPct)
-      ..usdPerSc = d('ups', s.usdPerSc)
-      ..minCashOut = d('mco', s.minCashOut)
-      ..maxCashInPerDay = d('mci', s.maxCashInPerDay)
-      ..maxCashOutPerDay = d('mcd', s.maxCashOutPerDay)
-      ..autoApproveUnder = d('aau', s.autoApproveUnder)
+      ..maxCoinInPerDay = d('cid', s.maxCoinInPerDay)
       ..registrationOpen = j['reg'] as bool? ?? true
       ..dailyBonus = j['db'] as bool? ?? true
       ..maintenance = j['mt'] as bool? ?? false
@@ -479,8 +389,8 @@ class Period {
   }
 }
 
-/// Money and coins for one span: the starting amount, what came in and went
-/// out, and what's left — per game and per player.
+/// Coins for one span: the starting amount, what came in and went out, and
+/// what's left — per game and per player.
 class Report {
   Report(this.period);
   final Period period;
@@ -488,12 +398,10 @@ class Report {
   /// Players' balances when the period started / ended.
   double openGc = 0, openSc = 0, closeGc = 0, closeSc = 0;
 
-  double cashInUsd = 0, cashInGc = 0, cashInSc = 0;
-  int cashIns = 0;
-  double cashOutUsd = 0, cashOutSc = 0;
-  int cashOuts = 0;
-  double pendingUsd = 0;
-  int pending = 0;
+  double coinInGc = 0, coinInSc = 0;
+  int coinIns = 0;
+  double coinOutGc = 0, coinOutSc = 0;
+  int coinOuts = 0;
   double startGc = 0, startSc = 0, bonusGc = 0, bonusSc = 0, adjustGc = 0, adjustSc = 0;
   int newPlayers = 0;
   final active = <String>{};
@@ -501,7 +409,8 @@ class Report {
   final games = <String, GameReport>{};
   final players = <String, PlayerReport>{};
 
-  double get netCash => cashInUsd - cashOutUsd;
+  /// Sweeps Coins given by coin in minus taken by coin out.
+  double get netSc => coinInSc - coinOutSc;
   double get wageredSc => games.values.fold(0, (a, g) => a + g.wSc);
   double get wonSc => games.values.fold(0, (a, g) => a + g.winSc);
   double get wageredGc => games.values.fold(0, (a, g) => a + g.wGc);
@@ -527,8 +436,8 @@ class PlayerReport {
   PlayerReport(this.playerId);
   final String playerId;
   double openSc = 0, closeSc = 0, openGc = 0, closeGc = 0;
-  double cashInUsd = 0, cashOutUsd = 0, wSc = 0, winSc = 0;
-  double get netCash => cashInUsd - cashOutUsd;
+  double coinInSc = 0, coinOutSc = 0, wSc = 0, winSc = 0;
+  double get netSc => coinInSc - coinOutSc;
 }
 
 class CasinoError implements Exception {
@@ -563,7 +472,6 @@ class Casino extends ChangeNotifier {
   final plays = <String, Play>{};
   final staff = <Staff>[];
   final audit = <AuditEntry>[];
-  final shifts = <Shift>[];
   var settings = CasinoSettings();
   String featured = 'classic777';
 
@@ -628,20 +536,15 @@ class Casino extends ChangeNotifier {
           if (t.playerId == playerId) t,
       ];
 
-  List<Txn> get pendingCashOuts => [
-        for (final t in txns.reversed)
-          if (t.type == TxnType.cashOut && t.status == TxnStatus.pending) t,
-      ];
-
   bool usernameTaken(String u, {String? except}) =>
       players.any((p) => p.id != except && p.username.toLowerCase() == u.trim().toLowerCase());
 
   int get online => players.where((p) => now.difference(p.lastSeen).inMinutes < 15).length;
 
-  /// Lifetime cash in of a player ($).
-  double cashInTotal(String playerId) => txns
-      .where((t) => t.playerId == playerId && t.type == TxnType.cashIn)
-      .fold(0, (a, t) => a + t.usd);
+  /// Sweeps Coins a player has been given by coin in, all time.
+  double coinInTotal(String playerId) => txns
+      .where((t) => t.playerId == playerId && t.type == TxnType.coinIn)
+      .fold(0, (a, t) => a + t.sc);
 
   // ── Players ────────────────────────────────────────────────────────────────
   static const _pwChars = 'abcdefghjkmnpqrstuvwxyz23456789';
@@ -744,95 +647,41 @@ class Casino extends ChangeNotifier {
     _changed();
   }
 
-  // ── Cash ───────────────────────────────────────────────────────────────────
-  double _todayUsd(Player p, TxnType type) {
+  // ── Coins ──────────────────────────────────────────────────────────────────
+  double _todaySc(Player p, TxnType type) {
     final d = dayOf(now);
-    return txns
-        .where((t) => t.playerId == p.id && t.type == type && t.counts && dayOf(t.at) == d)
-        .fold(0, (a, t) => a + t.usd);
+    return txns.where((t) => t.playerId == p.id && t.type == type && dayOf(t.at) == d).fold(0, (a, t) => a + t.sc.abs());
   }
 
-  /// Coins [usd] buys at the current rates and cash-in bonus.
-  ({double gc, double sc}) coinsFor(double usd, {double? bonusPct}) {
-    final k = 1 + (bonusPct ?? settings.cashInBonusPct) / 100;
-    return (gc: (usd * settings.gcPerDollar * k).roundToDouble(), sc: _r2(usd * settings.scPerDollar * k));
-  }
-
-  /// Load a player's account: they paid [usd]; coins go on their balance.
-  Txn cashIn(Player p, double usd, {String method = 'Cash App', double? bonusPct, String note = '', bool checkLimit = true}) {
-    if (usd <= 0) throw CasinoError('Enter an amount');
+  /// Put coins on a player's account.
+  Txn coinIn(Player p, {double gc = 0, double sc = 0, String note = '', bool checkLimit = true}) {
+    if (gc < 0 || sc < 0 || (gc == 0 && sc == 0)) throw CasinoError('Enter an amount');
     if (p.status != PlayerStatus.active) throw CasinoError('${p.username} is ${p.status.name}');
-    if (checkLimit && _todayUsd(p, TxnType.cashIn) + usd > settings.maxCashInPerDay) {
-      throw CasinoError('Over the daily cash-in limit of \$${settings.maxCashInPerDay.toStringAsFixed(0)}');
+    if (checkLimit && _todaySc(p, TxnType.coinIn) + sc > settings.maxCoinInPerDay + 1e-9) {
+      throw CasinoError('Over the daily coin-in limit of ${settings.maxCoinInPerDay.toStringAsFixed(0)} SC');
     }
-    final c = coinsFor(usd, bonusPct: bonusPct);
-    final t = _post(Txn(
-        id: _txnId(), playerId: p.id, type: TxnType.cashIn, at: now, usd: usd, gc: c.gc, sc: c.sc, method: method, by: actor, note: note));
-    _log('Cash in \$${usd.toStringAsFixed(2)} → ${p.username}');
+    final t = _post(Txn(id: _txnId(), playerId: p.id, type: TxnType.coinIn, at: now, gc: gc.roundToDouble(), sc: _r2(sc), by: actor, note: note));
+    _log('Coin in ${_coins(t.gc, t.sc)} → ${p.username}');
     _changed();
     return t;
   }
 
-  /// A coin package bought in the app's store.
-  Txn purchase(Player p, double usd, {required double gc, required double sc, String note = ''}) {
-    final t = _post(Txn(
-        id: _txnId(), playerId: p.id, type: TxnType.cashIn, at: now, usd: usd, gc: gc, sc: sc, method: 'Card', by: 'Store', note: note));
+  /// A coin package from the app's store.
+  Txn purchase(Player p, {required double gc, required double sc, String note = ''}) {
+    final t = _post(Txn(id: _txnId(), playerId: p.id, type: TxnType.coinIn, at: now, gc: gc, sc: sc, by: 'Store', note: note));
     _changed();
     return t;
   }
 
-  /// Pay a player out: [sc] comes off their balance now; the money is paid
-  /// when the cash out is approved ([review] = false approves at once).
-  Txn cashOut(Player p, double sc, {String method = 'Cash App', bool review = true, String note = ''}) {
-    if (sc <= 0) throw CasinoError('Enter an amount');
+  /// Take coins off a player's account.
+  Txn coinOut(Player p, {double gc = 0, double sc = 0, String note = ''}) {
+    if (gc < 0 || sc < 0 || (gc == 0 && sc == 0)) throw CasinoError('Enter an amount');
     if (sc > p.sc + 1e-9) throw CasinoError('${p.username} has only ${_r2(p.sc).toStringAsFixed(2)} SC');
-    if (review && sc < settings.minCashOut) {
-      throw CasinoError('Minimum cash out is ${settings.minCashOut.toStringAsFixed(0)} SC');
-    }
-    final usd = _r2(sc * settings.usdPerSc);
-    if (_todayUsd(p, TxnType.cashOut) + usd > settings.maxCashOutPerDay) {
-      throw CasinoError('Over the daily cash-out limit of \$${settings.maxCashOutPerDay.toStringAsFixed(0)}');
-    }
-    final auto = !review || (settings.autoApproveUnder > 0 && sc <= settings.autoApproveUnder);
-    final t = _post(Txn(
-      id: _txnId(),
-      playerId: p.id,
-      type: TxnType.cashOut,
-      at: now,
-      usd: usd,
-      sc: -sc,
-      method: method,
-      status: auto ? TxnStatus.approved : TxnStatus.pending,
-      by: review ? (admin == null ? 'Player' : actor) : actor,
-      note: note,
-      settledBy: auto ? actor : null,
-      settledAt: auto ? now : null,
-    ));
-    _log('Cash out ${sc.toStringAsFixed(2)} SC ← ${p.username}${auto ? '' : ' (pending)'}');
+    if (gc > p.gc) throw CasinoError('${p.username} has only ${p.gc.toStringAsFixed(0)} GC');
+    final t = _post(Txn(id: _txnId(), playerId: p.id, type: TxnType.coinOut, at: now, gc: -gc.roundToDouble(), sc: -_r2(sc), by: actor, note: note));
+    _log('Coin out ${_coins(gc, sc)} ← ${p.username}');
     _changed();
     return t;
-  }
-
-  void approve(Txn t) {
-    if (t.status != TxnStatus.pending) return;
-    t
-      ..status = TxnStatus.approved
-      ..settledBy = actor
-      ..settledAt = now;
-    _log('Approved cash out ${t.id} (\$${t.usd.toStringAsFixed(2)})');
-    _changed();
-  }
-
-  /// Turn a cash out down and give the SC back.
-  void reject(Txn t, {String reason = ''}) {
-    if (t.status != TxnStatus.pending) return;
-    t
-      ..status = TxnStatus.rejected
-      ..settledBy = actor
-      ..settledAt = now;
-    if (reason.isNotEmpty) t.note = reason;
-    _log('Rejected cash out ${t.id}${reason.isEmpty ? '' : ': $reason'}');
-    _changed();
   }
 
   /// Free coins (promos, comps) or a correction (either sign).
@@ -929,13 +778,12 @@ class Casino extends ChangeNotifier {
     _changed();
   }
 
-  /// Remove every player, the ledger, play records and shifts — a clean start
+  /// Remove every player, the ledger and play records — a clean start
   /// for real use. Staff, settings and game setup stay.
   void clearAll() {
     players.clear();
     txns.clear();
     plays.clear();
-    shifts.clear();
     seen.clear();
     _log('Cleared all players and the ledger');
     _changed();
@@ -947,49 +795,6 @@ class Casino extends ChangeNotifier {
     _adopt(fresh);
     _log('Reset to demo data');
     _changed();
-  }
-
-  // ── Drawer shifts ──────────────────────────────────────────────────────────
-  Shift? get myShift => shifts.where((s) => s.open && s.staff == actor).firstOrNull;
-
-  Shift startShift(double startAmount) {
-    if (admin == null) throw CasinoError('Sign in first');
-    if (myShift != null) throw CasinoError('Your shift is already open');
-    if (startAmount < 0) throw CasinoError('Enter the starting amount');
-    final s = Shift(id: 'S${shifts.length + 1}', staff: actor, start: now, startAmount: startAmount);
-    shifts.add(s);
-    _log('Started shift with \$${startAmount.toStringAsFixed(2)} in the drawer');
-    _changed();
-    return s;
-  }
-
-  void closeShift(Shift s, double counted) {
-    if (!s.open) return;
-    s
-      ..end = now
-      ..counted = counted;
-    final d = summary(s).difference!;
-    _log('Closed shift: counted \$${counted.toStringAsFixed(2)}'
-        '${d.abs() < .005 ? ', balanced' : ', ${d > 0 ? 'over' : 'short'} \$${d.abs().toStringAsFixed(2)}'}');
-    _changed();
-  }
-
-  ShiftSummary summary(Shift s) {
-    final r = ShiftSummary(s);
-    final end = s.end ?? now;
-    bool inShift(DateTime? t) => t != null && !t.isBefore(s.start) && !t.isAfter(end);
-    for (final t in txns) {
-      if (t.type == TxnType.cashIn && t.by == s.staff && inShift(t.at)) {
-        r.ins++;
-        r.cashIn += t.usd;
-        if (t.method == 'Cash') r.drawerIn += t.usd;
-      } else if (t.type == TxnType.cashOut && t.status == TxnStatus.approved && t.settledBy == s.staff && inShift(t.settledAt)) {
-        r.outs++;
-        r.cashOut += t.usd;
-        if (t.method == 'Cash') r.drawerOut += t.usd;
-      }
-    }
-    return r;
   }
 
   // ── Reports ────────────────────────────────────────────────────────────────
@@ -1009,7 +814,7 @@ class Casino extends ChangeNotifier {
     }
     for (final t in txns) {
       final pr = r.players[t.playerId];
-      if (pr == null || !t.counts) continue;
+      if (pr == null) continue;
       if (!t.at.isBefore(from)) {
         pr.openGc -= t.gc;
         pr.openSc -= t.sc;
@@ -1036,22 +841,16 @@ class Casino extends ChangeNotifier {
       if (!inP(t.at)) continue;
       final pr = r.players[t.playerId];
       switch (t.type) {
-        case TxnType.cashIn:
-          r.cashIns++;
-          r.cashInUsd += t.usd;
-          r.cashInGc += t.gc;
-          r.cashInSc += t.sc;
-          pr?.cashInUsd += t.usd;
-        case TxnType.cashOut:
-          if (t.status == TxnStatus.approved) {
-            r.cashOuts++;
-            r.cashOutUsd += t.usd;
-            pr?.cashOutUsd += t.usd;
-          } else if (t.status == TxnStatus.pending) {
-            r.pending++;
-            r.pendingUsd += t.usd;
-          }
-          if (t.counts) r.cashOutSc -= t.sc;
+        case TxnType.coinIn:
+          r.coinIns++;
+          r.coinInGc += t.gc;
+          r.coinInSc += t.sc;
+          pr?.coinInSc += t.sc;
+        case TxnType.coinOut:
+          r.coinOuts++;
+          r.coinOutGc -= t.gc;
+          r.coinOutSc -= t.sc;
+          pr?.coinOutSc -= t.sc;
         case TxnType.start:
           r.newPlayers++;
           r.startGc += t.gc;
@@ -1087,18 +886,18 @@ class Casino extends ChangeNotifier {
     return r;
   }
 
-  /// Cash in and out per day for the last [days] days (oldest first).
-  List<({DateTime day, double cashIn, double cashOut})> daily(int days) {
+  /// Sweeps Coins in and out per day for the last [days] days (oldest first).
+  List<({DateTime day, double coinIn, double coinOut})> daily(int days) {
     final today = dayOf(now);
     final cin = List<double>.filled(days, 0), cout = List<double>.filled(days, 0);
     for (final t in txns) {
       final i = days - 1 - (today - dayOf(t.at));
       if (i < 0 || i >= days) continue;
-      if (t.type == TxnType.cashIn) cin[i] += t.usd;
-      if (t.type == TxnType.cashOut && t.status == TxnStatus.approved) cout[i] += t.usd;
+      if (t.type == TxnType.coinIn) cin[i] += t.sc;
+      if (t.type == TxnType.coinOut) cout[i] -= t.sc;
     }
     return [
-      for (var i = 0; i < days; i++) (day: dayStart(today - days + 1 + i), cashIn: cin[i], cashOut: cout[i]),
+      for (var i = 0; i < days; i++) (day: dayStart(today - days + 1 + i), coinIn: cin[i], coinOut: cout[i]),
     ];
   }
 
@@ -1110,12 +909,13 @@ class Casino extends ChangeNotifier {
           '${r.period.to.subtract(const Duration(days: 1)).toIso8601String().substring(0, 10)}')
       ..writeln('Starting amount SC,${f(r.openSc)}')
       ..writeln('Starting amount GC,${f(r.openGc)}')
-      ..writeln('Cash in USD,${f(r.cashInUsd)}')
-      ..writeln('Cash ins,${r.cashIns}')
-      ..writeln('Cash out USD,${f(r.cashOutUsd)}')
-      ..writeln('Cash outs,${r.cashOuts}')
-      ..writeln('Pending cash out USD,${f(r.pendingUsd)}')
-      ..writeln('Net cash USD,${f(r.netCash)}')
+      ..writeln('Coin in SC,${f(r.coinInSc)}')
+      ..writeln('Coin in GC,${f(r.coinInGc)}')
+      ..writeln('Coin ins,${r.coinIns}')
+      ..writeln('Coin out SC,${f(r.coinOutSc)}')
+      ..writeln('Coin out GC,${f(r.coinOutGc)}')
+      ..writeln('Coin outs,${r.coinOuts}')
+      ..writeln('Net coin in SC,${f(r.netSc)}')
       ..writeln('Bonus SC,${f(r.bonusSc)}')
       ..writeln('Wagered SC,${f(r.wageredSc)}')
       ..writeln('Won SC,${f(r.wonSc)}')
@@ -1133,10 +933,10 @@ class Casino extends ChangeNotifier {
     }
     b
       ..writeln()
-      ..writeln('Player ID,Username,Starting SC,Cash in USD,Cash out USD,Net USD,Wagered SC,Won SC,Ending SC');
+      ..writeln('Player ID,Username,Starting SC,Coin in SC,Coin out SC,Net SC,Wagered SC,Won SC,Ending SC');
     for (final p in players) {
       final pr = r.players[p.id]!;
-      b.writeln('${p.id},${p.username},${f(pr.openSc)},${f(pr.cashInUsd)},${f(pr.cashOutUsd)},${f(pr.netCash)},'
+      b.writeln('${p.id},${p.username},${f(pr.openSc)},${f(pr.coinInSc)},${f(pr.coinOutSc)},${f(pr.netSc)},'
           '${f(pr.wSc)},${f(pr.winSc)},${f(pr.closeSc)}');
     }
     return b.toString();
@@ -1172,10 +972,8 @@ class Casino extends ChangeNotifier {
     for (final t in txns) {
       final p = byId[t.playerId];
       if (p == null) continue;
-      if (t.counts) {
-        p.gc += t.gc;
-        p.sc += t.sc;
-      }
+      p.gc += t.gc;
+      p.sc += t.sc;
       saw(p, t.at);
     }
     for (final pl in plays.values) {
@@ -1231,7 +1029,6 @@ class Casino extends ChangeNotifier {
         for (final c in configs.values) 'games/${c.id}': c.toJson(),
         for (final e in plays.entries) 'plays/${e.key}': {'p': e.value.toJson()},
         for (final a in audit.length > 500 ? audit.sublist(audit.length - 500) : audit) 'audit/${a.key}': {'a': a.toJson()},
-        for (final sh in shifts) 'shifts/${sh.id}': sh.toJson(),
         for (final e in seen.entries) 'seen/${e.key}': {'t': e.value},
         'meta/settings': {...settings.toJson(), 'featured': featured},
         'meta/staff': {'list': [for (final st in staff) st.toJson()]},
@@ -1243,7 +1040,6 @@ class Casino extends ChangeNotifier {
     txns.clear();
     plays.clear();
     audit.clear();
-    shifts.clear();
     seen.clear();
     for (final MapEntry(key: path, value: j) in records.entries) {
       final slash = path.indexOf('/');
@@ -1260,8 +1056,6 @@ class Casino extends ChangeNotifier {
             plays[key] = Play.fromJson(j['p'] as List);
           case 'audit':
             audit.add(AuditEntry.fromJson(j['a'] as List));
-          case 'shifts':
-            shifts.add(Shift.fromJson(j));
           case 'seen':
             seen[key] = (j['t'] as num).toInt();
           case 'meta' when key == 'settings':
@@ -1300,7 +1094,6 @@ class Casino extends ChangeNotifier {
         'plays': [for (final p in plays.values) p.toJson()],
         'staff': [for (final s in staff) s.toJson()],
         'audit': [for (final a in audit.length > 500 ? audit.sublist(audit.length - 500) : audit) a.toJson()],
-        'shifts': [for (final s in shifts) s.toJson()],
         'seen': seen,
         'settings': settings.toJson(),
         'featured': featured,
@@ -1320,7 +1113,6 @@ class Casino extends ChangeNotifier {
     }
     c.staff.addAll([for (final s in j['staff'] as List) Staff.fromJson(s as Map<String, dynamic>)]);
     c.audit.addAll([for (final a in j['audit'] as List) AuditEntry.fromJson(a as List)]);
-    c.shifts.addAll([for (final s in j['shifts'] as List? ?? const []) Shift.fromJson(s as Map<String, dynamic>)]);
     c.settings = CasinoSettings.fromJson(j['settings'] as Map<String, dynamic>);
     c.featured = j['featured'] as String? ?? 'classic777';
     for (final e in (j['seen'] as Map? ?? const {}).entries) {
@@ -1350,9 +1142,6 @@ class Casino extends ChangeNotifier {
     audit
       ..clear()
       ..addAll(o.audit);
-    shifts
-      ..clear()
-      ..addAll(o.shifts);
     settings = o.settings;
     featured = o.featured;
     seen
@@ -1376,8 +1165,8 @@ class Casino extends ChangeNotifier {
     return p;
   }
 
-  /// A month of believable history: 24 players cashing in, playing and
-  /// cashing out, so every screen and report has something to show.
+  /// A month of believable history: 24 players given coins, playing and
+  /// having coins taken off, so every screen and report has something to show.
   factory Casino.demo({DateTime? now, DateTime Function()? clock}) {
     final at = now ?? clock?.call() ?? DateTime.now();
     final c = Casino._(clock: clock ?? (now == null ? null : () => now)).._batch = true;
@@ -1410,7 +1199,6 @@ class Casino extends ChangeNotifier {
       ('bigbankbo', 'Bo Fischer'), ('clover', 'Clara Ryan'), ('hotstreak', 'Hugo Silva'),
     ];
     const staffNames = ['Owner', 'Maya', 'Leo'];
-    const methods = ['Cash App', 'Cash App', 'Cash App', 'Card', 'Cash', 'Bank'];
     final playable = ['classic777', 'fruitspin', 'blackjack'];
 
     final created = <String, int>{};
@@ -1447,13 +1235,9 @@ class Casino extends ChangeNotifier {
         if (r.nextDouble() > .55) continue;
         final by = staffNames[1 + r.nextInt(2)];
         if (r.nextDouble() < .38) {
-          final usd = <double>[10, 20, 25, 50, 50, 100, 200][r.nextInt(7)];
+          final sc = <double>[10, 20, 25, 50, 50, 100, 200][r.nextInt(7)];
           final t = when(ago);
-          final m = methods[r.nextInt(methods.length)];
-          events.add((t, () {
-            final k = c.coinsFor(usd);
-            c._post(Txn(id: c._txnId(), playerId: p.id, type: TxnType.cashIn, at: t, usd: usd, gc: k.gc, sc: k.sc, method: m, by: by));
-          }));
+          events.add((t, () => c._post(Txn(id: c._txnId(), playerId: p.id, type: TxnType.coinIn, at: t, gc: sc * 10000, sc: sc, by: by))));
         }
         for (final g in (playable.toList()..shuffle(r)).take(1 + r.nextInt(2))) {
           final t = when(ago);
@@ -1482,45 +1266,30 @@ class Casino extends ChangeNotifier {
           final gc = <double>[1000, 2000, 3000, 5000, 7000, 10000][r.nextInt(6)];
           events.add((t, () => c._post(Txn(id: c._txnId(), playerId: p.id, type: TxnType.bonus, at: t, gc: gc, by: 'System', note: 'Daily bonus'))));
         }
-        if (r.nextDouble() < .16) {
+        if (r.nextDouble() < .1) {
           final t = when(ago);
-          final m = methods[r.nextInt(methods.length)];
-          final roll = r.nextDouble();
           events.add((t, () {
             if (p.sc < 50) return;
-            final sc = (p.sc * (.5 + r.nextDouble() * .4)).floorToDouble();
-            final status = ago <= 1 ? TxnStatus.pending : (roll < .06 ? TxnStatus.rejected : TxnStatus.approved);
-            c._post(Txn(
-                id: c._txnId(), playerId: p.id, type: TxnType.cashOut, at: t, usd: sc, sc: -sc, method: m, status: TxnStatus.approved, by: status == TxnStatus.pending ? 'Player' : by));
-            c.txns.last
-              ..settledBy = status == TxnStatus.pending ? null : by
-              ..settledAt = status == TxnStatus.pending ? null : t.add(Duration(minutes: 5 + r.nextInt(90)));
-            if (status != TxnStatus.approved) {
-              c.txns.last.status = status;
-              if (status == TxnStatus.rejected) {
-                p.sc = _r2(p.sc + sc);
-                c.txns.last.note = 'Details didn’t match';
-              }
-            }
+            final sc = (p.sc * (.3 + r.nextDouble() * .4)).floorToDouble();
+            c._post(Txn(id: c._txnId(), playerId: p.id, type: TxnType.coinOut, at: t, sc: -sc, by: by));
           }));
         }
       }
     }
 
-    // This device's player: two coin packs, bonuses, a pending redemption,
-    // and play that ends on the balances the app starts with.
+    // This device's player: two coin packs, a bonus, and play that ends on
+    // the balances the app starts with.
     final meEvents = <Txn>[
-      Txn(id: '', playerId: meId, type: TxnType.cashIn, at: when(9), usd: 24.99, gc: 300000, sc: 25, method: 'Card', by: 'Store', note: '300K GC package'),
-      Txn(id: '', playerId: meId, type: TxnType.cashIn, at: when(1), usd: 9.99, gc: 120000, sc: 10, method: 'Card', by: 'Store', note: '120K GC package'),
+      Txn(id: '', playerId: meId, type: TxnType.coinIn, at: when(9), gc: 300000, sc: 25, by: 'Store', note: '300K GC package'),
+      Txn(id: '', playerId: meId, type: TxnType.coinIn, at: when(1), gc: 120000, sc: 10, by: 'Store', note: '120K GC package'),
       Txn(id: '', playerId: meId, type: TxnType.bonus, at: when(6), gc: 10000, by: 'System', note: 'Referral bonus'),
-      Txn(id: '', playerId: meId, type: TxnType.cashOut, at: when(4), usd: 50, sc: -50, method: 'Bank', status: TxnStatus.pending, by: 'Player'),
     ];
     const startGc = 50000.0, startSc = 100.0;
     final netGc = 125000 - startGc - meEvents.fold<double>(0, (a, t) => a + t.gc);
     final netSc = 250.5 - startSc - meEvents.fold<double>(0, (a, t) => a + t.sc);
     events.add((me.created, () => c._post(Txn(id: c._txnId(), playerId: meId, type: TxnType.start, at: me.created, gc: startGc, sc: startSc, by: 'App'))));
     for (final t in meEvents) {
-      events.add((t.at, () => c._post(Txn(id: c._txnId(), playerId: meId, type: t.type, at: t.at, usd: t.usd, gc: t.gc, sc: t.sc, method: t.method, status: t.status, by: t.by, note: t.note))));
+      events.add((t.at, () => c._post(Txn(id: c._txnId(), playerId: meId, type: t.type, at: t.at, gc: t.gc, sc: t.sc, by: t.by, note: t.note))));
     }
     for (final (i, ago) in const [8, 5, 3, 1, 0].indexed) {
       final t = when(ago);
@@ -1548,14 +1317,6 @@ class Casino extends ChangeNotifier {
       (3, 'Owner', 'Settings: starting amount 50,000 GC + 2 SC'),
     ]) {
       c.audit.add(AuditEntry(when(ago), by, what));
-    }
-    // Yesterday's closed shifts at the drawer.
-    final y = today.subtract(const Duration(days: 1));
-    for (final (i, (who, startH, endH, float)) in const [('Leo', 9, 17, 200.0), ('Maya', 17, 23, 300.0)].indexed) {
-      final sh = Shift(id: 'S${i + 1}', staff: who, start: y.add(Duration(hours: startH)), startAmount: float, end: y.add(Duration(hours: endH)));
-      c.shifts.add(sh);
-      final sum = c.summary(sh);
-      sh.counted = i == 0 ? sum.expected : sum.expected - 5;
     }
     c.audit.sort((a, b) => a.at.compareTo(b.at));
     c._batch = false;

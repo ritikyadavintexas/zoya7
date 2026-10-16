@@ -134,7 +134,7 @@ void main() {
         });
       }
 
-      for (final tab in ['redeem', 'history']) {
+      for (final tab in ['buy', 'history']) {
         testWidgets('wallet $tab fits', (tester) async {
           await show(tester, size, WalletPage(initialTab: tab));
           expectFits(tester);
