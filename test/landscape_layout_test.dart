@@ -75,6 +75,7 @@ void main() {
     'support chat': () => const ChatScreen(room: 'support'),
     'coming soon': () => const ComingSoonScreen(gameId: 'blackjack'),
     'gold game': () => const GoldScreen(),
+    'fruit spin': () => const GoldScreen(gameId: 'fruitspin'),
     'blackjack': () => const BlackjackScreen(),
   };
 

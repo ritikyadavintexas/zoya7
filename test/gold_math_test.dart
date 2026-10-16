@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zoya7_gold/games/gold/src/math.dart';
+import 'package:zoya7_gold/games/gold/src/skin.dart';
 
 void main() {
   const jp = {
@@ -36,5 +39,18 @@ void main() {
   test('no match pays nothing', () {
     final o = GoldRules.evaluate(line(Sym.bell, Sym.plum, Sym.star), 5000, jp);
     expect(o.win, 0);
+  });
+
+  test('Fruit Spin shows fruit where Classic 777 shows 7, BAR, crown and star; every image exists', () {
+    for (final skin in [SlotSkin.classic, SlotSkin.fruit]) {
+      for (final a in skin.assets) {
+        expect(File(a).existsSync(), isTrue, reason: '${skin.name}: $a');
+      }
+    }
+    for (final s in [Sym.seven, Sym.bar, Sym.crown, Sym.star]) {
+      expect(SlotSkin.fruit.symbol(s), isNot(SlotSkin.classic.symbol(s)));
+    }
+    expect(SlotSkin.fruit.frame, isNot(SlotSkin.classic.frame));
+    expect(Sym.values.map(SlotSkin.fruit.symbol).toSet(), hasLength(Sym.values.length));
   });
 }

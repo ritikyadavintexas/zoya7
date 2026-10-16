@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../assets.dart';
 import '../icons.dart';
 import '../math.dart';
+import '../skin.dart';
 import '../style.dart';
 import 'fx.dart';
 
@@ -41,7 +41,7 @@ class JackpotCombos extends StatelessWidget {
               Row(mainAxisSize: MainAxisSize.min, children: [
                 for (var i = 0; i < 3; i++) ...[
                   if (i > 0) const SizedBox(width: 2),
-                  Img(GoldAssets.symbol(sym), w: 44, h: 44, fit: BoxFit.contain),
+                  Img(SlotSkin.of(context).symbol(sym), w: 44, h: 44, fit: BoxFit.contain),
                 ],
               ]),
               Text(tier.name.toUpperCase(), style: jackpotLabel(tier, 26)),
@@ -77,22 +77,22 @@ class LinePays extends StatelessWidget {
   const LinePays({super.key, required this.onFullPaytable});
   final VoidCallback onFullPaytable;
 
-  Widget _row(Sym s, String pay, {bool two = false}) => Padding(
+  Widget _row(SlotSkin skin, Sym s, String pay, {bool two = false}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(mainAxisSize: MainAxisSize.min, children: [
-              Img(GoldAssets.symbol(s), w: 38, h: 38, fit: BoxFit.contain),
+              Img(skin.symbol(s), w: 38, h: 38, fit: BoxFit.contain),
               const SizedBox(width: 2),
-              Img(GoldAssets.symbol(s), w: 38, h: 38, fit: BoxFit.contain),
+              Img(skin.symbol(s), w: 38, h: 38, fit: BoxFit.contain),
               const SizedBox(width: 2),
               Visibility(
                 visible: !two,
                 maintainSize: true,
                 maintainAnimation: true,
                 maintainState: true,
-                child: Img(GoldAssets.symbol(s), w: 38, h: 38, fit: BoxFit.contain),
+                child: Img(skin.symbol(s), w: 38, h: 38, fit: BoxFit.contain),
               ),
             ]),
             Text(pay, style: lilita(26, shadows: [ts(0, 2, 0, GC.goldShadow)])),
@@ -102,9 +102,10 @@ class LinePays extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final skin = SlotSkin.of(context);
     final rows = <Widget>[
-      for (final s in linePayOrder) _row(s, '${GoldRules.linePays[s]}×'),
-      _row(Sym.cherry, '${GoldRules.twoCherryPay}×', two: true),
+      for (final s in linePayOrder) _row(skin, s, '${GoldRules.linePays[s]}×'),
+      _row(skin, Sym.cherry, '${GoldRules.twoCherryPay}×', two: true),
     ];
     return Semantics(
       label: 'Line pays',

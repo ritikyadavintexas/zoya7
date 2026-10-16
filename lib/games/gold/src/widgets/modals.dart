@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../assets.dart';
 import '../controller.dart';
 import '../math.dart';
+import '../skin.dart';
 import '../style.dart';
 import 'fx.dart';
 import 'side_panels.dart';
@@ -65,7 +65,7 @@ class PaytableModal extends StatelessWidget {
   const PaytableModal({super.key, required this.c});
   final GoldController c;
 
-  Widget _payItem(Sym s, String count, String pay) => Container(
+  Widget _payItem(SlotSkin skin, Sym s, String count, String pay) => Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         decoration: BoxDecoration(
           color: GC.a(255, 214, 120, .05),
@@ -73,7 +73,7 @@ class PaytableModal extends StatelessWidget {
           border: Border.all(color: GC.a(255, 214, 120, .15)),
         ),
         child: Row(children: [
-          Img(GoldAssets.symbol(s), w: 62, h: 62, fit: BoxFit.contain),
+          Img(skin.symbol(s), w: 62, h: 62, fit: BoxFit.contain),
           const SizedBox(width: 14),
           Text(count, style: rubik(18, color: GC.muted)),
           const Spacer(),
@@ -83,9 +83,10 @@ class PaytableModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final skin = SlotSkin.of(context);
     final items = [
-      for (final s in linePayOrder) _payItem(s, '×3', '${GoldRules.linePays[s]}× bet'),
-      _payItem(Sym.cherry, 'any ×2', '${GoldRules.twoCherryPay}× bet'),
+      for (final s in linePayOrder) _payItem(skin, s, '×3', '${GoldRules.linePays[s]}× bet'),
+      _payItem(skin, Sym.cherry, 'any ×2', '${GoldRules.twoCherryPay}× bet'),
     ];
     final grid = <Widget>[];
     for (var i = 0; i < items.length; i += 2) {
@@ -132,7 +133,7 @@ class PaytableModal extends StatelessWidget {
                             Row(mainAxisSize: MainAxisSize.min, children: [
                               for (var i = 0; i < 3; i++) ...[
                                 if (i > 0) const SizedBox(width: 6),
-                                Img(GoldAssets.symbol(sym), w: 70, h: 70, fit: BoxFit.contain),
+                                Img(skin.symbol(sym), w: 70, h: 70, fit: BoxFit.contain),
                               ],
                             ]),
                             Text('${tier.name.toUpperCase()} JACKPOT', style: jackpotLabel(tier, 30)),

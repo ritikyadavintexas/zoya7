@@ -1,4 +1,4 @@
-/// Zoya7 — Gold (Classic 777) slot game module.
+/// Zoya7 — the Gold slot engine, dressed as Classic 777 or Fruit Spin ([SlotSkin]).
 ///
 /// Drop [GoldGame] into any route. It renders the 1920×1080 design and scales
 /// it to fit the screen (phone, tablet or desktop), keeping the design exact.
@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'src/assets.dart';
 import 'src/controller.dart';
 import 'src/math.dart';
+import 'src/skin.dart';
 import 'src/style.dart';
 import 'src/widgets/chat_drawer.dart';
 import 'src/widgets/footer.dart';
@@ -21,6 +22,7 @@ import 'src/widgets/win_overlay.dart';
 
 export 'src/controller.dart' show GoldAudio, GoldPanel, ChatMessage, GoldController;
 export 'src/math.dart';
+export 'src/skin.dart' show SlotSkin;
 
 class GoldGame extends StatefulWidget {
   const GoldGame({
@@ -37,7 +39,11 @@ class GoldGame extends StatefulWidget {
     this.onOpenPlayLimits,
     this.minBetIdx = 0,
     this.maxBetIdx = GoldRules.maxBetIndex,
+    this.skin = SlotSkin.classic,
   });
+
+  /// Classic 777 or Fruit Spin.
+  final SlotSkin skin;
 
   /// Bet steps offered (indexes into [GoldRules.bets]).
   final int minBetIdx;
@@ -88,7 +94,7 @@ class _GoldGameState extends State<GoldGame> {
     super.didChangeDependencies();
     if (!_precached) {
       _precached = true;
-      for (final a in GoldAssets.all) {
+      for (final a in {...GoldAssets.all, ...widget.skin.assets}) {
         precacheImage(AssetImage(a), context);
       }
     }
@@ -121,7 +127,7 @@ class _GoldGameState extends State<GoldGame> {
           cy: .48,
           rx: .72,
           ry: .62,
-          colors: const [GC.bgHot, GC.bgMid, GC.bgDeep],
+          colors: widget.skin.background,
           stops: const [0, .52, 1],
         ),
       ),
@@ -135,9 +141,12 @@ class _GoldGameState extends State<GoldGame> {
                 // the extra width of a 19.5:9 phone instead of leaving bands.
                 width: (kDesignH * box.maxWidth / box.maxHeight).clamp(kDesignW, kDesignMaxW),
                 height: kDesignH,
-                child: DefaultTextStyle(
-                  style: rubik(16),
-                  child: ListenableBuilder(listenable: c, builder: (context, _) => _canvas()),
+                child: SkinScope(
+                  skin: widget.skin,
+                  child: DefaultTextStyle(
+                    style: rubik(16),
+                    child: ListenableBuilder(listenable: c, builder: (context, _) => _canvas()),
+                  ),
                 ),
               ),
             ),

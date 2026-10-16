@@ -3,9 +3,9 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-import '../assets.dart';
 import '../controller.dart';
 import '../math.dart';
+import '../skin.dart';
 import '../style.dart';
 import 'fx.dart';
 
@@ -60,8 +60,8 @@ class GoldReels extends StatelessWidget {
               ),
             ),
           ),
-          const Positioned.fill(
-            child: IgnorePointer(child: Img(GoldAssets.reelFrame, w: w, h: h)),
+          Positioned.fill(
+            child: IgnorePointer(child: Img(SlotSkin.of(context).frame, w: w, h: h)),
           ),
         ]),
       ),
@@ -169,7 +169,7 @@ class _ReelColumnState extends State<ReelColumn> with TickerProviderStateMixin {
     final idle = _mode == _Mode.idle;
     final isWin = idle && widget.won && row == 1;
     final dim = idle && !widget.busy && row != 1 && row != null;
-    Widget img = Img(GoldAssets.symbol(s), w: widget.width * .88, h: 104, fit: BoxFit.contain);
+    Widget img = Img(SlotSkin.of(context).symbol(s), w: widget.width * .88, h: 104, fit: BoxFit.contain);
     if (row != null) {
       img = AnimatedScale(
         scale: isWin ? 1.08 : 1,
@@ -233,7 +233,7 @@ class _ReelColumnState extends State<ReelColumn> with TickerProviderStateMixin {
       reel = ImageFiltered(imageFilter: ui.ImageFilter.blur(sigmaX: 3, sigmaY: 3), child: reel);
     }
     return Semantics(
-      label: _mode == _Mode.idle ? widget.symbols.map((s) => s.name).join(', ') : 'Spinning',
+      label: _mode == _Mode.idle ? widget.symbols.map(SlotSkin.of(context).label).join(', ') : 'Spinning',
       child: reel,
     );
   }
