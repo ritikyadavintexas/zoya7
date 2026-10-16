@@ -805,6 +805,21 @@ class Casino extends ChangeNotifier {
     _changed();
   }
 
+  /// Development reset: every coin in / out, bonus, adjustment, play record
+  /// and log line goes; player IDs (back on their starting amount), their
+  /// sign-ins, staff, settings and games stay.
+  void resetData() {
+    txns.clear();
+    plays.clear();
+    seen.clear();
+    audit.clear();
+    for (final p in players) {
+      _post(Txn(id: _txnId(), playerId: p.id, type: TxnType.start, at: p.created, gc: p.startGc, sc: p.startSc, by: p.createdBy));
+    }
+    _log('Reset all data (players and staff kept)');
+    _changed();
+  }
+
   // ── Reports ────────────────────────────────────────────────────────────────
   Report report(Period period) {
     final r = Report(period);

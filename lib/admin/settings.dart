@@ -87,6 +87,20 @@ class _SettingsPageState extends State<SettingsPage> {
             Wrap(spacing: 10, runSpacing: 10, children: [
               KButton('Copy backup', tone: KTone.light, icon: Icons.copy_rounded, height: 42, onTap: () => copy(context, jsonEncode(casino.toJson()), 'Backup')),
               if (casino.admin?.isOwner ?? false)
+                KButton('Reset all (keep users)', tone: KTone.red, icon: Icons.restart_alt_rounded, height: 42, onTap: () async {
+                  if (await kConfirm(context,
+                          title: 'Reset all data?',
+                          message: 'Deletes every coin in and out, bonus, adjustment, game play record and the log — '
+                              'from the server, for good. Player IDs (back on their starting amount), their passwords, '
+                              'staff, settings and games stay.',
+                          action: 'Reset all',
+                          danger: true) &&
+                      context.mounted) {
+                    casino.resetData();
+                    kToast(context, 'All data reset — users kept');
+                  }
+                }),
+              if (casino.admin?.isOwner ?? false)
                 KButton('Clear players & ledger', tone: KTone.red, icon: Icons.delete_sweep_outlined, height: 42, onTap: () async {
                   if (await kConfirm(context,
                           title: 'Start clean?',

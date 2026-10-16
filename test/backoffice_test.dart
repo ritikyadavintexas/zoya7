@@ -67,6 +67,24 @@ void main() {
       expect(made.map((p) => p.username), ['shop001', 'shop003', 'shop004']);
     });
 
+    test('reset all keeps players (on their starting amount), sign-ins and staff; everything else goes', () {
+      final c = demo();
+      final p = c.createPlayer(username: 'keeper', startGc: 1000, startSc: 5);
+      c.linkLogin(p, 'uid-keeper', 'keeper@players.zoya7.app');
+      c.coinIn(p, sc: 50);
+      c.recordRound('classic777', p.id, Currency.sc, 2, 0);
+      final players = c.players.length, staff = c.staff.length;
+      c.resetData();
+      expect(c.players.length, players);
+      expect(c.staff.length, staff);
+      expect(c.uids['uid-keeper'], p.id);
+      expect(c.plays, isEmpty);
+      expect(c.txns.every((t) => t.type == TxnType.start), isTrue);
+      expect(c.txns.length, players);
+      expect((p.gc, p.sc), (1000, 5));
+      expect(c.audit.single.action, contains('Reset all'));
+    });
+
     test('coin in adds coins, up to the daily limit', () {
       final c = demo();
       final p = c.createPlayer(username: 'loaded', startGc: 0, startSc: 0);

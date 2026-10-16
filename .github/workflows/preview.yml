@@ -111,18 +111,22 @@ jobs:
             echo "No ANDROID_DEV_KEYSTORE secret — APK gets a fresh key this run"
           fi
 
+      # A failed APK (e.g. a flaky Android tool download) mustn't hold back the website.
       - name: Build Android APK
+        id: apk
+        continue-on-error: true
         working-directory: ${{ steps.locate.outputs.app_dir }}
         run: flutter build apk --release --dart-define=BUILD_SHA=${GITHUB_SHA::7} --dart-define=DB_URL=${{ vars.ZOYA7_DB_URL }}
 
       - name: Keep APK with this run
+        if: steps.apk.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: zoya7-apk-${{ github.sha }}
           path: ${{ steps.locate.outputs.app_dir }}/build/app/outputs/flutter-apk/app-release.apk
 
       - name: Publish APK to the "preview" release (fixed download link)
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && steps.apk.outcome == 'success'
         working-directory: ${{ steps.locate.outputs.app_dir }}
         env:
           GH_TOKEN: ${{ github.token }}
