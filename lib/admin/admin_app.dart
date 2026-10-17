@@ -71,7 +71,7 @@ class _AdminAppState extends State<AdminApp> {
         child: SyncScope(
           sync: widget.sync,
           child: MaterialApp(
-          builder: (context, child) => WebSafeArea(child: StatusBand(child: child!)),
+          builder: (context, child) => WebSafeArea(keyboardFill: K.bg, child: StatusBand(child: child!)),
           title: 'Zoya7 Admin',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(

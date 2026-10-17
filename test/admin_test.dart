@@ -14,6 +14,7 @@ import 'package:zoya7_gold/app/landscape.dart';
 import 'package:zoya7_gold/app/nav.dart';
 import 'package:zoya7_gold/app/screens/lobby.dart';
 import 'package:zoya7_gold/app/state.dart';
+import 'package:zoya7_gold/app/web_safe_area.dart' show debugKeyboard;
 import 'package:zoya7_gold/backoffice/auth.dart';
 import 'package:zoya7_gold/backoffice/casino.dart';
 import 'package:zoya7_gold/backoffice/sync.dart';
@@ -219,6 +220,24 @@ void main() {
     }
     final fields = tester.widgetList<TextField>(find.byType(TextField)).toList();
     expect(fields.map((f) => f.textInputAction), [TextInputAction.next, TextInputAction.go]);
+    await clear(tester);
+  });
+
+  testWidgets('with the phone keyboard up, a sheet’s field stays in view above it', (tester) async {
+    addTearDown(() => debugKeyboard.value = 0);
+    await show(tester, const Size(390, 844), section: Section.team);
+    await tester.tap(find.text('Give').first);
+    await tester.pumpAndSettle();
+    final note = find.byType(TextField).last;
+    await tester.tap(note);
+    await tester.pump();
+    debugKeyboard.value = 380; // an iPhone keyboard and its bar
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(tester.getRect(note).bottom, lessThanOrEqualTo(844 - 380));
+    expect(tester.getRect(note).top, greaterThanOrEqualTo(0));
+    debugKeyboard.value = 0;
+    await tester.pumpAndSettle();
     await clear(tester);
   });
 

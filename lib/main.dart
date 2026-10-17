@@ -160,6 +160,7 @@ class Zoya7App extends StatelessWidget {
           music: Sounds.lobby,
           effects: const [Sounds.tap, Sounds.coins],
           child: WebSafeArea(
+          keyboardFill: Z.ink,
           child: _SessionGuard(
             state: state,
             child: ForceLandscape(

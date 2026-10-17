@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:zoya7_gold/app/assets.dart';
 import 'package:zoya7_gold/app/landscape.dart';
+import 'package:zoya7_gold/app/web_safe_area.dart';
 import 'package:zoya7_gold/app/nav.dart';
 import 'package:zoya7_gold/app/screens/blackjack.dart';
 import 'package:zoya7_gold/app/screens/game.dart';
@@ -214,6 +215,33 @@ void main() {
     }
     final fields = tester.widgetList<TextField>(find.byType(TextField)).toList();
     expect(fields.map((f) => f.textInputAction), [TextInputAction.next, TextInputAction.go]);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('with the keyboard up, the game is laid out above it and the field is in view', (tester) async {
+    addTearDown(() => debugKeyboard.value = 0);
+    tester.view.physicalSize = const Size(844, 390);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(AppScope(
+      state: AppState(),
+      child: MaterialApp(
+        navigatorKey: Nav.navigatorKey,
+        builder: (context, child) => WebSafeArea(child: ForceLandscape(child: child!)),
+        home: const EditProfileScreen(),
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 500));
+    final last = find.byType(TextField).last;
+    await tester.tap(last);
+    await tester.pump();
+    debugKeyboard.value = 230; // a phone keyboard on its side
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(tester.getRect(last).bottom, lessThanOrEqualTo(390 - 230));
+    debugKeyboard.value = 0;
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.byType(EditProfileScreen)), const Size(844, 390));
     await tester.pumpWidget(const SizedBox());
   });
 
