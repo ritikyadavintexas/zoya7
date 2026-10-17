@@ -87,4 +87,38 @@ void main() {
     c.setStaffActive(agent, true);
     expect(c.signIn('u-agent'), isNotNull);
   });
+
+  test('coin in / out totals: everyone sees only their own part of the chain', () {
+    final other = c.addStaff('u-agent2', 'Zed', StaffRole.agent, parent: exec.uid);
+    c.givePoints(exec, sc: 1000);
+    c.signIn('u-exec');
+    c.givePoints(agent, sc: 300);
+    c.givePoints(other, sc: 300);
+
+    c.signIn('u-agent');
+    final mine = c.createPlayer(username: 'omarone');
+    c.coinIn(mine, sc: 100);
+    c.signIn('u-agent2');
+    final theirs = c.createPlayer(username: 'zedone');
+    c.coinIn(theirs, sc: 40);
+    c.coinOut(theirs, sc: 10);
+    c.signIn('owner');
+    c.coinIn(c.players.firstWhere((p) => p.agent.isEmpty), sc: 7);
+
+    final today = Period.standard(c.now).first;
+    Report as(String uid) {
+      c.signIn(uid, log: false);
+      return c.report(today);
+    }
+
+    final omar = as('u-agent');
+    expect((omar.coinInSc, omar.coinOutSc, omar.coinIns), (100, 0, 1), reason: 'only Omar’s own player');
+    expect(c.daily(1).single.coinIn, 100);
+    final zed = as('u-agent2');
+    expect((zed.coinInSc, zed.coinOutSc), (40, 10));
+    final ella = as('u-exec');
+    expect((ella.coinInSc, ella.coinOutSc), (140, 10), reason: 'her two agents’ players, nobody else’s');
+    final owner = as('owner');
+    expect(owner.coinInSc, greaterThanOrEqualTo(147));
+  });
 }

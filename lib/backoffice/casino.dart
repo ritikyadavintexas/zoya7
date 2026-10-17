@@ -671,7 +671,7 @@ class Casino extends ChangeNotifier {
   bool usernameTaken(String u, {String? except}) =>
       players.any((p) => p.id != except && p.username.toLowerCase() == u.trim().toLowerCase());
 
-  int get online => players.where((p) => now.difference(p.lastSeen).inMinutes < 15).length;
+  int get online => visiblePlayers.where((p) => now.difference(p.lastSeen).inMinutes < 15).length;
 
   /// DC a player has been given by coin in, all time.
   double coinInTotal(String playerId) => txns
@@ -1076,11 +1076,25 @@ class Casino extends ChangeNotifier {
   }
 
   // ── Reports ────────────────────────────────────────────────────────────────
+  /// The players the signed-in staff member's totals may count: null for the
+  /// owner (everyone); an executive their agents' players; an agent their own.
+  /// Every total below goes through this, so nobody sees past their part of
+  /// the chain.
+  Set<String>? get _scope {
+    final me = admin;
+    if (me == null || me.isOwner) return null;
+    return {for (final p in visiblePlayers) p.id};
+  }
+
   Report report(Period period) {
     final r = Report(period);
     final from = period.from, to = period.to;
     final fromDay = dayOf(from), toDay = dayOf(to);
     bool inP(DateTime t) => !t.isBefore(from) && t.isBefore(to);
+    final scope = _scope;
+    final players = scope == null ? this.players : [for (final p in this.players) if (scope.contains(p.id)) p];
+    final txns = scope == null ? this.txns : [for (final t in this.txns) if (scope.contains(t.playerId)) t];
+    final plays = scope == null ? this.plays : {for (final e in this.plays.entries) if (scope.contains(e.value.playerId)) e.key: e.value};
 
     // Balances now, rolled back over everything after each edge.
     for (final p in players) {
@@ -1168,7 +1182,9 @@ class Casino extends ChangeNotifier {
   List<({DateTime day, double coinIn, double coinOut})> daily(int days) {
     final today = dayOf(now);
     final cin = List<double>.filled(days, 0), cout = List<double>.filled(days, 0);
+    final scope = _scope;
     for (final t in txns) {
+      if (scope != null && !scope.contains(t.playerId)) continue;
       final i = days - 1 - (today - dayOf(t.at));
       if (i < 0 || i >= days) continue;
       if (t.type == TxnType.coinIn) cin[i] += t.sc;

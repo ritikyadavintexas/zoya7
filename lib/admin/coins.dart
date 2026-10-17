@@ -365,7 +365,9 @@ class _CoinsPageState extends State<CoinsPage> {
     final ledger = _ledger(casino).take(60).toList();
     return DeskPage(
       title: 'Coin in / out',
-      sub: 'Put coins on accounts and take them off · coins have no cash value',
+      sub: casino.admin?.isOwner ?? true
+          ? 'Put coins on accounts and take them off · coins have no cash value'
+          : 'Your players only · coins have no cash value',
       actions: [
         KButton('Coin out', tone: KTone.dark, icon: Icons.north_east_rounded, onTap: () => showCoinOut(context)),
         KButton('Coin in', icon: Icons.south_west_rounded, onTap: () => showCoinIn(context)),
