@@ -59,6 +59,9 @@ class GitHubPublisher {
     };
   }
 
+  /// Checks the token can reach the repository.
+  Future<void> check() => _api('GET', '');
+
   /// Puts [files] in [folder] and deletes everything else under [clear] (old
   /// versions), as one commit. [progress] hears how far it got. Returns the
   /// commit's id.

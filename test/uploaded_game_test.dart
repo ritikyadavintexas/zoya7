@@ -50,6 +50,7 @@ class FakeGitHub {
     String ok(Object o) => jsonEncode(o);
     return switch ((method, path)) {
       ('POST', '/git/blobs') => (status: 201, body: ok({'sha': 'b${blobs.length}'}..also((m) => blobs[m['sha']!] = j!['content'] as String))),
+      ('GET', '') => (status: 200, body: ok({'full_name': 'ritikyadavintexas/zoya7'})),
       ('GET', '/git/ref/heads/main') => (status: 200, body: ok({'object': {'sha': 'c1'}})),
       ('GET', '/git/commits/c1') => (status: 200, body: ok({'tree': {'sha': 't1'}})),
       ('GET', '/git/trees/t1?recursive=1') => (status: 200, body: ok({'tree': [for (final p in existing) {'path': p, 'type': 'blob', 'sha': 'x'}]})),
@@ -183,6 +184,19 @@ void main() {
     expect(phone.configs.containsKey('lanterns'), isFalse);
   });
 
+  test('the GitHub token is kept beside the records, not with them', () async {
+    final db = FakeFirebase();
+    final c = Casino.demo();
+    final s = CasinoSync(c, transport: db.call, autoSync: false, storagePrefix: 'tok');
+    await s.connect(FakeFirebase.host);
+    expect(await s.readSecret('github'), isNull);
+    await s.writeSecret('github', 'github_pat_abc');
+    expect(await s.readSecret('github'), 'github_pat_abc');
+    expect(jsonEncode(db.tree), isNot(contains('github_pat_abc')), reason: 'synced records never carry it');
+    await s.writeSecret('github', null);
+    expect(await s.readSecret('github'), isNull);
+  });
+
   group('GitHub', () {
     test('one commit: the new version’s files in, the old version’s out, nothing else touched', () async {
       final gh = FakeGitHub(['web/games/lanterns/1/index.html', 'web/games/lanterns/1/game.json', 'lib/main.dart']);
@@ -236,6 +250,9 @@ void main() {
       GameUpload.publisher = (token) => GitHubPublisher(token, http: gh.call);
       GameUpload.bridge = () async => Uint8List.fromList(utf8.encode('// bridge'));
       GameUpload.isLive = (id, v) async => false;
+      String? saved;
+      GameUpload.readToken = (_) async => saved;
+      GameUpload.saveToken = (_, t) async => saved = t;
 
       final c = Casino.demo()..signIn('owner');
       await tester.pumpWidget(AdminApp(casino: c, initialSection: Section.games));
@@ -246,10 +263,16 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Lantern Drift'), findsWidgets);
       expect(find.textContaining('30×'), findsOneWidget);
-      await tester.enterText(find.byType(TextField).last, 'tok');
-      await tester.pump();
+      expect(find.textContaining('First time'), findsOneWidget);
+      // No token yet: publishing asks for it, checks it with GitHub, saves it and carries on.
       await tester.tap(find.text('Publish to the lobby'));
       await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).last, 'tok');
+      await tester.pump();
+      await tester.tap(find.text('Save token'));
+      await tester.pumpAndSettle();
+      expect(saved, 'tok');
+      expect(gh.calls.first, 'GET ');
 
       expect(gh.message, 'Add Lantern Drift (version 1) from the admin panel');
       expect(gh.tree!.map((e) => e['path']), containsAll(['web/games/lanterns/1/index.html', 'web/games/lanterns/1/zoya7-bridge.js']));

@@ -221,6 +221,31 @@ class CasinoSync extends ChangeNotifier {
 
   String _at(String path, String query) => '$url/zoya7${path.isEmpty ? '' : '/$path'}.json$query';
 
+  // ── The owner's secrets ────────────────────────────────────────────────────
+  // Kept beside the records (zoya7_secrets/<name>), not synced, and only the
+  // owner can read or write them (firebase/database.rules.json).
+
+  /// A secret the owner saved (the GitHub token for uploading games), or null.
+  Future<String?> readSecret(String name) async {
+    if (url == null) throw 'Not connected to the database';
+    final res = await transport('GET', '$url/zoya7_secrets/$name.json${await _query()}');
+    if (res.status == 401 || res.status == 403) throw 'Only the owner can see this (and the database rules must allow it)';
+    if (res.status != 200) throw 'Can’t reach the database';
+    final j = jsonDecode(res.body);
+    return j is Map ? j['v'] as String? : null;
+  }
+
+  /// Saves (or, with null, deletes) a secret.
+  Future<void> writeSecret(String name, String? value) async {
+    if (url == null) throw 'Not connected to the database';
+    final body = value == null ? 'null' : jsonEncode({'v': value, 'at': DateTime.now().millisecondsSinceEpoch});
+    final res = await transport('PUT', '$url/zoya7_secrets/$name.json${await _query()}', body);
+    if (res.status == 401 || res.status == 403) {
+      throw 'The database refused it. Publish the new rules (firebase/database.rules.json) in the Firebase console, then try again.';
+    }
+    if (res.status != 200) throw 'Can’t reach the database';
+  }
+
   // ── Connecting ─────────────────────────────────────────────────────────────
   /// Start syncing with the built-in database.
   void start() => connect(configuredUrl());

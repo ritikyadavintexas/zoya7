@@ -139,7 +139,8 @@ GoldGame(
   is made by `tools/sounds/make_sounds.py`. New games: `docs/GAME.md` and `tools/add_game.py`.
 - **Uploaded games:** any game made with `docs/GAME_PROMPT.md` (an HTML5 canvas game in one folder)
   is uploaded from the admin panel (Games → Upload a game, owner only). The panel checks the zip
-  (`lib/games/html/package.dart`), commits it to `web/games/<id>/<version>/` with a GitHub token,
+  (`lib/games/html/package.dart`), commits it to `web/games/<id>/<version>/` with a GitHub token
+  (saved under `zoya7_secrets/` in the database, owner-only in `firebase/database.rules.json`),
   and switches it on in the lobby when the rebuilt site serves it. It runs in a sandboxed frame and
   talks to the app only through `zoya7-bridge.js` (`assets/sdk/`, `lib/app/html_host.dart`): the app
   draws every round from the game's pay table at the RTP set in Game math and books it. Web only for

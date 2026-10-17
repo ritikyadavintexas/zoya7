@@ -8,6 +8,7 @@ import '../app/site.dart';
 import '../backoffice/casino.dart';
 import '../backoffice/github.dart';
 import '../backoffice/net.dart';
+import '../backoffice/sync.dart';
 import '../games/html/model.dart';
 import '../games/html/package.dart';
 import 'kit.dart';
@@ -20,10 +21,27 @@ import 'pick_file.dart';
 class GameUpload {
   GameUpload._();
 
-  /// The GitHub token, kept only while this panel is open (never stored).
+  /// The GitHub token: saved in the database where only the owner can read it
+  /// (zoya7_secrets/github), loaded when the uploader first opens.
   static String token = '';
+  static bool _loaded = false;
+
+  static Future<void> loadToken(CasinoSync? sync) async {
+    if (_loaded) return;
+    try {
+      token = await readToken(sync) ?? '';
+      _loaded = true;
+    } catch (_) {
+      // Not reachable now: asked again next time.
+    }
+  }
 
   // Swapped in tests.
+  static Future<String?> Function(CasinoSync? sync) readToken = (sync) async => sync?.readSecret('github');
+  static Future<void> Function(CasinoSync? sync, String? token) saveToken = (sync, token) async {
+    if (sync == null) throw 'Not connected to the database';
+    await sync.writeSecret('github', token);
+  };
   static bool canPick = canPickFiles;
   static Future<(String, Uint8List)?> Function() pick = pickZip;
   static GitHubPublisher Function(String token) publisher = GitHubPublisher.new;
@@ -82,25 +100,116 @@ Future<void> showUploadGame(BuildContext context) => showDialog(context: context
 
 Future<void> showRemoveGame(BuildContext context, GameInfo g) => showDialog(context: context, builder: (_) => _Remover(g));
 
-/// The token field and where to get one.
-class _TokenField extends StatelessWidget {
-  const _TokenField({required this.controller, required this.onChanged});
-  final TextEditingController controller;
+/// The key in the corner: the saved GitHub token (green dot when there is one).
+class _TokenButton extends StatelessWidget {
+  const _TokenButton({required this.onChanged});
   final VoidCallback onChanged;
 
   @override
-  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        KField(label: 'GitHub token', controller: controller, obscure: true, hint: 'github_pat_…', onChanged: (v) {
-          GameUpload.token = v.trim();
-          onChanged();
-        }),
-        const SizedBox(height: 6),
-        Text(
-          'A fine-grained token for ${const GitHubRepo()} with “Contents: Read and write” '
-          '(GitHub: Settings, Developer settings, Fine-grained tokens). Kept only while this panel is open.',
-          style: kt(12.5, c: K.sub, h: 1.4),
+  Widget build(BuildContext context) => Stack(clipBehavior: Clip.none, children: [
+        IconButton(
+          tooltip: GameUpload.token.isEmpty ? 'Add the GitHub token' : 'GitHub token (saved)',
+          onPressed: () async {
+            await showTokenDialog(context);
+            onChanged();
+          },
+          icon: Icon(Icons.key_rounded, color: GameUpload.token.isEmpty ? K.amber : K.text),
         ),
+        if (GameUpload.token.isNotEmpty)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(width: 9, height: 9, decoration: const BoxDecoration(shape: BoxShape.circle, color: K.green)),
+          ),
       ]);
+}
+
+Future<void> showTokenDialog(BuildContext context) => showDialog(context: context, builder: (_) => const _TokenDialog());
+
+class _TokenDialog extends StatefulWidget {
+  const _TokenDialog();
+
+  @override
+  State<_TokenDialog> createState() => _TokenDialogState();
+}
+
+class _TokenDialogState extends State<_TokenDialog> {
+  final field = TextEditingController();
+  bool busy = false;
+  String? error;
+
+  @override
+  void dispose() {
+    field.dispose();
+    super.dispose();
+  }
+
+  /// Checks the token with GitHub, then saves it (or, with null, deletes it).
+  Future<void> _save(String? token) async {
+    final sync = SyncScope.read(context);
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      if (token != null) await GameUpload.publisher(token).check();
+      await GameUpload.saveToken(sync, token);
+      GameUpload.token = token ?? '';
+      if (mounted) {
+        Navigator.pop(context);
+        kToast(context, token == null ? 'Token removed' : 'Token saved');
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final saved = GameUpload.token;
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(22), children: [
+          Row(children: [
+            const Icon(Icons.key_rounded),
+            const SizedBox(width: 10),
+            Expanded(child: Text('GitHub token', style: kt(20, w: FontWeight.w800))),
+          ]),
+          const SizedBox(height: 6),
+          Text(
+            saved.isEmpty
+                ? 'Needed to publish and remove games. Saved in the database, where only the owner can read it.'
+                : 'Saved: ${saved.length > 14 ? '${saved.substring(0, 11)}…${saved.substring(saved.length - 4)}' : '••••'}. '
+                    'Paste a new one to replace it.',
+            style: kt(14, c: K.sub, h: 1.4),
+          ),
+          const SizedBox(height: 14),
+          KField(label: saved.isEmpty ? 'Token' : 'New token', controller: field, obscure: true, hint: 'github_pat_…', onChanged: (_) => setState(() {})),
+          const SizedBox(height: 6),
+          Text(
+            'Make one on GitHub: Settings, Developer settings, Fine-grained tokens. Repository access: only '
+            '${const GitHubRepo()}. Permissions: Contents, Read and write. Nothing else.',
+            style: kt(12.5, c: K.sub, h: 1.4),
+          ),
+          if (error != null) ...[
+            const SizedBox(height: 12),
+            Text(error!, style: kt(14, w: FontWeight.w600, c: K.red, h: 1.4)),
+          ],
+          const SizedBox(height: 16),
+          Wrap(spacing: 10, runSpacing: 10, children: [
+            KButton(busy ? 'Checking…' : 'Save token',
+                icon: Icons.check_rounded, onTap: busy || field.text.trim().isEmpty ? null : () => _save(field.text.trim())),
+            if (saved.isNotEmpty) KButton('Remove token', tone: KTone.red, onTap: busy ? null : () => _save(null)),
+            KButton('Cancel', tone: KTone.light, onTap: busy ? null : () => Navigator.pop(context)),
+          ]),
+        ]),
+      ),
+    );
+  }
 }
 
 class _Uploader extends StatefulWidget {
@@ -111,7 +220,6 @@ class _Uploader extends StatefulWidget {
 }
 
 class _UploaderState extends State<_Uploader> {
-  final token = TextEditingController(text: GameUpload.token);
   String? fileName;
   GamePackage? pkg;
 
@@ -123,9 +231,11 @@ class _UploaderState extends State<_Uploader> {
   bool done = false;
 
   @override
-  void dispose() {
-    token.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    GameUpload.loadToken(SyncScope.read(context)).then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _choose() async {
@@ -143,6 +253,11 @@ class _UploaderState extends State<_Uploader> {
   }
 
   Future<void> _publish(Casino casino) async {
+    if (GameUpload.token.isEmpty) {
+      await showTokenDialog(context);
+      if (!mounted || GameUpload.token.isEmpty) return;
+      setState(() {});
+    }
     final p = pkg!;
     final game = p.game!;
     final version = (casino.configs[p.id]?.html?.version ?? 0) + 1;
@@ -199,6 +314,7 @@ class _UploaderState extends State<_Uploader> {
         child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(22), children: [
           Row(children: [
             Expanded(child: Text('Upload a game', style: kt(22, w: FontWeight.w800))),
+            _TokenButton(onChanged: () => setState(() {})),
             IconButton(tooltip: 'Close', onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
           ]),
           Text('A game made with docs/GAME_PROMPT.md, as one .zip. It’s checked here first.', style: kt(14, c: K.sub)),
@@ -216,14 +332,15 @@ class _UploaderState extends State<_Uploader> {
             _Report(fileName: fileName!, pkg: p, current: current),
             if (p.ok && !done) ...[
               const SizedBox(height: 18),
-              _TokenField(controller: token, onChanged: () => setState(() {})),
-              const SizedBox(height: 14),
               Align(
                 alignment: Alignment.centerLeft,
                 child: KButton(busy ? 'Publishing…' : 'Publish to the lobby',
-                    icon: Icons.rocket_launch_rounded,
-                    onTap: busy || token.text.trim().isEmpty ? null : () => _publish(casino)),
+                    icon: Icons.rocket_launch_rounded, onTap: busy ? null : () => _publish(casino)),
               ),
+              if (GameUpload.token.isEmpty) ...[
+                const SizedBox(height: 6),
+                Text('First time: you’ll be asked for the GitHub token (it’s saved for next time).', style: kt(12.5, c: K.sub)),
+              ],
             ],
           ],
           if (step != null) ...[
@@ -356,17 +473,22 @@ class _Remover extends StatefulWidget {
 }
 
 class _RemoverState extends State<_Remover> {
-  final token = TextEditingController(text: GameUpload.token);
   bool busy = false;
   String? error;
 
   @override
-  void dispose() {
-    token.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    GameUpload.loadToken(SyncScope.read(context)).then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _remove(Casino casino) async {
+    if (GameUpload.token.isEmpty) {
+      await showTokenDialog(context);
+      if (!mounted || GameUpload.token.isEmpty) return;
+    }
     setState(() {
       busy = true;
       error = null;
@@ -397,8 +519,6 @@ class _RemoverState extends State<_Remover> {
           Text('Remove ${widget.g.name}?', style: kt(20, w: FontWeight.w800)),
           const SizedBox(height: 6),
           Text('It leaves the lobby and its files are deleted from the site. Its play stays in the reports.', style: kt(14, c: K.sub, h: 1.4)),
-          const SizedBox(height: 16),
-          _TokenField(controller: token, onChanged: () => setState(() {})),
           if (error != null) ...[
             const SizedBox(height: 12),
             Text(error!, style: kt(14, w: FontWeight.w600, c: K.red)),
@@ -407,7 +527,7 @@ class _RemoverState extends State<_Remover> {
           Row(children: [
             KButton('Cancel', tone: KTone.light, onTap: busy ? null : () => Navigator.pop(context)),
             const SizedBox(width: 10),
-            KButton(busy ? 'Removing…' : 'Remove', tone: KTone.red, onTap: busy || token.text.trim().isEmpty ? null : () => _remove(casino)),
+            KButton(busy ? 'Removing…' : 'Remove', tone: KTone.red, onTap: busy ? null : () => _remove(casino)),
           ]),
         ]),
       ),

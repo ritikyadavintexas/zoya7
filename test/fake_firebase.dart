@@ -7,6 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// Firebase sends them, 2.0 as 2) and Authentication's email sign-in.
 class FakeFirebase {
   Map<String, dynamic>? tree;
+
+  /// zoya7_secrets/<name> (beside the records).
+  final secrets = <String, Object?>{};
   int writes = 0;
   bool down = false;
   final accounts = <String, ({String uid, String password})>{};
@@ -17,7 +20,13 @@ class FakeFirebase {
     if (down) throw 'offline';
     expect(url, startsWith(host));
     // The app keeps everything under /zoya7; [tree] is that node.
-    final path = Uri.parse(url).path.replaceFirst(RegExp(r'\.json$'), '').split('/').where((s) => s.isNotEmpty).skip(1).toList();
+    final segs = Uri.parse(url).path.replaceFirst(RegExp(r'\.json$'), '').split('/').where((s) => s.isNotEmpty).toList();
+    if (segs.first == 'zoya7_secrets') {
+      final name = segs[1];
+      if (method == 'PUT') secrets[name] = jsonDecode(body!);
+      return (status: 200, body: jsonEncode(method == 'PUT' ? secrets[name] : secrets[name]));
+    }
+    final path = segs.skip(1).toList();
     switch (method) {
       case 'GET':
         Object? node = tree;

@@ -55,6 +55,10 @@
           ".read": "auth != null && auth.uid === $uid"
         }
       }
+    },
+    "zoya7_secrets": {
+      ".read": "auth != null && root.child('zoya7/staff/' + auth.uid + '/r').val() === 0",
+      ".write": "auth != null && root.child('zoya7/staff/' + auth.uid + '/r').val() === 0"
     }
   }
 }

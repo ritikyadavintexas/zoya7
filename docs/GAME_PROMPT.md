@@ -7,7 +7,8 @@ How to use it:
 2. Download the zip it gives you.
 3. Admin panel → **Games** → **Upload a game** → choose the zip. The panel checks it; if anything is
    wrong, press **Copy for GPT**, paste that to GPT and upload the fixed zip.
-4. Paste a GitHub token once per session and press **Publish to the lobby**. The site rebuilds and
+4. Press **Publish to the lobby** (the first time it asks for a GitHub token and saves it; the key
+   icon in the uploader's corner changes or removes it). The site rebuilds and
    the game switches on in the lobby by itself in about 5 minutes. Its payback is set in
    **Game math** (95% to start); the game only says what each result pays.
 
