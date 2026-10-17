@@ -22,4 +22,5 @@ flutter:
   assets:
     - assets/games/gold/
     - assets/games/fruit/
+    - assets/games/phoenix/
     - assets/app/

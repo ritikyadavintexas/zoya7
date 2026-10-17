@@ -7,6 +7,7 @@ class A {
   static const vipBanner = '$_d/vip_banner.webp';
   static const classic777 = '$_d/game_classic777.webp';
   static const fruitSpin = '$_d/game_fruitspin.webp';
+  static const phoenixRuby = '$_d/game_phoenixruby.webp';
   static const megaReels = '$_d/game_megareels.webp';
   static const blackjack = '$_d/game_blackjack.webp';
   static const roulette = '$_d/game_roulette.webp';
@@ -17,8 +18,8 @@ class A {
   static const dailyBonusIcon = '$_d/icon_daily_bonus.webp';
 
   static const all = [
-    logo, welcomeHero, avatar, vipBanner, classic777, fruitSpin, megaReels, blackjack, roulette, plinko, dailyBonusIcon, //
-    '$_d/card_classic777.webp', '$_d/card_fruitspin.webp', '$_d/card_megareels.webp',
+    logo, welcomeHero, avatar, vipBanner, classic777, fruitSpin, phoenixRuby, megaReels, blackjack, roulette, plinko, //
+    dailyBonusIcon, '$_d/card_classic777.webp', '$_d/card_fruitspin.webp', '$_d/card_phoenixruby.webp', '$_d/card_megareels.webp',
     '$_d/card_blackjack.webp', '$_d/card_roulette.webp', '$_d/card_plinko.webp',
   ];
 }
@@ -53,6 +54,7 @@ class GameInfo {
 
 const games = [
   GameInfo(id: 'classic777', name: 'Classic 777', cat: 'SLOTS', image: A.classic777, playable: true, players: '1.2k'),
+  GameInfo(id: 'phoenixruby', name: 'Phoenix Ruby', cat: 'SLOTS', image: A.phoenixRuby, playable: true, players: '930'),
   GameInfo(
     id: 'blackjack',
     name: 'Blackjack',
@@ -94,4 +96,4 @@ const games = [
   ),
 ];
 
-GameInfo gameById(String id) => games.firstWhere((g) => g.id == id, orElse: () => games[2]);
+GameInfo gameById(String id) => games.firstWhere((g) => g.id == id, orElse: () => games.firstWhere((g) => !g.playable));

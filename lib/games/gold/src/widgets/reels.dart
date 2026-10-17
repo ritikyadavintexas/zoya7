@@ -15,12 +15,14 @@ class GoldReels extends StatelessWidget {
   final GoldController c;
 
   static const double w = 1160, h = 656;
-  // left %, width % of each reel window (from the design).
-  static const _cols = [(11.1, 24.6), (37.8, 24.4), (64.3, 24.7)];
 
   @override
   Widget build(BuildContext context) {
     final won = c.lastMult > 0 && !c.busy;
+    // Where the skin's frame has its reel windows.
+    final skin = SlotSkin.of(context);
+    final cols = skin.reelCols;
+    final top = h * skin.reelTop, height = h * skin.reelHeight;
     return Semantics(
       label: 'Reels',
       child: SizedBox(
@@ -29,10 +31,10 @@ class GoldReels extends StatelessWidget {
         child: Stack(children: [
           for (var i = 0; i < 3; i++)
             Positioned(
-              left: w * _cols[i].$1 / 100,
-              width: w * _cols[i].$2 / 100,
-              top: h * .25,
-              height: h * .573,
+              left: w * cols[i].$1 / 100,
+              width: w * cols[i].$2 / 100,
+              top: top,
+              height: height,
               child: ReelColumn(
                 symbols: c.grid[i],
                 spinning: c.spinning[i],
@@ -40,14 +42,14 @@ class GoldReels extends StatelessWidget {
                 busy: c.busy,
                 fast: c.fastSpin,
                 filler: c.outcomes.fillerSymbol,
-                width: w * _cols[i].$2 / 100,
-                height: h * .573,
+                width: w * cols[i].$2 / 100,
+                height: height,
               ),
             ),
           Positioned(
-            left: w * .105,
-            right: w * .105,
-            top: h * .536 - 2,
+            left: w * (cols.first.$1 - .6) / 100,
+            right: w * (100 - cols.last.$1 - cols.last.$2 - .6) / 100,
+            top: top + height / 2 - 2,
             height: 4,
             child: IgnorePointer(
               child: AnimatedContainer(
@@ -61,7 +63,7 @@ class GoldReels extends StatelessWidget {
             ),
           ),
           Positioned.fill(
-            child: IgnorePointer(child: Img(SlotSkin.of(context).frame, w: w, h: h)),
+            child: IgnorePointer(child: Img(skin.frame, w: w, h: h)),
           ),
         ]),
       ),

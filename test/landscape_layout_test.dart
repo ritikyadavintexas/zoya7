@@ -74,6 +74,7 @@ void main() {
     'coming soon': () => const ComingSoonScreen(gameId: 'blackjack'),
     'gold game': () => const GoldScreen(),
     'fruit spin': () => const GoldScreen(gameId: 'fruitspin'),
+    'phoenix ruby': () => const GoldScreen(gameId: 'phoenixruby'),
     'blackjack': () => const BlackjackScreen(),
   };
 

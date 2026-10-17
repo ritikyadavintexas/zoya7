@@ -42,7 +42,7 @@ void main() {
   });
 
   test('Fruit Spin shows fruit where Classic 777 shows 7, BAR, crown and star; every image exists', () {
-    for (final skin in [SlotSkin.classic, SlotSkin.fruit]) {
+    for (final skin in [SlotSkin.classic, SlotSkin.fruit, SlotSkin.phoenix]) {
       for (final a in skin.assets) {
         expect(File(a).existsSync(), isTrue, reason: '${skin.name}: $a');
       }
@@ -52,5 +52,12 @@ void main() {
     }
     expect(SlotSkin.fruit.frame, isNot(SlotSkin.classic.frame));
     expect(Sym.values.map(SlotSkin.fruit.symbol).toSet(), hasLength(Sym.values.length));
+  });
+
+  test('Phoenix Ruby has its own art for all 11 symbols and its own frame', () {
+    expect(SlotSkin.forGame('phoenixruby'), same(SlotSkin.phoenix));
+    expect(Sym.values.map(SlotSkin.phoenix.symbol).toSet(), hasLength(Sym.values.length));
+    expect(Sym.values.every((s) => SlotSkin.phoenix.symbol(s).startsWith('assets/games/phoenix/')), isTrue);
+    expect(SlotSkin.phoenix.reelCols, hasLength(3));
   });
 }

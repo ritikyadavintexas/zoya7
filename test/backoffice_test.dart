@@ -118,6 +118,11 @@ void main() {
   });
 
   group('math', () {
+    test('a game the database has no settings for starts from its standard setup', () {
+      final c = Casino.empty()..configs.remove('phoenixruby');
+      expect(c.config('phoenixruby').rtp, closeTo(.95, .002));
+    });
+
     test('the slot solver hits the target RTP', () {
       for (final target in [.85, .9, .95, .97]) {
         final w = SlotMath.solve(target);

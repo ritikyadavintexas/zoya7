@@ -145,7 +145,7 @@ class _FitGrid extends StatelessWidget {
       if (rows * _tile(tileW).$2 + (rows - 1) * gap <= h) break;
     }
     // Don't let tiles get unusably small: past that, scroll instead.
-    while (cols > 1 && (w - gap * (cols - 1)) / cols < 88) {
+    while (cols > 1 && (w - gap * (cols - 1)) / cols < 64) {
       cols--;
     }
     final tileW = (w - gap * (cols - 1)) / cols;
@@ -258,11 +258,16 @@ class _GameTile extends StatelessWidget {
         const SizedBox(height: 6),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 2),
+          // On the narrowest tiles (a 4-inch phone) the two lines shrink to fit.
           child: twoLines
-              ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(g.cat, style: outfit(12, w: FontWeight.w600, ls: .04, c: Z.muted, h: 1.5)),
-                  _status(),
-                ])
+              ? FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(g.cat, style: outfit(12, w: FontWeight.w600, ls: .04, c: Z.muted, h: 1.5)),
+                    _status(),
+                  ]),
+                )
               : Row(children: [
                   Text(g.cat, style: outfit(12, w: FontWeight.w600, ls: .04, c: Z.muted)),
                   const Spacer(),

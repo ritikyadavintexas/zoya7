@@ -4,7 +4,7 @@ import '../../games/gold/gold_game.dart';
 import '../nav.dart';
 import '../state.dart';
 
-/// Classic 777 / Fruit Spin (the Gold slot), hosted inside the (landscape)
+/// Classic 777 / Fruit Spin / Phoenix Ruby (the Gold slot), hosted inside the (landscape)
 /// app. Reel math and bet range come from the back office; every spin moves
 /// the app's balance and is recorded for the reports.
 class GoldScreen extends StatelessWidget {
@@ -16,7 +16,7 @@ class GoldScreen extends StatelessWidget {
     final s = AppScope.read(context);
     final cfg = s.casino.config(gameId);
     return Scaffold(
-      backgroundColor: gameId == 'fruitspin' ? const Color(0xFF03180A) : const Color(0xFF1A0F04),
+      backgroundColor: SlotSkin.forGame(gameId).background.last,
       resizeToAvoidBottomInset: false,
       body: GoldGame(
         outcomes: _Recorded(gameId, s, LocalGoldMath(weights: cfg.weights)),
@@ -27,7 +27,7 @@ class GoldScreen extends StatelessWidget {
         onExitToLobby: () => Nav.back(context),
         onBuyCoins: (_) => Nav.tab(AppTab.wallet, walletTab: 'buy'),
         onOpenPlayLimits: () => Nav.push(R.settings),
-        skin: gameId == 'fruitspin' ? SlotSkin.fruit : SlotSkin.classic,
+        skin: SlotSkin.forGame(gameId),
       ),
     );
   }

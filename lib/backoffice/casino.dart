@@ -31,7 +31,7 @@ enum StaffRole { owner, manager, cashier }
 enum GameKind { goldSlot, slot, blackjack, roulette, plinko }
 
 GameKind kindOf(String gameId) => switch (gameId) {
-      'classic777' || 'fruitspin' => GameKind.goldSlot,
+      'classic777' || 'fruitspin' || 'phoenixruby' => GameKind.goldSlot,
       'blackjack' => GameKind.blackjack,
       'roulette' => GameKind.roulette,
       'plinko' => GameKind.plinko,
@@ -542,7 +542,9 @@ class Casino extends ChangeNotifier {
     _changed();
   }
 
-  GameConfig config(String gameId) => configs.putIfAbsent(gameId, () => GameConfig(id: gameId));
+  /// A game's settings; one the database hasn't heard of yet starts from its
+  /// standard setup (a new slot at its set RTP, not the engine's bare reels).
+  GameConfig config(String gameId) => configs.putIfAbsent(gameId, () => _startingGame(gameId));
 
   GameStatus statusOf(String gameId) => config(gameId).status;
 
@@ -1160,12 +1162,19 @@ class Casino extends ChangeNotifier {
 
   /// How the games start out (until staff change them).
   static Map<String, GameConfig> _startingGames() => {
-        'classic777': GameConfig(id: 'classic777', weights: SlotMath.solve(.95), badge: 'HOT'),
-        'fruitspin': GameConfig(id: 'fruitspin', weights: SlotMath.solve(.94)),
-        'blackjack': GameConfig(id: 'blackjack', badge: 'NEW'),
-        'roulette': GameConfig(id: 'roulette', minGc: 100, maxGc: 100000, minSc: .1, maxSc: 100),
-        'plinko': GameConfig(id: 'plinko', targetRtp: .97, minGc: 100, maxGc: 50000, minSc: .1, maxSc: 50),
-        'megareels': GameConfig(id: 'megareels', targetRtp: .955),
+        for (final id in const ['classic777', 'fruitspin', 'phoenixruby', 'blackjack', 'roulette', 'plinko', 'megareels'])
+          id: _startingGame(id),
+      };
+
+  static GameConfig _startingGame(String id) => switch (id) {
+        'classic777' => GameConfig(id: id, weights: SlotMath.solve(.95), badge: 'HOT'),
+        'fruitspin' => GameConfig(id: id, weights: SlotMath.solve(.94)),
+        'phoenixruby' => GameConfig(id: id, weights: SlotMath.solve(.95), badge: 'NEW'),
+        'blackjack' => GameConfig(id: id, badge: 'NEW'),
+        'roulette' => GameConfig(id: id, minGc: 100, maxGc: 100000, minSc: .1, maxSc: 100),
+        'plinko' => GameConfig(id: id, targetRtp: .97, minGc: 100, maxGc: 50000, minSc: .1, maxSc: 50),
+        'megareels' => GameConfig(id: id, targetRtp: .955),
+        _ => GameConfig(id: id),
       };
 
   /// A month of believable history: 24 players given coins, playing and
