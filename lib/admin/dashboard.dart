@@ -8,6 +8,7 @@ import 'coins.dart';
 import 'kit.dart';
 import 'players.dart';
 import 'setup.dart';
+import 'team.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -20,7 +21,10 @@ class _DashboardPageState extends State<DashboardPage> {
   int period = 0; // Today, 7 days, 30 days
 
   @override
-  Widget build(BuildContext context) => K.desktop(context) ? _desktop(context) : _phone(context);
+  Widget build(BuildContext context) {
+    if (!CasinoScope.of(context).admin!.isOwner) return const _NetworkHome();
+    return K.desktop(context) ? _desktop(context) : _phone(context);
+  }
 
   Widget _desktop(BuildContext context) {
     final casino = CasinoScope.of(context);
@@ -214,5 +218,62 @@ class _GameLine extends StatelessWidget {
           ),
       ]),
     );
+  }
+}
+
+/// Home for an executive or an agent: their points, their part of the
+/// chain, what to do next, and the latest coin in and out.
+class _NetworkHome extends StatelessWidget {
+  const _NetworkHome();
+
+  @override
+  Widget build(BuildContext context) {
+    final casino = CasinoScope.of(context);
+    final me = casino.admin!;
+    final players = casino.visiblePlayers;
+    final ids = {for (final p in players) p.id};
+    final today = dayOf(casino.now);
+    final todays = [for (final t in casino.txns) if (ids.contains(t.playerId) && dayOf(t.at) == today) t];
+    double sum(TxnType type, bool dc) => todays.where((t) => t.type == type).fold(0, (a, t) => a + (dc ? t.sc : t.gc).abs());
+    final agents = me.isExecutive ? casino.agentsOf(me) : const <Staff>[];
+    final children = <Widget>[
+      MyPointsCard(me),
+      const SizedBox(height: 16),
+      KGrid(min: 180, children: [
+        if (me.isExecutive) ...[
+          KStat(label: 'Agents', value: '${agents.length}', sub: '${agents.where((a) => a.active).length} can sign in', icon: Icons.groups_outlined),
+          KStat(
+            label: 'Points with agents',
+            value: compact(agents.fold<double>(0, (a, s) => a + s.gc)),
+            sub: scAmt(agents.fold<double>(0, (a, s) => a + s.sc)),
+            icon: Icons.toll_rounded,
+          ),
+        ],
+        KStat(label: me.isAgent ? 'My players' : 'Their players', value: '${players.length}', sub: '${players.where((p) => p.status == PlayerStatus.active).length} active', icon: Icons.people_alt_outlined),
+        KStat(label: 'Coin in today', value: scAmt(sum(TxnType.coinIn, true)), sub: gcAmt(sum(TxnType.coinIn, false)), icon: Icons.south_west_rounded, color: K.greenInk),
+        KStat(label: 'Coin out today', value: scAmt(sum(TxnType.coinOut, true)), sub: gcAmt(sum(TxnType.coinOut, false)), icon: Icons.north_east_rounded),
+      ]),
+      const SizedBox(height: 16),
+      Wrap(spacing: 10, runSpacing: 10, children: [
+        if (me.isAgent) ...[
+          KButton('New player ID', icon: Icons.person_add_alt_1_rounded, onTap: () => showCreatePlayer(context)),
+          KButton('Coin in', tone: KTone.light, icon: Icons.south_west_rounded, onTap: () => showCoinIn(context)),
+          KButton('Coin out', tone: KTone.light, icon: Icons.north_east_rounded, onTap: () => showCoinOut(context)),
+        ] else
+          KButton('Give points to an agent', icon: Icons.account_tree_rounded, onTap: () => AdminNav.to(context, Section.team)),
+      ]),
+      const SizedBox(height: 16),
+      KCard(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          const KTitle('Latest activity'),
+          if (!casino.txns.any((t) => ids.contains(t.playerId))) const KEmpty('Nothing yet'),
+          for (final t in casino.txns.reversed.where((t) => ids.contains(t.playerId)).take(8)) TxnTile(t),
+        ]),
+      ),
+    ];
+    final greeting = casino.now.hour < 12 ? 'Good morning' : casino.now.hour < 18 ? 'Good afternoon' : 'Good evening';
+    if (!K.desktop(context)) return ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: children);
+    return DeskPage(title: '$greeting, ${me.name}', sub: '${roleName(me.role)} · coins have no cash value', children: children);
   }
 }

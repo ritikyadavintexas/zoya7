@@ -26,7 +26,10 @@ enum TxnType { start, coinIn, coinOut, bonus, adjust }
 /// live: playable · maintenance: shown, can't be opened · hidden: not in the lobby.
 enum GameStatus { live, maintenance, hidden }
 
-enum StaffRole { owner, manager, cashier }
+/// The chain, top to bottom: the owner runs everything and supplies points to
+/// executives; executives supply their agents; agents make player IDs and put
+/// coins on them. Stored by index (owner 0, executive 1, agent 2).
+enum StaffRole { owner, executive, agent }
 
 /// What kind of math a game has (decides its math screen). html: a game
 /// uploaded from the admin panel ([HtmlGame]).
@@ -39,6 +42,8 @@ GameKind kindOf(String gameId) => switch (gameId) {
       'plinko' => GameKind.plinko,
       _ => GameKind.slot,
     };
+
+String roleName(StaffRole r) => statusName(r);
 
 String statusName(Enum e) => switch (e) {
       TxnType.start => 'Starting amount',
@@ -65,6 +70,7 @@ class Player {
     this.startSc = 0,
     this.createdBy = '',
     this.loginGen = 0,
+    this.agent = '',
     DateTime? lastSeen,
   }) : lastSeen = lastSeen ?? created;
 
@@ -92,6 +98,9 @@ class Player {
   /// account, see [playerEmail]). Passwords themselves are never stored here.
   int loginGen;
 
+  /// The agent (staff uid) the player belongs to; '' = the owner's own.
+  String agent;
+
   Map<String, Object> toJson() => {
         'id': id,
         'u': username,
@@ -105,6 +114,7 @@ class Player {
         'c': created.millisecondsSinceEpoch,
         'by': createdBy,
         'lg': loginGen,
+        if (agent.isNotEmpty) 'ag': agent,
       };
 
   static Player fromJson(Map<String, dynamic> j) => Player(
@@ -120,6 +130,64 @@ class Player {
         created: DateTime.fromMillisecondsSinceEpoch(j['c'] as int),
         createdBy: j['by'] as String? ?? '',
         loginGen: (j['lg'] as num?)?.toInt() ?? 0,
+        agent: j['ag'] as String? ?? '',
+      );
+}
+
+/// Points moving down (or back up) the chain: owner → executive → agent →
+/// player. [from] and [to] are staff uids, the owner's included, or `p:<player
+/// ID>` for a player (the agent's coin in / coin out, [txn] its ledger line).
+/// Balances are worked out from these, like players' from the ledger.
+class PointMove {
+  PointMove({
+    required this.id,
+    required this.from,
+    required this.to,
+    required this.at,
+    this.gc = 0,
+    this.sc = 0,
+    this.by = '',
+    this.byUid = '',
+    this.txn = '',
+    this.note = '',
+  });
+
+  final String id;
+  final String from, to;
+  final DateTime at;
+  final double gc, sc;
+
+  /// Who did it (name, and Firebase account).
+  final String by, byUid;
+  final String txn;
+  final String note;
+
+  static String player(String id) => 'p:$id';
+
+  Map<String, Object> toJson() => {
+        'id': id,
+        'f': from,
+        't': to,
+        'at': at.millisecondsSinceEpoch,
+        'gc': gc,
+        'sc': sc,
+        'by': by,
+        'bu': byUid,
+        if (txn.isNotEmpty) 'tx': txn,
+        if (note.isNotEmpty) 'no': note,
+      };
+
+  static PointMove fromJson(Map<String, dynamic> j) => PointMove(
+        id: j['id'] as String,
+        from: j['f'] as String,
+        to: j['t'] as String,
+        at: DateTime.fromMillisecondsSinceEpoch(j['at'] as int),
+        gc: (j['gc'] as num).toDouble(),
+        sc: (j['sc'] as num).toDouble(),
+        by: j['by'] as String? ?? '',
+        byUid: j['bu'] as String? ?? '',
+        txn: j['tx'] as String? ?? '',
+        note: j['no'] as String? ?? '',
       );
 }
 
@@ -301,9 +369,10 @@ class Play {
     ..last = j.length > 8 ? (j[8] as num).toInt() : 0;
 }
 
-/// Someone who signs in to the admin panel, by their Firebase account [uid].
+/// Someone who signs in to the admin panel, by their Firebase account [uid]:
+/// the owner, an executive or an agent.
 class Staff {
-  Staff(this.uid, this.name, this.role, {this.username = ''});
+  Staff(this.uid, this.name, this.role, {this.username = '', this.parent = '', this.referredBy = '', this.active = true, this.created = 0});
   final String uid;
   String name;
   StaffRole role;
@@ -311,12 +380,45 @@ class Staff {
   /// What they sign in with.
   String username;
 
-  bool get canManage => role != StaffRole.cashier;
-  bool get isOwner => role == StaffRole.owner;
+  /// An agent's executive ('' = supplied by the owner directly).
+  String parent;
 
-  Map<String, Object> toJson() => {'n': name, 'r': role.index, 'u': username};
-  static Staff fromJson(String uid, Map<String, dynamic> j) =>
-      Staff(uid, j['n'] as String, StaffRole.values[j['r'] as int], username: j['u'] as String? ?? '');
+  /// The agent who brought this agent in.
+  final String referredBy;
+
+  /// Switched off: can't sign in.
+  bool active;
+
+  /// When they were added (ms since 1970).
+  final int created;
+
+  /// Points on hand (from [PointMove]s; the owner's are unlimited).
+  double gc = 0, sc = 0;
+
+  bool get canManage => role == StaffRole.owner;
+  bool get isOwner => role == StaffRole.owner;
+  bool get isExecutive => role == StaffRole.executive;
+  bool get isAgent => role == StaffRole.agent;
+
+  Map<String, Object> toJson() => {
+        'n': name,
+        'r': role.index,
+        'u': username,
+        if (parent.isNotEmpty) 'pa': parent,
+        if (referredBy.isNotEmpty) 'ref': referredBy,
+        if (!active) 'off': true,
+        if (created > 0) 'c': created,
+      };
+  static Staff fromJson(String uid, Map<String, dynamic> j) => Staff(
+        uid,
+        j['n'] as String,
+        StaffRole.values[j['r'] as int],
+        username: j['u'] as String? ?? '',
+        parent: j['pa'] as String? ?? '',
+        referredBy: j['ref'] as String? ?? '',
+        active: j['off'] != true,
+        created: (j['c'] as num?)?.toInt() ?? 0,
+      );
 }
 
 class AuditEntry {
@@ -483,6 +585,7 @@ class Casino extends ChangeNotifier {
   final configs = <String, GameConfig>{};
   final plays = <String, Play>{};
   final staff = <Staff>[];
+  final points = <PointMove>[];
   final audit = <AuditEntry>[];
   var settings = CasinoSettings();
   String featured = 'classic777';
@@ -529,7 +632,7 @@ class Casino extends ChangeNotifier {
   static String? blocked(Player p) => switch (p.status) {
         PlayerStatus.active => null,
         PlayerStatus.banned => 'This account is closed',
-        PlayerStatus.suspended => 'This account is on hold — talk to your cashier',
+        PlayerStatus.suspended => 'This account is on hold — talk to your agent',
       };
 
   /// Tie [p] to its sign-in account (a new one after a password reset).
@@ -602,6 +705,7 @@ class Casino extends ChangeNotifier {
     DateTime? at,
     bool log = true,
   }) {
+    if (admin?.isExecutive ?? false) throw CasinoError('Player IDs are made by agents');
     final u = username.trim();
     if (u.length < 3) throw CasinoError('Username needs at least 3 characters');
     if (!RegExp(r'^[A-Za-z0-9_.]+$').hasMatch(u)) throw CasinoError('Use letters, numbers, _ and . only');
@@ -618,6 +722,7 @@ class Casino extends ChangeNotifier {
       createdBy: actor,
       startGc: startGc ?? settings.newPlayerGc,
       startSc: startSc ?? settings.newPlayerSc,
+      agent: admin?.isAgent ?? false ? admin!.uid : '',
     );
     players.add(p);
     _post(Txn(id: _txnId(), playerId: p.id, type: TxnType.start, at: when, gc: p.startGc, sc: p.startSc, by: actor));
@@ -684,7 +789,12 @@ class Casino extends ChangeNotifier {
     if (checkLimit && _todaySc(p, TxnType.coinIn) + sc > settings.maxCoinInPerDay + 1e-9) {
       throw CasinoError('Over the daily coin-in limit of ${settings.maxCoinInPerDay.toStringAsFixed(0)} DC');
     }
+    final me = _coinHandler(p);
+    if (me != null && (gc.roundToDouble() > me.gc + 1e-9 || _r2(sc) > me.sc + 1e-9)) {
+      throw CasinoError('You have ${_coins(me.gc, me.sc).isEmpty ? 'no points' : _coins(me.gc, me.sc)} — ask your executive for more points');
+    }
     final t = _post(Txn(id: _txnId(), playerId: p.id, type: TxnType.coinIn, at: now, gc: gc.roundToDouble(), sc: _r2(sc), by: actor, note: note));
+    if (me != null) _move(me.uid, PointMove.player(p.id), t.gc, t.sc, txn: t.id);
     _log('Coin in ${_coins(t.gc, t.sc)} → ${p.username}');
     _changed();
     return t;
@@ -702,7 +812,10 @@ class Casino extends ChangeNotifier {
     if (gc < 0 || sc < 0 || (gc == 0 && sc == 0)) throw CasinoError('Enter an amount');
     if (sc > p.sc + 1e-9) throw CasinoError('${p.username} has only ${_r2(p.sc).toStringAsFixed(2)} DC');
     if (gc > p.gc) throw CasinoError('${p.username} has only ${p.gc.toStringAsFixed(0)} GC');
+    final me = _coinHandler(p);
     final t = _post(Txn(id: _txnId(), playerId: p.id, type: TxnType.coinOut, at: now, gc: -gc.roundToDouble(), sc: -_r2(sc), by: actor, note: note));
+    // Coins taken off a player go back to the agent's points.
+    if (me != null) _move(PointMove.player(p.id), me.uid, -t.gc, -t.sc, txn: t.id);
     _log('Coin out ${_coins(gc, sc)} ← ${p.username}');
     _changed();
     return t;
@@ -766,6 +879,7 @@ class Casino extends ChangeNotifier {
   Staff? signIn(String uid, {bool log = true}) {
     for (final s in staff) {
       if (s.uid == uid) {
+        if (!s.active) return null;
         admin = s;
         if (log) {
           _log('Signed in');
@@ -786,21 +900,149 @@ class Casino extends ChangeNotifier {
     _changed();
   }
 
-  /// Give the Firebase account [uid] a role in the admin panel.
-  void addStaff(String uid, String name, StaffRole role, {String username = ''}) {
+  /// Give the Firebase account [uid] a place in the chain. The owner adds
+  /// executives and agents (under an executive, [parent], or their own); an
+  /// executive adds agents under themselves; an agent refers agents, who join
+  /// the same executive. (With nobody signed in, as when seeding, anything goes.)
+  Staff addStaff(String uid, String name, StaffRole role, {String username = '', String parent = ''}) {
     if (name.trim().isEmpty) throw CasinoError('Enter a name');
-    if (staff.any((s) => s.uid == uid)) throw CasinoError('Already on the staff');
-    staff.add(Staff(uid, name.trim(), role, username: username.trim().toLowerCase()));
-    _log('Added ${role.name} ${name.trim()}');
+    if (staff.any((s) => s.uid == uid)) throw CasinoError('Already on the team');
+    final me = admin;
+    var pa = parent, ref = '';
+    if (me != null && !me.isOwner) {
+      if (role != StaffRole.agent) throw CasinoError('Only the owner adds executives');
+      if (me.isExecutive) {
+        pa = me.uid;
+      } else {
+        pa = me.parent;
+        ref = me.uid;
+      }
+    }
+    if (role == StaffRole.executive || role == StaffRole.owner) pa = '';
+    final s = Staff(uid, name.trim(), role,
+        username: username.trim().toLowerCase(), parent: pa, referredBy: ref, created: now.millisecondsSinceEpoch);
+    staff.add(s);
+    _log('Added ${roleName(role).toLowerCase()} ${s.name}${ref.isNotEmpty ? ' (referred by ${me!.name})' : ''}');
     _changed();
+    return s;
   }
 
   void removeStaff(Staff s) {
     if (s == admin) throw CasinoError('You can’t remove yourself');
     if (s.isOwner && staff.where((x) => x.isOwner).length == 1) throw CasinoError('Keep at least one owner');
+    if (s.gc > 0 || s.sc > 0) throw CasinoError('Take back ${s.name}’s points first (${_coins(s.gc, s.sc)})');
+    if (staff.any((x) => x.parent == s.uid)) throw CasinoError('${s.name} still has agents');
     staff.remove(s);
-    _log('Removed ${s.role.name} ${s.name}');
+    _log('Removed ${roleName(s.role).toLowerCase()} ${s.name}');
     _changed();
+  }
+
+  // ── The chain ──────────────────────────────────────────────────────────────
+  Staff? staffBy(String uid) => staff.where((s) => s.uid == uid).firstOrNull;
+
+  /// An executive's agents.
+  List<Staff> agentsOf(Staff exec) => [for (final s in staff) if (s.isAgent && s.parent == exec.uid) s];
+
+  /// Whom [me] looks after on the Team page: the owner everyone; an
+  /// executive their agents; an agent the agents they referred.
+  List<Staff> teamOf(Staff me) => switch (me.role) {
+        StaffRole.owner => [for (final s in staff) if (!s.isOwner) s],
+        StaffRole.executive => agentsOf(me),
+        StaffRole.agent => [for (final s in staff) if (s.referredBy == me.uid) s],
+      };
+
+  /// Whom [me] gives points to (and can take them back from).
+  bool supplies(Staff me, Staff s) => switch (me.role) {
+        StaffRole.owner => s.isExecutive || (s.isAgent && staffBy(s.parent) == null),
+        StaffRole.executive => s.isAgent && s.parent == me.uid,
+        StaffRole.agent => false,
+      };
+
+  /// The players the signed-in staff member works with: all (the owner), their
+  /// agents' (an executive) or their own (an agent).
+  List<Player> get visiblePlayers {
+    final me = admin;
+    if (me == null || me.isOwner) return players;
+    final mine = me.isExecutive ? {for (final s in agentsOf(me)) s.uid} : {me.uid};
+    return [for (final p in players) if (mine.contains(p.agent)) p];
+  }
+
+  bool canSeePlayer(Player p) => admin == null || admin!.isOwner || visiblePlayers.contains(p);
+
+  /// Whose points a coin in / out moves (null: the owner's, unlimited).
+  Staff? _coinHandler(Player p) {
+    final me = admin;
+    if (me == null || me.isOwner) return null;
+    if (me.isExecutive) throw CasinoError('Agents put coins on players; executives supply agents with points');
+    if (p.agent != me.uid) throw CasinoError('${p.username} is another agent’s player');
+    return me;
+  }
+
+  PointMove _move(String from, String to, double gc, double sc, {String txn = '', String note = ''}) {
+    final m = PointMove(
+        id: _txnId(), from: from, to: to, at: now, gc: gc, sc: sc, by: actor, byUid: admin?.uid ?? '', txn: txn, note: note);
+    points.add(m);
+    _pointsTo(m, 1);
+    return m;
+  }
+
+  void _pointsTo(PointMove m, int sign) {
+    for (final (uid, dir) in [(m.from, -1), (m.to, 1)]) {
+      final s = staffBy(uid);
+      if (s == null || s.isOwner) continue;
+      s.gc += dir * sign * m.gc;
+      s.sc = _r2(s.sc + dir * sign * m.sc);
+    }
+  }
+
+  /// Points from the signed-in staff member down to [to] (the owner's are unlimited).
+  PointMove givePoints(Staff to, {double gc = 0, double sc = 0, String note = ''}) {
+    final me = admin;
+    if (me == null || !supplies(me, to)) throw CasinoError('You don’t supply ${to.name}');
+    gc = gc.roundToDouble();
+    sc = _r2(sc);
+    if (gc < 0 || sc < 0 || (gc == 0 && sc == 0)) throw CasinoError('Enter an amount');
+    if (!me.isOwner && (gc > me.gc + 1e-9 || sc > me.sc + 1e-9)) {
+      throw CasinoError('You have ${_coins(me.gc, me.sc).isEmpty ? 'no points' : _coins(me.gc, me.sc)}');
+    }
+    final m = _move(me.uid, to.uid, gc, sc, note: note);
+    _log('Gave ${_coins(gc, sc)} points → ${to.name}');
+    _changed();
+    return m;
+  }
+
+  /// Points back up from [from] to the signed-in staff member.
+  PointMove takePoints(Staff from, {double gc = 0, double sc = 0, String note = ''}) {
+    final me = admin;
+    if (me == null || !supplies(me, from)) throw CasinoError('You don’t supply ${from.name}');
+    gc = gc.roundToDouble();
+    sc = _r2(sc);
+    if (gc < 0 || sc < 0 || (gc == 0 && sc == 0)) throw CasinoError('Enter an amount');
+    if (gc > from.gc + 1e-9 || sc > from.sc + 1e-9) {
+      throw CasinoError('${from.name} has ${_coins(from.gc, from.sc).isEmpty ? 'no points' : _coins(from.gc, from.sc)}');
+    }
+    final m = _move(from.uid, me.uid, gc, sc, note: note);
+    _log('Took back ${_coins(gc, sc)} points ← ${from.name}');
+    _changed();
+    return m;
+  }
+
+  /// Switch someone off (they can't sign in) or back on.
+  void setStaffActive(Staff s, bool on) {
+    final me = admin;
+    if (me != null && !me.isOwner && !(me.isExecutive && s.parent == me.uid)) throw CasinoError('You can’t change ${s.name}');
+    if (s == me) throw CasinoError('You can’t switch yourself off');
+    s.active = on;
+    _log('${on ? 'Switched on' : 'Switched off'} ${s.name}');
+    _changed();
+  }
+
+  /// The points ledger lines the signed-in staff member can see.
+  List<PointMove> get visiblePoints {
+    final me = admin;
+    if (me == null || me.isOwner) return points;
+    final mine = {me.uid, if (me.isExecutive) ...agentsOf(me).map((s) => s.uid)};
+    return [for (final m in points) if (mine.contains(m.from) || mine.contains(m.to)) m];
   }
 
   /// Remove every player, the ledger and play records — a clean start
@@ -810,6 +1052,7 @@ class Casino extends ChangeNotifier {
     txns.clear();
     plays.clear();
     seen.clear();
+    points.clear();
     logins.clear();
     uids.clear();
     _log('Cleared all players and the ledger');
@@ -821,6 +1064,7 @@ class Casino extends ChangeNotifier {
   /// sign-ins, staff, settings and games stay.
   void resetData() {
     txns.clear();
+    points.clear();
     plays.clear();
     seen.clear();
     audit.clear();
@@ -992,6 +1236,14 @@ class Casino extends ChangeNotifier {
 
   /// Work every balance and last-seen out again from the ledger and play.
   void recompute() {
+    for (final s in staff) {
+      s
+        ..gc = 0
+        ..sc = 0;
+    }
+    for (final m in points) {
+      _pointsTo(m, 1);
+    }
     final byId = {for (final p in players) p.id: p};
     for (final p in players) {
       p
@@ -1108,6 +1360,7 @@ class Casino extends ChangeNotifier {
         for (final e in seen.entries) 'seen/${e.key}': {'t': e.value},
         'meta/settings': {...settings.toJson(), 'featured': featured},
         for (final st in staff) 'staff/${st.uid}': st.toJson(),
+        for (final m in points) 'points/${m.id}': m.toJson(),
         for (final e in logins.entries) 'logins/${e.key}': {'e': e.value.email, 'p': e.value.playerId},
         for (final e in uids.entries) 'uids/${e.key}': {'p': e.value},
       };
@@ -1120,6 +1373,7 @@ class Casino extends ChangeNotifier {
     audit.clear();
     seen.clear();
     staff.clear();
+    points.clear();
     logins.clear();
     uids.clear();
     // Built-in games keep their settings; uploaded ones come only from the records.
@@ -1147,6 +1401,8 @@ class Casino extends ChangeNotifier {
             featured = j['featured'] as String? ?? featured;
           case 'staff':
             staff.add(Staff.fromJson(key, j));
+          case 'points':
+            points.add(PointMove.fromJson(j));
           case 'logins':
             logins[key] = (email: j['e'] as String, playerId: j['p'] as String);
           case 'uids':
@@ -1176,6 +1432,7 @@ class Casino extends ChangeNotifier {
         'games': [for (final c in configs.values) c.toJson()],
         'plays': [for (final p in plays.values) p.toJson()],
         'staff': {for (final s in staff) s.uid: s.toJson()},
+        'points': [for (final m in points) m.toJson()],
         'logins': {for (final e in logins.entries) e.key: {'e': e.value.email, 'p': e.value.playerId}},
         'uids': uids,
         'audit': [for (final a in audit.length > 500 ? audit.sublist(audit.length - 500) : audit) a.toJson()],
@@ -1199,6 +1456,7 @@ class Casino extends ChangeNotifier {
     for (final e in (j['staff'] as Map).entries) {
       c.staff.add(Staff.fromJson(e.key as String, (e.value as Map).cast<String, dynamic>()));
     }
+    c.points.addAll([for (final m in j['points'] as List? ?? const []) PointMove.fromJson(m as Map<String, dynamic>)]);
     for (final e in (j['logins'] as Map? ?? const {}).entries) {
       final l = e.value as Map;
       c.logins[e.key as String] = (email: l['e'] as String, playerId: l['p'] as String);
@@ -1244,8 +1502,8 @@ class Casino extends ChangeNotifier {
     final r = Random(7);
     c.staff.addAll([
       Staff('owner', 'Owner', StaffRole.owner, username: 'owner'),
-      Staff('maya', 'Maya', StaffRole.manager, username: 'maya'),
-      Staff('leo', 'Leo', StaffRole.cashier, username: 'leo'),
+      Staff('maya', 'Maya', StaffRole.executive, username: 'maya'),
+      Staff('leo', 'Leo', StaffRole.agent, username: 'leo', parent: 'maya'),
     ]);
 
     c.configs.addAll(_startingGames());
@@ -1386,6 +1644,15 @@ class Casino extends ChangeNotifier {
       c.audit.add(AuditEntry(when(ago), by, what));
     }
     c.audit.sort((a, b) => a.at.compareTo(b.at));
+    // The chain: Maya (executive) got points from the owner and supplied Leo
+    // (agent), who looks after every other player.
+    for (final (i, p) in c.players.indexed) {
+      if (i.isOdd && p.id != meId) p.agent = 'leo';
+    }
+    c.points.addAll([
+      PointMove(id: 'Pdemo1', from: 'owner', to: 'maya', at: when(20), gc: 5000000, sc: 2000, by: 'Owner', byUid: 'owner'),
+      PointMove(id: 'Pdemo2', from: 'maya', to: 'leo', at: when(19), gc: 2000000, sc: 800, by: 'Maya', byUid: 'maya'),
+    ]);
     c._batch = false;
     c.recompute();
     return c;

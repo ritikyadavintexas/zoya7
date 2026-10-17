@@ -37,7 +37,7 @@ class _PlayersPageState extends State<PlayersPage> {
   void select(String id) => setState(() => selected = id);
 
   List<Player> _list(Casino casino) {
-    final l = casino.players.where((p) => (status == null || p.status == status) && matchesPlayer(p, q)).toList();
+    final l = casino.visiblePlayers.where((p) => (status == null || p.status == status) && matchesPlayer(p, q)).toList();
     switch (sort) {
       case _Sort.newest:
         l.sort((a, b) => b.created.compareTo(a.created));
@@ -81,7 +81,7 @@ class _PlayersPageState extends State<PlayersPage> {
         ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 96), children: [
           _filters(wide: false),
           const SizedBox(height: 12),
-          Text('${list.length} of ${casino.players.length} players · ${casino.online} online', style: kt(13, c: K.sub)),
+          Text('${list.length} of ${casino.visiblePlayers.length} players', style: kt(13, c: K.sub)),
           const SizedBox(height: 8),
           KCard(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -94,7 +94,7 @@ class _PlayersPageState extends State<PlayersPage> {
         Positioned(
           right: 16,
           bottom: 16,
-          child: FloatingActionButton.extended(
+          child: casino.admin?.isExecutive ?? false ? const SizedBox() : FloatingActionButton.extended(
             heroTag: 'new-player',
             backgroundColor: K.green,
             foregroundColor: Colors.white,
@@ -109,10 +109,12 @@ class _PlayersPageState extends State<PlayersPage> {
     final pane = sidePane && selected != null && casino.player(selected!) != null;
     final page = DeskPage(
       title: 'Players',
-      sub: '${casino.players.length} players · ${casino.online} online now',
+      sub: casino.admin?.isOwner ?? true ? '${casino.players.length} players · ${casino.online} online now' : '${casino.visiblePlayers.length} players',
       actions: [
-        KButton('Bulk create', tone: KTone.light, icon: Icons.group_add_outlined, onTap: () => showBulkCreate(context)),
-        KButton('New player ID', icon: Icons.person_add_alt_1_rounded, onTap: () => showCreatePlayer(context)),
+        if (!(casino.admin?.isExecutive ?? false)) ...[
+          KButton('Bulk create', tone: KTone.light, icon: Icons.group_add_outlined, onTap: () => showBulkCreate(context)),
+          KButton('New player ID', icon: Icons.person_add_alt_1_rounded, onTap: () => showCreatePlayer(context)),
+        ],
       ],
       children: [
         _filters(wide: true),
@@ -509,6 +511,8 @@ class _PlayerDetailState extends State<PlayerDetail> {
     }
     final wagered = byGame.values.fold<double>(0, (a, g) => a + g.w), won = byGame.values.fold<double>(0, (a, g) => a + g.win);
     final canManage = casino.admin?.canManage ?? false;
+    // Executives look; the player's agent (or the owner) acts.
+    final hands = !(casino.admin?.isExecutive ?? false);
 
     return ListView(padding: const EdgeInsets.fromLTRB(20, 16, 20, 32), children: [
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -544,8 +548,8 @@ class _PlayerDetailState extends State<PlayerDetail> {
             child: Text(grouped(p.sc), style: kt(40, w: FontWeight.w700, c: Colors.white, num: true)),
           ),
           Text('${gcAmt(p.gc)} · no cash value', style: kt(14, c: const Color(0xB3FFFFFF))),
-          const SizedBox(height: 14),
-          Row(children: [
+          if (hands) const SizedBox(height: 14),
+          if (hands) Row(children: [
             Expanded(child: KButton('Coin in', height: 44, onTap: p.status == PlayerStatus.active ? () => showCoinIn(context, player: p) : null)),
             const SizedBox(width: 10),
             Expanded(
@@ -562,9 +566,9 @@ class _PlayerDetailState extends State<PlayerDetail> {
           ]),
         ]),
       ),
-      const SizedBox(height: 12),
-      Wrap(spacing: 8, runSpacing: 8, children: [
-        _Action(Icons.card_giftcard_rounded, 'Bonus', () => showCredit(context, p, TxnType.bonus)),
+      if (hands) const SizedBox(height: 12),
+      if (hands) Wrap(spacing: 8, runSpacing: 8, children: [
+        if (canManage) _Action(Icons.card_giftcard_rounded, 'Bonus', () => showCredit(context, p, TxnType.bonus)),
         if (canManage) _Action(Icons.tune_rounded, 'Adjust', () => showCredit(context, p, TxnType.adjust)),
         _Action(Icons.edit_outlined, 'Edit', () => _edit(context, p)),
         _Action(Icons.key_rounded, 'Reset password', () async {

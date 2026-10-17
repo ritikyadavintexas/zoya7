@@ -54,8 +54,14 @@ remembers is who is signed in.
   turns those into `<username>@staff.zoya7.app` and `<player id>@players.zoya7.app` accounts.
   Firebase keeps the passwords, hashed. A password reset makes a new sign-in for the player
   (without a server, staff can't change another account's password) and the old one stops working.
-- **Rules** (`firebase/database.rules.json`): staff read everything; cashiers handle players and
-  coins, managers also games and settings, owners also staff. A player reads only their own
+- **The chain:** owner → executive → agent → player. The owner runs everything (games, settings,
+  reports) and gives executives points; an executive adds agents and gives them points; an agent
+  makes player IDs, puts coins on their players from their own points (a coin out puts them
+  back) and can refer new agents to the same executive. Points are a ledger (`points/`), like
+  players' coins. Each sees only their part of the chain in the admin panel.
+- **Rules** (`firebase/database.rules.json`): staff read everything; the owner writes anything;
+  executives add and switch their own agents, agents refer agents; a points line must name who
+  wrote it and be their own points or a take-back from someone they supply. A player reads only their own
   account, ledger and play, and can write only their play, last-seen and the daily bonus.
   Each device syncs only what it may read and never sends what it may not write.
 - **Sync:** every few seconds, record by record (players, ledger lines, play, games, settings),

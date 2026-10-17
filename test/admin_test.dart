@@ -84,10 +84,15 @@ void main() {
         await clear(tester);
       });
 
-      for (final section in desktop ? Section.values : const [Section.dashboard, Section.players, Section.coins, Section.games]) {
-        testWidgets('${section.label} fits', (tester) async {
-          await show(tester, size, section: section);
-          expectFits(tester, section.label);
+      for (final (uid, sections) in [
+        ('owner', desktop ? Section.values : const [Section.dashboard, Section.team, Section.players, Section.games]),
+        ('maya', const [Section.dashboard, Section.team, Section.players]),
+        ('leo', const [Section.dashboard, Section.players, Section.coins, Section.team]),
+      ]) {
+        for (final section in sections) {
+        testWidgets('${section.label} fits${uid == 'owner' ? '' : ' ($uid)'}', (tester) async {
+          await show(tester, size, section: section, uid: uid);
+          expectFits(tester, '${section.label} ($uid)');
           // Scroll to the bottom of the page to lay all of it out.
           final scroll = find.byType(Scrollable).hitTestable();
           if (scroll.evaluate().isNotEmpty) {
@@ -98,10 +103,11 @@ void main() {
           await clear(tester);
         });
       }
+      }
 
       if (!desktop) {
         testWidgets('coins tab: history fits', (tester) async {
-          await show(tester, size, section: Section.coins);
+          await show(tester, size, section: Section.coins, uid: 'leo');
           for (final tab in ['History']) {
             await tester.tap(find.textContaining(tab).first);
             await tester.pump(const Duration(milliseconds: 300));
@@ -205,7 +211,7 @@ void main() {
 
   testWidgets('a phone gets four tabs; a desktop the full sidebar', (tester) async {
     await show(tester, const Size(390, 844));
-    for (final t in ['Home', 'Players', 'Coins', 'Games']) {
+    for (final t in ['Home', 'Team', 'Players', 'Games']) {
       expect(find.bySemanticsLabel(RegExp('^$t(\$|\n)')), findsWidgets, reason: t);
     }
     expect(find.text('Game math'), findsNothing);
@@ -217,11 +223,18 @@ void main() {
     await clear(tester);
   });
 
-  testWidgets('a cashier only sees home, players and coins', (tester) async {
+  testWidgets('an agent sees home, their players, coin in / out and referrals; an executive their team', (tester) async {
     await show(tester, const Size(1440, 900), uid: 'leo');
     expect(find.text('Coin in / out'), findsWidgets);
-    expect(find.text('Reports'), findsNothing);
-    expect(find.text('Settings'), findsNothing);
+    expect(find.text('Team'), findsWidgets);
+    for (final t in ['Reports', 'Settings', 'Games', 'Game math']) {
+      expect(find.text(t), findsNothing, reason: t);
+    }
+    await clear(tester);
+    await show(tester, const Size(1440, 900), uid: 'maya', section: Section.team);
+    expect(find.text('Leo'), findsWidgets);
+    expect(find.text('Give'), findsWidgets);
+    expect(find.text('Coin in / out'), findsNothing);
     await clear(tester);
   });
 
@@ -243,8 +256,12 @@ void main() {
     await clear(tester);
   });
 
-  testWidgets('the phone coin pad gives a player coins and takes them off', (tester) async {
-    final c = await show(tester, const Size(390, 844), section: Section.coins);
+  testWidgets('the phone coin pad gives a player coins and takes them off, from the agent’s points', (tester) async {
+    final demo = Casino.demo(now: now);
+    demo.player('Z7-100100')!.agent = 'leo';
+    final c = await show(tester, const Size(390, 844), section: Section.coins, uid: 'leo', casino: demo);
+    final leo = c.staffBy('leo')!;
+    final points = leo.sc;
     await tester.tap(find.text('Choose player'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, 'lina');
@@ -278,6 +295,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(p.sc, closeTo(before + 15, .001));
     expect(c.txns.last.type, TxnType.coinOut);
+    expect(leo.sc, closeTo(points - 15, .001));
     await clear(tester);
   });
 

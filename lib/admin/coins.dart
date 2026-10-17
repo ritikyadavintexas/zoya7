@@ -27,7 +27,7 @@ class _PlayerPickerState extends State<_PlayerPicker> {
   @override
   Widget build(BuildContext context) {
     final casino = CasinoScope.of(context);
-    final list = casino.players.reversed
+    final list = casino.visiblePlayers.reversed
         .where((p) => !widget.activeOnly || p.status == PlayerStatus.active)
         .where((p) => matchesPlayer(p, q))
         .take(40)
@@ -352,9 +352,10 @@ class _CoinsPageState extends State<CoinsPage> {
       return (p != null && matchesPlayer(p, q)) || t.id.toLowerCase().contains(q.trim().toLowerCase());
     }
 
+    final mine = casino.admin?.isOwner ?? true ? null : {for (final p in casino.visiblePlayers) p.id};
     return [
       for (final t in casino.txns.reversed)
-        if ((type == null || t.type == type) && hit(t)) t,
+        if ((type == null || t.type == type) && hit(t) && (mine == null || mine.contains(t.playerId))) t,
     ];
   }
 

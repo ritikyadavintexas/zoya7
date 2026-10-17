@@ -40,6 +40,16 @@
         ".read": "auth != null",
         ".write": "auth != null && (root.child('zoya7/staff/' + auth.uid + '/r').val() === 0 || root.child('zoya7/staff/' + auth.uid + '/r').val() === 1)"
       },
+      "staff": {
+        "$uid": {
+          ".write": "auth != null && newData.child('r').val() === 2 && ((root.child('zoya7/staff/' + auth.uid + '/r').val() === 1 && newData.child('pa').val() === auth.uid && (!data.exists() || data.child('pa').val() === auth.uid)) || (root.child('zoya7/staff/' + auth.uid + '/r').val() === 2 && !data.exists() && newData.child('ref').val() === auth.uid && newData.child('pa').val() === root.child('zoya7/staff/' + auth.uid + '/pa').val()))"
+        }
+      },
+      "points": {
+        "$id": {
+          ".write": "auth != null && !data.exists() && root.child('zoya7/staff/' + auth.uid).exists() && newData.child('bu').val() === auth.uid && (newData.child('f').val() === auth.uid || (newData.child('t').val() === auth.uid && (root.child('zoya7/staff/' + newData.child('f').val() + '/pa').val() === auth.uid || root.child('zoya7/players/' + newData.child('f').val().replace('p:', '') + '/ag').val() === auth.uid)))"
+        }
+      },
       "audit": {
         ".write": "auth != null && root.child('zoya7/staff/' + auth.uid).exists()"
       },

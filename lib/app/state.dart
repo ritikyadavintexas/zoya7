@@ -92,7 +92,7 @@ class AppState extends ChangeNotifier {
     if (s == null || auth == null) return 'Can’t reach the server — check the connection';
     try {
       final email = await s.loginEmail(who);
-      if (email == null) return 'No player with that ID. Ask your cashier for one.';
+      if (email == null) return 'No player with that ID. Ask your agent for one.';
       final AuthSession session;
       try {
         session = await auth.signIn(email, password);
@@ -100,7 +100,7 @@ class AppState extends ChangeNotifier {
         return e.message == 'Wrong username or password' ? 'Wrong password' : e.message;
       }
       final id = await s.playerOf(session);
-      if (id == null) return 'This password was reset — ask your cashier for the new one';
+      if (id == null) return 'This password was reset — ask your agent for the new one';
       await s.usePlayer(session, id);
       final p = casino.player(id);
       final blocked = p == null ? 'Can’t load your account — try again' : Casino.blocked(p);
@@ -175,7 +175,7 @@ class AppState extends ChangeNotifier {
   }
 
   /// Coin packs can't be bought in the app yet (no payments are connected):
-  /// a player signed in to the shared database is told to ask the cashier.
+  /// a player signed in to the shared database is told to ask their agent.
   bool get storeOpen => sync?.auth == null;
 
   /// Credits [p] (plus [bonusGc] from a promo code).

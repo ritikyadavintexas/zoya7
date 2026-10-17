@@ -203,8 +203,9 @@ class CasinoSync extends ChangeNotifier {
     }
     return switch (role) {
       StaffRole.owner => true,
-      StaffRole.manager => !path.startsWith('staff/'),
-      StaffRole.cashier => !path.startsWith('staff/') && !path.startsWith('games/') && !path.startsWith('meta/'),
+      // Executives add and switch their agents; agents refer agents (staff/,
+      // narrowed further by the rules). Games and settings are the owner's.
+      StaffRole.executive || StaffRole.agent => !path.startsWith('games/') && !path.startsWith('meta/'),
       null => false,
     };
   }

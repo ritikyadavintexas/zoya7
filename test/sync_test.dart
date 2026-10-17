@@ -207,7 +207,7 @@ void main() {
 
     admin.setGameStatus('blackjack', GameStatus.maintenance);
     admin.updateSettings('starting amount', (s) => s.newPlayerSc = 7.5);
-    admin.addStaff('u-nia', 'Nia', StaffRole.cashier, username: 'nia');
+    admin.addStaff('u-nia', 'Nia', StaffRole.agent, username: 'nia');
     await sAdmin.syncNow();
     await sOther.syncNow();
     expect(other.statusOf('blackjack'), GameStatus.maintenance);

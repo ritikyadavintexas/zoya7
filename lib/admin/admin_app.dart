@@ -14,6 +14,7 @@ import 'players.dart';
 import 'reports.dart';
 import 'settings.dart';
 import 'setup.dart';
+import 'team.dart';
 
 /// The Zoya7 admin panel: portrait on a phone (the basics: today, players,
 /// coin in/out, games on/off), everything on a desktop.
@@ -288,7 +289,7 @@ class AdminLogo extends StatelessWidget {
 }
 
 // ── Shell ────────────────────────────────────────────────────────────────────
-enum Section { dashboard, players, coins, reports, games, math, settings, staff }
+enum Section { dashboard, team, players, coins, reports, games, math, settings }
 
 extension SectionInfo on Section {
   String get label => switch (this) {
@@ -299,7 +300,7 @@ extension SectionInfo on Section {
         Section.games => 'Games',
         Section.math => 'Game math',
         Section.settings => 'Settings',
-        Section.staff => 'Staff & log',
+        Section.team => 'Team',
       };
 
   /// Shorter, for the phone's tab bar.
@@ -313,20 +314,22 @@ extension SectionInfo on Section {
         Section.games => Icons.sports_esports_rounded,
         Section.math => Icons.functions_rounded,
         Section.settings => Icons.tune_rounded,
-        Section.staff => Icons.badge_outlined,
+        Section.team => Icons.account_tree_rounded,
       };
 }
 
-/// What each role can open.
+/// What each role can open. The owner: everything. An executive: their
+/// agents and points, and their agents' players. An agent: their players,
+/// coin in / out, and referring agents.
 List<Section> sectionsFor(Staff s, {required bool desktop}) {
   final all = switch (s.role) {
-    StaffRole.cashier => const [Section.dashboard, Section.players, Section.coins],
-    StaffRole.manager => Section.values.where((x) => x != Section.staff).toList(),
+    StaffRole.agent => const [Section.dashboard, Section.players, Section.coins, Section.team],
+    StaffRole.executive => const [Section.dashboard, Section.team, Section.players],
     StaffRole.owner => Section.values,
   };
-  // A phone gets the basics.
-  const phone = [Section.dashboard, Section.players, Section.coins, Section.games];
-  return desktop ? all : all.where(phone.contains).toList();
+  // A phone gets the basics (four tabs at most).
+  const ownerPhone = [Section.dashboard, Section.team, Section.players, Section.games];
+  return desktop || !s.isOwner ? all : all.where(ownerPhone.contains).toList();
 }
 
 /// Lets a page switch sections (quick actions, "see all" links).
@@ -360,7 +363,7 @@ class _AdminShellState extends State<AdminShell> {
         Section.games => const GamesAdminPage(),
         Section.math => const MathPage(),
         Section.settings => const SettingsPage(),
-        Section.staff => const StaffPage(),
+        Section.team => const TeamPage(),
       };
 
   @override

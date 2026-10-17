@@ -417,7 +417,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 child: Column(children: [
                   CtaButton('PAY ${p.priceLabel}', height: 48, fontSize: 18, onTap: () {
                     if (!s.storeOpen) {
-                      showToast(context, 'Coin packs aren’t sold in the app yet — ask your cashier for coins');
+                      showToast(context, 'Coin packs aren’t sold in the app yet — ask your agent for coins');
                       return;
                     }
                     s.completePurchase(p, bonusGc: bonus);
