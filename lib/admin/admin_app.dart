@@ -144,7 +144,7 @@ class _SignInGateState extends State<SignInGate> {
     } on AuthError catch (e) {
       error = e.message;
     } catch (e) {
-      error = '$e';
+      error = friendlyError(e);
     }
     if (mounted) setState(() => busy = false);
   }

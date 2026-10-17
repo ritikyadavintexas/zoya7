@@ -33,6 +33,17 @@ class AuthSession {
   }
 }
 
+/// An error as a sentence for the screen: no connection reads as such, not as
+/// the network library's message.
+String friendlyError(Object e) {
+  final text = '$e';
+  final offline = RegExp(r'SocketException|Failed host lookup|ClientException|XMLHttpRequest|Connection (refused|reset|closed|failed)|Network is unreachable|HandshakeException|TimeoutException|offline',
+          caseSensitive: false)
+      .hasMatch(text);
+  if (offline) return 'No connection to the server. Check the internet and try again.';
+  return e is String || e is AuthError ? text : 'Something went wrong. Try again.';
+}
+
 class AuthError implements Exception {
   AuthError(this.message, [this.code = '']);
   final String message;

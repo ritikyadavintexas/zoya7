@@ -165,7 +165,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       return null;
     } catch (e) {
-      return '$e';
+      return friendlyError(e);
     }
   }
 

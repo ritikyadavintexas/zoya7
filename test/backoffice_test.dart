@@ -2,12 +2,20 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zoya7_gold/backoffice/auth.dart';
 import 'package:zoya7_gold/backoffice/casino.dart';
 import 'package:zoya7_gold/backoffice/slot_math.dart';
 import 'package:zoya7_gold/games/blackjack/engine.dart';
 import 'package:zoya7_gold/games/gold/src/math.dart';
 
 void main() {
+  test('a dropped connection reads as such, not as the network library’s message', () {
+    const lookup = "SocketException: Failed host lookup: 'lilly-55024-default-rtdb.firebaseio.com' (OS Error: No address associated with hostname, errno = 7)";
+    expect(friendlyError(Exception(lookup)), 'No connection to the server. Check the internet and try again.');
+    expect(friendlyError('Not connected to the database'), 'Not connected to the database');
+    expect(friendlyError(StateError('x')), 'Something went wrong. Try again.');
+  });
+
   final now = DateTime(2026, 10, 16, 18, 30);
   Casino demo() => Casino.demo(now: now)..signIn('owner');
 

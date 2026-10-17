@@ -70,6 +70,13 @@ jobs:
             cp -r branding/android/. android/app/src/main/res/
             sed -i 's/android:label="[^"]*"/android:label="Zoya7"/' android/app/src/main/AndroidManifest.xml
           fi
+          # The release app needs the internet (create grants it to debug builds only,
+          # and without it every server lookup fails: "Failed host lookup").
+          m=android/app/src/main/AndroidManifest.xml
+          if [ -f "$m" ] && ! grep -q 'android.permission.INTERNET' "$m"; then
+            sed -i '0,/<application/s//<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/' "$m"
+          fi
+          [ -f "$m" ] && grep -n 'uses-permission' "$m" || true
 
       - name: Get packages
         working-directory: ${{ steps.locate.outputs.app_dir }}
@@ -111,12 +118,37 @@ jobs:
             echo "No ANDROID_DEV_KEYSTORE secret — APK gets a fresh key this run"
           fi
 
-      # A failed APK (e.g. a flaky Android tool download) mustn't hold back the website.
+      # Gradle and the Android tools it downloads, kept between runs (fewer downloads to fail).
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      # A failed APK mustn't hold back the website, but it is retried and, if it
+      # still fails, reported (the last good APK stays in the "preview" release).
       - name: Build Android APK
         id: apk
         continue-on-error: true
         working-directory: ${{ steps.locate.outputs.app_dir }}
-        run: flutter build apk --release --dart-define=BUILD_SHA=${GITHUB_SHA::7} --dart-define=DB_URL=${{ vars.ZOYA7_DB_URL }}
+        run: |
+          # Gradle and Android downloads fail now and then: up to three tries.
+          for i in 1 2 3; do
+            if flutter build apk --release --dart-define=BUILD_SHA=${GITHUB_SHA::7} --dart-define=DB_URL=${{ vars.ZOYA7_DB_URL }}; then break; fi
+            if [ "$i" = 3 ]; then exit 1; fi
+            echo "::warning::APK build try $i failed; trying again in 30 s"
+            sleep 30
+          done
+          # Without the internet permission the app can't reach the server
+          # ("Failed host lookup"): never publish such an APK.
+          if ! find build/app/intermediates -name AndroidManifest.xml -path '*release*' -print0 \
+               | xargs -0 -r grep -l 'android.permission.INTERNET' | grep -q .; then
+            echo "::error::The APK has no internet permission; not publishing it"
+            exit 1
+          fi
 
       - name: Keep APK with this run
         if: steps.apk.outcome == 'success'
@@ -139,6 +171,12 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Phone preview · ${GITHUB_SHA::7}" \
             --notes "Built from ${GITHUB_SHA::7}: ${COMMIT_MSG}"
+
+      - name: Say so if the APK didn't build
+        if: steps.apk.outcome == 'failure'
+        run: |
+          echo "::error::The Android APK didn't build this time (the website is published; the previous APK stays in the preview release). Re-run this workflow to try again."
+          echo "### APK not built — the previous preview APK is still the download" >> "$GITHUB_STEP_SUMMARY"
 
   deploy-web:
     if: github.event_name != 'pull_request'
