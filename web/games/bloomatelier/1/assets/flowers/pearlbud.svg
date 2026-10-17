@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><defs>
+<linearGradient id="stem" x1="0" x2="1" y1="1" y2="0"><stop stop-color="#315a4b"/><stop offset=".55" stop-color="#87ad83"/><stop offset="1" stop-color="#d8d3a2"/></linearGradient>
+<radialGradient id="petal"><stop stop-color="#fff4c8"/><stop offset=".55" stop-color="#c4a4ac"/><stop offset="1" stop-color="#74677b"/></radialGradient>
+<radialGradient id="heart"><stop stop-color="#fff7d0"/><stop offset=".5" stop-color="#fff4c8"/><stop offset="1" stop-color="#c4a4ac"/></radialGradient>
+</defs><path d="M400 656 C389 541 411 533 400 428" fill="none" stroke="url(#stem)" stroke-width="11.25" stroke-linecap="round"/>
+<path d="M400 561 Q309 514 291 438 Q381 453 400 561" fill="#56866e" stroke="#9ab89b" stroke-width="2" opacity=".95"/>
+<path d="M401 496 Q470 396 515 397 Q499 490 401 496" fill="#67927c" stroke="#a1b69b" stroke-width="2" opacity=".91"/><path d="M398 441 Q333 409 353 355 Q381 320 402 343 Q452 334 451 390 Q439 425 398 441Z" fill="url(#petal)" stroke="#e5dcc6" stroke-width="4"/>
+<path d="M400 435 Q391 381 405 350" fill="none" stroke="#f4eada" stroke-opacity=".7" stroke-width="3"/>
+<circle cx="404" cy="372" r="11" fill="url(#heart)"/><circle cx="388" cy="375" r="4" fill="#fff6dc" opacity=".8"/></svg>

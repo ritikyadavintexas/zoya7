@@ -1,0 +1,22 @@
+{
+  "zoya7": 1,
+  "id": "bloomatelier",
+  "name": "Bloom Atelier",
+  "category": "INSTANT",
+  "description": "Wake a luminous seed in the midnight glasshouse to reveal which rare flower blooms.",
+  "credits": "Original botanical artwork, animation, code and synthesized sound created for Zoya7.",
+  "options": [
+    {
+      "id": "main",
+      "label": "Plant a seed",
+      "outcomes": [
+        { "id": "quietseed", "label": "Quiet Seed", "multiplier": 0 },
+        { "id": "pearlbud", "label": "Pearl Bud", "multiplier": 1.5 },
+        { "id": "silveriris", "label": "Silver Iris", "multiplier": 3 },
+        { "id": "azureorchid", "label": "Azure Orchid", "multiplier": 9 },
+        { "id": "sunlotus", "label": "Sun Lotus", "multiplier": 36 },
+        { "id": "stargarden", "label": "Star Garden", "multiplier": 180 }
+      ]
+    }
+  ]
+}

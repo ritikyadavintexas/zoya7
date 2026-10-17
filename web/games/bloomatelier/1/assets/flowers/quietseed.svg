@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><defs>
+<linearGradient id="stem" x1="0" x2="1" y1="1" y2="0"><stop stop-color="#315a4b"/><stop offset=".55" stop-color="#87ad83"/><stop offset="1" stop-color="#d8d3a2"/></linearGradient>
+<radialGradient id="petal"><stop stop-color="#ceb99a"/><stop offset=".55" stop-color="#89765e"/><stop offset="1" stop-color="#453e36"/></radialGradient>
+<radialGradient id="heart"><stop stop-color="#fff7d0"/><stop offset=".5" stop-color="#ceb99a"/><stop offset="1" stop-color="#89765e"/></radialGradient>
+</defs><ellipse cx="400" cy="645" rx="72" ry="13" fill="#354c41" opacity=".6"/>
+<path d="M361 582 Q321 533 352 489 L390 452 Q405 475 400 500 L421 523 Q403 556 361 582Z" fill="#88745d" stroke="#c9af8d" stroke-width="4"/>
+<path d="M421 581 Q468 540 449 488 L407 452 Q391 468 401 500 L385 527 Q401 567 421 581Z" fill="#62574b" stroke="#baad88" stroke-width="4"/>
+<path d="M387 466 L404 502 L389 527 L414 559" fill="none" stroke="#243732" stroke-width="8" opacity=".8"/>
+<path d="M370 444 C356 428 355 411 365 405" stroke="#b6ac87" fill="none" stroke-width="3" opacity=".4"/>
+<circle cx="313" cy="436" r="4" fill="#b0b18b" opacity=".4"/></svg>
