@@ -323,6 +323,18 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('the lobby’s game strip runs to the screen’s edge, its first tile clear of the notch', (tester) async {
+    tester.view.padding = const FakeViewPadding(left: 47, right: 34);
+    addTearDown(tester.view.resetPadding);
+    await show(tester, const Size(844, 390), const HomeScreen());
+    expectFits(tester);
+    final strip = find.byWidgetPredicate((w) => w is CustomScrollView && w.scrollDirection == Axis.horizontal);
+    expect(tester.getRect(strip).right, 844, reason: 'no stop short of the edge');
+    final first = tester.getRect(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_FeaturedTile').first);
+    expect(first.left, greaterThanOrEqualTo(47), reason: 'clear of the notch at rest');
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('the Gold table widens with the screen instead of leaving side bands', (tester) async {
     await show(tester, const Size(844, 390), const GoldScreen());
     final table = tester.getSize(find.byType(FittedBox).first);

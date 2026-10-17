@@ -117,13 +117,17 @@ class _LobbyPageState extends State<LobbyPage> {
     final shown = visibleGames(s.casino);
     final list = shown.where((g) => cat == 'All games' || g.cat == cat.toUpperCase()).toList();
     final featured = shown.where((g) => g.id == s.casino.featured).firstOrNull ?? shown.firstOrNull;
+    // The rows scroll right to the screen's edges (not stopping short of them
+    // in mid-air); the safe-area inset is room inside the scroll instead.
+    final start = pad.left + 10, end = pad.right + 10;
     return Padding(
-      padding: EdgeInsets.fromLTRB(pad.left + 10, 8, pad.right + 10, pad.bottom + 8),
+      padding: EdgeInsets.fromLTRB(0, 8, 0, pad.bottom + 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         // Categories.
         SizedBox(
           height: 32,
           child: ListView.separated(
+            padding: EdgeInsets.only(left: start, right: end),
             scrollDirection: Axis.horizontal,
             itemCount: cats.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
@@ -187,9 +191,12 @@ class _LobbyPageState extends State<LobbyPage> {
             return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               // The owner can switch each of these off (Settings → Player app).
               if (rail.isNotEmpty) ...[
-                Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  for (final (i, icon) in rail.indexed) ...[if (i > 0) SizedBox(height: iconSize * .2), icon],
-                ]),
+                Padding(
+                  padding: EdgeInsets.only(left: start),
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    for (final (i, icon) in rail.indexed) ...[if (i > 0) SizedBox(height: iconSize * .2), icon],
+                  ]),
+                ),
                 const SizedBox(width: 12),
               ],
               Expanded(
@@ -197,6 +204,7 @@ class _LobbyPageState extends State<LobbyPage> {
                 child: CustomScrollView(
                   scrollDirection: Axis.horizontal,
                   slivers: [
+                    if (rail.isEmpty) SliverToBoxAdapter(child: SizedBox(width: start)),
                     if (featured != null) ...[
                       SliverToBoxAdapter(
                         child: _FeaturedTile(featured, size: Size(box.maxHeight * 1.05, box.maxHeight)),
@@ -212,6 +220,7 @@ class _LobbyPageState extends State<LobbyPage> {
                       ),
                       delegate: SliverChildBuilderDelegate((_, i) => _GameTile(list[i]), childCount: list.length),
                     ),
+                    SliverToBoxAdapter(child: SizedBox(width: end)),
                   ],
                 ),
               ),
