@@ -231,9 +231,12 @@ void main() {
     final note = find.byType(TextField).last;
     await tester.tap(note);
     await tester.pump();
+    final typing = tester.state<EditableTextState>(find.byType(EditableText).last);
     debugKeyboard.value = 380; // an iPhone keyboard and its bar
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+    expect(tester.state<EditableTextState>(find.byType(EditableText).last), same(typing), reason: 'the keyboard stays up');
+    expect(typing.widget.focusNode.hasFocus, isTrue);
     expect(tester.getRect(note).bottom, lessThanOrEqualTo(844 - 380));
     expect(tester.getRect(note).top, greaterThanOrEqualTo(0));
     debugKeyboard.value = 0;

@@ -245,6 +245,41 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  for (final (held, size) in const [('sideways', Size(844, 390)), ('upright', Size(390, 844))]) {
+    testWidgets('log in, phone held $held: the keyboard stays up and the box shows above it', (tester) async {
+      addTearDown(() => debugKeyboard.value = 0);
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(AppScope(
+        state: AppState(),
+        child: MaterialApp(
+          navigatorKey: Nav.navigatorKey,
+          builder: (context, child) => WebSafeArea(turnsWhenUpright: true, child: ForceLandscape(child: child!)),
+          home: const LoginScreen(),
+        ),
+      ));
+      await tester.pump(const Duration(milliseconds: 500));
+      for (final i in [0, 1]) {
+        final field = find.byType(EditableText).at(i);
+        await tester.tap(field);
+        await tester.pump();
+        final typing = tester.state<EditableTextState>(field);
+        debugKeyboard.value = size.height * .55;
+        await tester.pumpAndSettle();
+        // The same box, still focused: nothing was rebuilt, so the keyboard stays.
+        expect(tester.state<EditableTextState>(field), same(typing));
+        expect(typing.widget.focusNode.hasFocus, isTrue);
+        final rect = MatrixUtils.transformRect(tester.renderObject<RenderBox>(field).getTransformTo(null), Offset.zero & tester.getSize(field));
+        expect(rect.bottom, lessThanOrEqualTo(size.height * .45), reason: 'box ${i + 1} above the keyboard');
+        expect(rect.top, greaterThanOrEqualTo(0));
+        debugKeyboard.value = 0;
+        await tester.pumpAndSettle();
+      }
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
   testWidgets('the Gold table widens with the screen instead of leaving side bands', (tester) async {
     await show(tester, const Size(844, 390), const GoldScreen());
     final table = tester.getSize(find.byType(FittedBox).first);
