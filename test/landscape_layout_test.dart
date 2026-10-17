@@ -206,6 +206,17 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('log in: the boxes sit above a landscape phone keyboard, and Return goes on', (tester) async {
+    // An iPhone on its side: the keyboard and its bar cover the lower ~250 px.
+    await show(tester, const Size(844, 390), const LoginScreen());
+    for (final f in find.byType(TextField).evaluate()) {
+      expect(tester.getRect(find.byWidget(f.widget)).bottom, lessThan(390 - 250));
+    }
+    final fields = tester.widgetList<TextField>(find.byType(TextField)).toList();
+    expect(fields.map((f) => f.textInputAction), [TextInputAction.next, TextInputAction.go]);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('the Gold table widens with the screen instead of leaving side bands', (tester) async {
     await show(tester, const Size(844, 390), const GoldScreen());
     final table = tester.getSize(find.byType(FittedBox).first);

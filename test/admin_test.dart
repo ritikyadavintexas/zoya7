@@ -79,7 +79,7 @@ void main() {
 
       testWidgets('sign-in screen fits', (tester) async {
         await show(tester, size, uid: null);
-        expect(find.text('Sign in'), findsWidgets);
+        expect(find.text('Continue'), findsWidgets);
         expectFits(tester, 'sign in');
         await clear(tester);
       });
@@ -180,22 +180,22 @@ void main() {
     expect(find.textContaining('First time'), findsNothing);
     await type('Username', 'stranger');
     await type('Password', 'secret77');
-    await press('Sign in');
+    await press('Continue');
     expect(c.admin, isNull);
 
     await type('Username', 'bhanu2357');
     await type('Password', 'wrong-one');
-    await press('Sign in');
+    await press('Continue');
     expect(find.text('Wrong username or password'), findsOneWidget);
     await type('Password', 'secret77');
-    await press('Sign in');
+    await press('Continue');
     expect(c.admin?.name, 'Bhanu');
     expect(find.text('Today'), findsOneWidget);
 
     lockAdmin(c, sync);
     await tester.pumpAndSettle();
     expect(c.admin, isNull);
-    expect(find.text('Sign in'), findsWidgets);
+    expect(find.text('Continue'), findsWidgets);
     await clear(tester);
   });
 
@@ -206,6 +206,19 @@ void main() {
     final band = tester.widget<ColoredBox>(find.descendant(of: find.byType(StatusBand), matching: find.byType(ColoredBox)).first);
     expect(band.color, K.bg);
     expect(tester.getTopLeft(find.byType(SignInGate)).dy, 47);
+    await clear(tester);
+  });
+
+  testWidgets('sign-in boxes sit above an upright phone keyboard, and Return goes on', (tester) async {
+    tester.view.padding = const FakeViewPadding(top: 47);
+    addTearDown(tester.view.resetPadding);
+    await show(tester, const Size(390, 844), uid: null);
+    // The iPhone keyboard and its bar cover the lower ~400 px.
+    for (final f in find.byType(TextField).evaluate()) {
+      expect(tester.getRect(find.byWidget(f.widget)).bottom, lessThan(844 - 400));
+    }
+    final fields = tester.widgetList<TextField>(find.byType(TextField)).toList();
+    expect(fields.map((f) => f.textInputAction), [TextInputAction.next, TextInputAction.go]);
     await clear(tester);
   });
 

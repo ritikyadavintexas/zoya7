@@ -448,6 +448,8 @@ class ZField extends StatelessWidget {
     this.keyboard,
     this.helper,
     this.badge,
+    this.action,
+    this.onSubmitted,
   });
   final String label;
   final String? hint;
@@ -459,6 +461,10 @@ class ZField extends StatelessWidget {
   final String? helper;
   final Widget? badge;
 
+  /// The keyboard's Return key: next field, go, …
+  final TextInputAction? action;
+  final ValueChanged<String>? onSubmitted;
+
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Text(label, style: outfit(13, w: FontWeight.w600, c: Z.label)),
@@ -469,6 +475,8 @@ class ZField extends StatelessWidget {
             initialValue: controller == null ? initial : null,
             obscureText: obscure,
             keyboardType: keyboard,
+            textInputAction: action,
+            onFieldSubmitted: onSubmitted,
             style: outfit(16, c: Z.cream),
             cursorColor: Z.goldHi,
             decoration: fieldDeco(hint: hint, suffix: suffix, right: badge != null ? 96 : null),

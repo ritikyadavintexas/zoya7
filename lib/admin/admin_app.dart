@@ -165,40 +165,34 @@ class _SignInGateState extends State<SignInGate> {
                 label: Text('Back to the game', style: kt(15, w: FontWeight.w600)),
               ),
             ),
-          Center(
+          // Near the top, not centred: on a phone the keyboard takes the lower
+          // half, and the fields and the button stay above it.
+          Align(
+            alignment: Alignment.topCenter,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 56, 24, 16),
+              padding: EdgeInsets.fromLTRB(24, (K.desktop(context) ? 120 : 28) + (widget.onExit != null ? 40 : 0), 24, 16),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 360),
                 child: widget.resuming
-                    ? Column(mainAxisSize: MainAxisSize.min, children: [
-                        const AdminLogo(size: 72),
-                        const SizedBox(height: 18),
-                        const CircularProgressIndicator(color: K.green),
-                        const SizedBox(height: 14),
-                        Text('Signing in…', style: kt(17, w: FontWeight.w600, c: K.sub)),
-                      ])
+                    ? const Padding(
+                        padding: EdgeInsets.only(top: 40),
+                        child: Center(child: CircularProgressIndicator(color: K.green)),
+                      )
                     : AutofillGroup(
                         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                          const Center(child: AdminLogo(size: 72)),
-                          const SizedBox(height: 16),
-                          Text('Zoya7 Admin', textAlign: TextAlign.center, style: kt(28, w: FontWeight.w800)),
-                          const SizedBox(height: 4),
-                          Text('Sign in to manage players and coins',
-                              textAlign: TextAlign.center, style: kt(15, w: FontWeight.w500, c: K.sub)),
-                          const SizedBox(height: 20),
+                          // Plain: no logo, name or heading.
                           KCard(
                             padding: const EdgeInsets.all(16),
                             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                              KField(label: 'Username', controller: username, autofocus: true),
+                              KField(label: 'Username', controller: username, autofocus: true, action: TextInputAction.next),
                               const SizedBox(height: 12),
-                              KField(label: 'Password', controller: password, obscure: true, onSubmitted: (_) => _go()),
+                              KField(label: 'Password', controller: password, obscure: true, action: TextInputAction.go, onSubmitted: (_) => _go()),
                               if (error != null) ...[
                                 const SizedBox(height: 10),
                                 Text(error!, style: kt(14, w: FontWeight.w600, c: K.red, h: 1.35)),
                               ],
                               const SizedBox(height: 14),
-                              KButton(busy ? 'Please wait…' : 'Sign in',
+                              KButton(busy ? 'Please wait…' : 'Continue',
                                   expand: true, onTap: busy ? null : _go),
                             ]),
                           ),
@@ -588,7 +582,7 @@ class _PhoneTopBar extends StatelessWidget {
                     enabled: false,
                     child: Text('${me.name} · ${statusName(me.role)}', style: kt(14, w: FontWeight.w600, c: K.sub)),
                   ),
-                  PopupMenuItem(value: 'db', child: Text('Database & install', style: kt(15, w: FontWeight.w600))),
+                  PopupMenuItem(value: 'db', child: Text('Database', style: kt(15, w: FontWeight.w600))),
                   if (onExit != null)
                     PopupMenuItem(value: 'exit', child: Text('Open player app', style: kt(15, w: FontWeight.w600))),
                   PopupMenuItem(value: 'lock', child: Text('Lock', style: kt(15, w: FontWeight.w600))),

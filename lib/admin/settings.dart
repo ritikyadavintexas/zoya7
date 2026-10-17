@@ -58,7 +58,6 @@ class _SettingsPageState extends State<SettingsPage> {
       sub: 'Starting amount and coin-in limit · coins have no cash value',
       actions: [KButton('Save changes', icon: Icons.check_rounded, onTap: _save)],
       children: [
-        const InstallCard(),
         const DatabaseCard(),
         const SizedBox(height: 16),
         KGrid(min: 380, gap: 16, max: 2, children: [

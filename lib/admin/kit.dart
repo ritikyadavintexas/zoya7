@@ -303,6 +303,7 @@ class KField extends StatelessWidget {
     this.maxLines = 1,
     this.icon,
     this.formatters,
+    this.action,
   });
   final String? label;
   final TextEditingController? controller;
@@ -317,6 +318,9 @@ class KField extends StatelessWidget {
   final int maxLines;
   final IconData? icon;
   final List<TextInputFormatter>? formatters;
+
+  /// The keyboard's Return key: next field, go, …
+  final TextInputAction? action;
 
   /// Digits and one decimal point.
   static final money = [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))];
@@ -333,6 +337,7 @@ class KField extends StatelessWidget {
           obscureText: obscure,
           onChanged: onChanged,
           onSubmitted: onSubmitted,
+          textInputAction: action,
           autofocus: autofocus,
           maxLines: maxLines,
           inputFormatters: formatters,

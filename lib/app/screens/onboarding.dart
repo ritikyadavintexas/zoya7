@@ -223,12 +223,14 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final kicked = AppScope.of(context).kickedOut;
-    final who = ZField(label: 'PLAYER ID OR USERNAME', hint: 'Z7-123456', controller: _who);
+    final who = ZField(label: 'PLAYER ID OR USERNAME', hint: 'Z7-123456', controller: _who, action: TextInputAction.next);
     final password = ZField(
       label: 'PASSWORD',
       hint: '••••••••',
       controller: _pw,
       obscure: !showPw,
+      action: TextInputAction.go,
+      onSubmitted: (_) => _submit(),
       suffix: Semantics(
         label: showPw ? 'Hide password' : 'Show password',
         button: true,
@@ -268,9 +270,12 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         main: LayoutBuilder(builder: (context, box) {
           final pairs = box.maxWidth >= 300;
-          return Center(
+          // Near the top, not centred: a phone's keyboard covers the lower
+          // part of the screen, and the boxes stay above it (Return logs in).
+          return Align(
+            alignment: Alignment.topCenter,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(6, 6, 20, 6),
+              padding: const EdgeInsets.fromLTRB(6, 10, 20, 6),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 520),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
