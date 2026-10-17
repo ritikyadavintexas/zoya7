@@ -1,6 +1,6 @@
 (()=>{'use strict';
 const canvas=document.querySelector('#game'),g=canvas.getContext('2d',{alpha:false});
-const W=1920,H=1080,BOX={x:215,y:640,w:860,h:220};
+const W=1920,H=1080,BOX={x:175,y:583,w:950,h:260};
 const THEMES=[
  {n:'05',title:'LUCKY LEAF',sub:'THE GREEN COLLECTION',a:'#51e0a8',b:'#073e39',c:'#0e6550',icon:'♣'},
  {n:'10',title:'RUBY RUSH',sub:'THE CRIMSON COLLECTION',a:'#ff9eaa',b:'#561b39',c:'#a62c57',icon:'◆'},
@@ -35,74 +35,77 @@ function base(){g.fillStyle='#080e1c';g.fillRect(0,0,vw,vh);g.save();g.translate
  ambientDots.forEach((q,i)=>{g.globalAlpha=q.a*(.75+.25*(session?.reducedMotion?0:Math.sin(elapsed*.55+i)));g.beginPath();g.arc(q.x,q.y,q.r,0,Math.PI*2);g.fillStyle='#d3eef9';g.fill();});g.globalAlpha=1;
  g.strokeStyle='rgba(207,225,248,.035)';for(let i=-600;i<2500;i+=95){line(i,0,i+800,1080,'rgba(207,225,248,.035)',1)}
 }
-function header(){rounded(22,18,1876,103,22,'rgba(9,16,30,.85)','#334158',1);
- btn(42,39,172,62,'←  LOBBY');
- text('SCRATCH',278,66,35,'#f6f6f1','left',850);text('ROYALE',480,66,35,'#e7bf78','left',850);
- text('FIVE TICKET COLLECTIONS',282,98,16,'#99aabe','left',700);
- btn(915,37,112,65,muted?'SOUND OFF':'SOUND', 'dark');btn(1042,37,93,65,'INFO');
- rounded(1160,39,324,63,14,currency==='GC'?'#244b44':'#17243a',currency==='GC'?'#68d5b4':'#48627b',2);
- text('GC',1180,71,25,currency==='GC'?'#8ef0c5':'#a9c7d8','left',800);text(viewMoney(balances.GC,'GC'),1265,71,28,'#fafafa','left',750);btn(1400,51,65,39,'+','green');
- rounded(1500,39,367,63,14,currency==='DC'?'#4b4263':'#17243a',currency==='DC'?'#d2a6ed':'#48627b',2);
- text('DC',1523,71,25,currency==='DC'?'#e9b9ff':'#a9c7d8','left',800);text(viewMoney(balances.DC,'DC'),1610,71,28,'#fafafa','left',750);
+function header(){rounded(20,18,1880,90,22,'rgba(9,16,30,.9)','#334158',1);
+ btn(34,31,170,54,'←  LOBBY');
+ text('SCRATCH ROYALE',252,56,34,'#f6f6f1','left',900);
+ text('Landscape scratch cards',255,84,17,'#99aabe','left',700);
+ btn(870,30,132,56,muted?'SOUND OFF':'SOUND','dark');btn(1018,30,95,56,'INFO');
+ rounded(1140,30,340,56,14,currency==='GC'?'#244b44':'#17243a',currency==='GC'?'#68d5b4':'#48627b',2);
+ text('GC',1162,58,23,currency==='GC'?'#8ef0c5':'#a9c7d8','left',800);text(viewMoney(balances.GC,'GC'),1235,58,27,'#fafafa','left',750);btn(1406,39,56,38,'+','green');
+ rounded(1498,30,350,56,14,currency==='DC'?'#4b4263':'#17243a',currency==='DC'?'#d2a6ed':'#48627b',2);
+ text('DC',1520,58,23,currency==='DC'?'#e9b9ff':'#a9c7d8','left',800);text(viewMoney(balances.DC,'DC'),1592,58,27,'#fafafa','left',750);
 }
-function shelf(){text('01',81,169,19,'#a9bdc8','left',750);text('CHOOSE YOUR TICKET',120,170,30,'#f3ead7','left',850);text('Tap a collection below',1820,172,21,'#99aebe','right',500);
+function shelf(){text('01',72,136,19,'#a9bdc8','left',750);text('PICK A CARD STYLE',110,137,28,'#f3ead7','left',850);text('05, 10, 20, 30, 50 collections',1810,138,19,'#99aebe','right',500);
  for(let i=0;i<5;i++){
- const t=THEMES[i],x=64+i*362,w=342,y=208,h=160,on=i===ticket;
- rounded(x,y,w,h,20,on?t.b:'#121e32',on?t.a:'#37465b',on?4:2);
- if(on){let sheen=grad(x,y,w,h,[[0,t.c+'dd'],[1,'#122132']]);rounded(x+5,y+5,w-10,h-10,17,sheen);} 
- g.save();g.globalAlpha=on?.35:.18;g.beginPath();g.arc(x+280,y+81,58,0,Math.PI*2);g.fillStyle=t.a;g.fill();g.restore();
- text(t.n,x+23,y+57,62,on?t.a:'#b9c6d6','left',900);text(t.icon,x+272,y+58,50,on?t.a:'#7f91a6','center',600);
- text(t.title,x+22,y+114,23,'#f5f5f3','left',850);text(on?'SELECTED':'TAP TO SELECT',x+22,y+141,15,on?t.a:'#96abc3','left',750);
+ const t=THEMES[i],x=58+i*364,w=348,y=162,h=112,on=i===ticket;
+ rounded(x,y,w,h,18,on?t.b:'#121e32',on?t.a:'#37465b',on?4:2);
+ if(on){let sheen=grad(x,y,w,h,[[0,t.c+'ee'],[1,'#122132']]);rounded(x+4,y+4,w-8,h-8,14,sheen);}
+ g.save();g.globalAlpha=on?.32:.14;g.beginPath();g.arc(x+294,y+56,38,0,Math.PI*2);g.fillStyle=t.a;g.fill();g.restore();
+ text(t.n,x+18,y+48,46,on?t.a:'#b9c6d6','left',900);text(t.title,x+104,y+46,24,'#f5f5f3','left',850);text(on?'SELECTED':'SELECT',x+105,y+76,15,on?t.a:'#96abc3','left',800);text(t.icon,x+294,y+56,34,on?t.a:'#7f91a6','center',600);
  }
 }
-function ticketPlate(){const t=THEMES[ticket];const x=65,y=415,w=1160,h=560;
+function ticketPlate(){const t=THEMES[ticket];const x=52,y=295,w=1195,h=720;
  g.save();g.shadowColor='#000';g.shadowBlur=30;g.shadowOffsetY=15;rounded(x,y,w,h,26,'#0a111e');g.restore();
  rounded(x,y,w,h,26,grad(x,y,w,h,[[0,t.c],[.45,t.b],[1,'#0b2435']]),t.a,4);
  rounded(x+14,y+14,w-28,h-28,18,null,'rgba(255,255,255,.24)',2);
- for(let j=0;j<2;j++){g.strokeStyle='rgba(255,255,255,.10)';g.lineWidth=2;g.beginPath();g.ellipse(x+1000,y+320,130+j*90,220+j*60,-.45,0,2*Math.PI);g.stroke();}
- text('Z O Y A 7   /   S C R A T C H    C O L L E C T I O N',x+47,y+43,18,'rgba(255,255,255,.76)','left',750);
- text(t.title,x+44,y+105,59,'#fff8e9','left',950);text('SERIES  '+t.n,x+w-43,y+103,25,t.a,'right',800);
- line(x+44,y+139,x+w-44,y+139,'rgba(255,255,255,.28)',2);
- text('MATCH ALL 3 SYMBOLS TO WIN',x+46,y+172,22,'#eef6f6','left',750);
- text('SCRATCH AREA',x+46,y+199,17,'rgba(247,246,232,.75)','left',650);
- rounded(BOX.x-15,BOX.y-15,BOX.w+30,BOX.h+30,20,'#0b1c2a','rgba(253,244,219,.78)',3);
- // Behind the foil: outcome only exists after the host has returned a round.
- rounded(BOX.x,BOX.y,BOX.w,BOX.h,11,grad(BOX.x,BOX.y,BOX.w,BOX.h,[[0,'#fff8e9'],[.55,'#fffef4'],[1,'#eee3cc']]));
+ for(let j=0;j<2;j++){g.strokeStyle='rgba(255,255,255,.10)';g.lineWidth=2;g.beginPath();g.ellipse(x+1025,y+372,150+j*90,255+j*60,-.45,0,2*Math.PI);g.stroke();}
+ text('Z O Y A 7   /   S C R A T C H   C A R D',x+47,y+43,18,'rgba(255,255,255,.76)','left',750);
+ text(t.title,x+44,y+102,62,'#fff8e9','left',950);text('SERIES  '+t.n,x+w-43,y+100,25,t.a,'right',800);
+ line(x+44,y+136,x+w-44,y+136,'rgba(255,255,255,.28)',2);
+ text('MATCH 3 SYMBOLS TO WIN',x+46,y+172,24,'#eef6f6','left',800);
+ text('Scratch the big silver area below',x+46,y+205,21,'rgba(247,246,232,.78)','left',650);
+ rounded(BOX.x-18,BOX.y-18,BOX.w+36,BOX.h+36,24,'#0b1c2a','rgba(253,244,219,.82)',3);
+ rounded(BOX.x,BOX.y,BOX.w,BOX.h,14,grad(BOX.x,BOX.y,BOX.w,BOX.h,[[0,'#fff8e9'],[.55,'#fffef4'],[1,'#eee3cc']]));
  if(round){const prize=PRIZES[round.outcome]||PRIZES.nomatch;for(let j=0;j<3;j++){
- const cx=BOX.x+144+j*288;
- rounded(cx-109,BOX.y+25,218,151,15,j%2?'#e8e6dd':'#eeeadd','#cebfa9',2);
- text(prize.symbols[j],cx,BOX.y+103,110,prize.tone===0?['#158c6c','#2d7aae','#9f3671'][j]:t.c,'center',900);
+ const cx=BOX.x+160+j*315;
+ rounded(cx-118,BOX.y+34,236,176,18,j%2?'#e8e6dd':'#eeeadd','#cebfa9',2);
+ text(prize.symbols[j],cx,BOX.y+118,122,prize.tone===0?['#158c6c','#2d7aae','#9f3671'][j]:t.c,'center',900);
  }
- text(prize.text,BOX.x+BOX.w/2,BOX.y+201,20,'#574b49','center',900);
- }else {text('3  ×  ?  ?  ?',BOX.x+BOX.w/2,BOX.y+110,62,'#b7b2a6','center',800);}
+ text(prize.text,BOX.x+BOX.w/2,BOX.y+228,26,'#574b49','center',900);
+ }else {text('?   ?   ?',BOX.x+BOX.w/2,BOX.y+120,86,'#b7b2a6','center',800);text('PLAY TO LOAD A RESULT',BOX.x+BOX.w/2,BOX.y+210,25,'#9b9487','center',800);}
  if((mode==='scratch'||mode==='revealing')&&foil){g.drawImage(foil,BOX.x,BOX.y,BOX.w,BOX.h);}
  else if(mode==='loading'||mode==='idle'||mode==='waiting'||mode==='error'){
- let overlay=grad(BOX.x,BOX.y,BOX.w,BOX.h,[[0,'#eef4f6'],[.33,'#9facbf'],[.67,'#f4f7fc'],[1,'#9aaabd']]);rounded(BOX.x,BOX.y,BOX.w,BOX.h,10,overlay);
- g.save();g.beginPath();g.roundRect(BOX.x,BOX.y,BOX.w,BOX.h,10);g.clip();for(let k=-200;k<1100;k+=40)line(BOX.x+k,BOX.y,BOX.x+k+145,BOX.y+220,'rgba(255,255,255,.15)',8);g.restore();
- text('✦',BOX.x+170,BOX.y+83,52,'#8295a7','center');text('SCRATCH  TO  REVEAL',BOX.x+BOX.w/2,BOX.y+90,43,'#40516a','center',900);text('PLAY A TICKET TO UNLOCK',BOX.x+BOX.w/2,BOX.y+144,23,'#586f89','center',800);text('✦',BOX.x+BOX.w-170,BOX.y+83,52,'#8295a7','center');}
- text('THREE MATCHING SYMBOLS = ONE PRIZE',x+47,y+h-49,19,'#f7edcd','left',750);
- text('ORIGINAL TICKET ART   •   ' + t.sub,x+w-43,y+h-49,17,'rgba(243,244,233,.72)','right',650);
+ let overlay=grad(BOX.x,BOX.y,BOX.w,BOX.h,[[0,'#eef4f6'],[.33,'#9facbf'],[.67,'#f4f7fc'],[1,'#9aaabd']]);rounded(BOX.x,BOX.y,BOX.w,BOX.h,12,overlay);
+ g.save();g.beginPath();g.roundRect(BOX.x,BOX.y,BOX.w,BOX.h,12);g.clip();for(let k=-240;k<1250;k+=44)line(BOX.x+k,BOX.y,BOX.x+k+170,BOX.y+260,'rgba(255,255,255,.15)',9);g.restore();
+ text('✦',BOX.x+180,BOX.y+102,58,'#8295a7','center');text('SCRATCH TO REVEAL',BOX.x+BOX.w/2,BOX.y+105,48,'#40516a','center',900);text('PRESS PLAY, THEN SCRATCH OR REVEAL ALL',BOX.x+BOX.w/2,BOX.y+166,25,'#586f89','center',800);text('✦',BOX.x+BOX.w-180,BOX.y+102,58,'#8295a7','center');}
+ rounded(x+46,y+614,1095,62,16,'rgba(7,16,28,.28)','rgba(255,255,255,.12)',1);
+ text('WIN RULE: ALL 3 SYMBOLS MUST MATCH',x+74,y+645,22,'#f7edcd','left',800);
+ text(t.sub,x+w-43,y+645,18,'rgba(243,244,233,.72)','right',650);
 }
-function sidePanel(){const x=1256,y=413,w=602,h=565;rounded(x,y,w,h,24,'#131e30','#384a5f',2);let locked=(mode==='loading'||mode==='waiting'||mode==='scratch'||mode==='revealing');
- text('02',1291,455,21,'#a5bdd1','left',750);text('SET YOUR BET',1333,455,27,'#f0eee5','left',850);
- text('Currency',1296,509,21,'#93aabd','left',600);
- btn(1460,488,168,59,'GC',currency==='GC'?'green':'dark',currency==='GC',locked);btn(1645,488,166,59,'DC','dark',currency==='DC',locked);
- text('BET AMOUNT',1297,587,18,'#a7b6c5','left',850);
- rounded(1295,614,524,95,18,'#0a1424','#42556e',2);
- btn(1308,626,88,70,'−','dark',false,locked);text(viewMoney(currentBet()),1558,663,42,'#f3f7f4','center',900);btn(1717,626,88,70,'+','dark',false,locked);
- text(currency+'  •  available bets from Zoya7',1558,733,17,'#8fa4bc','center',600);
- let label=mode==='idle'?'PLAY TICKET':mode==='waiting'?'LOADING ROUND…':mode==='scratch'?'REVEAL ALL':mode==='revealed'?'NEW TICKET':mode==='loading'?'CONNECTING…':'REVEAL ALL';
- btn(1294,769,524,94,label,mode==='idle'||mode==='revealed'?'gold':mode==='scratch'?'green':'dark',false,mode==='waiting'||mode==='loading');
- text(mode==='idle'?'Start a round, then scratch the silver foil.':mode==='waiting'?'Waiting for the confirmed Zoya7 outcome…':mode==='scratch'?'Drag to scratch, or tap REVEAL ALL.':mode==='revealed'?'Round complete. Play another ticket.':mode==='error'?'Use the instructions shown below.':'',1557,887,21,'#a9bed2','center',600);
- line(1295,915,1820,915,'#38495e',1);
- text('LAST RESULT',1295,943,19,'#a8b7c9','left',850);text(shownWin>0?'WIN  '+viewMoney(shownWin,shownRoundCurrency)+' '+shownRoundCurrency:round&&mode==='revealed'?'NO MATCH':'—',1816,943,23,shownWin>0?'#f8d58b':'#d1d5dd','right',850);
+function sidePanel(){const x=1270,y=295,w=598,h=720;rounded(x,y,w,h,24,'#131e30','#384a5f',2);let locked=(mode==='loading'||mode==='waiting'||mode==='scratch'||mode==='revealing');
+ text('02',1302,338,21,'#a5bdd1','left',750);text('PLAY CONTROLS',1343,338,28,'#f0eee5','left',850);
+ rounded(1296,372,544,106,18,'#0d1727','#435368',2);
+ text('Currency',1322,404,19,'#93aabd','left',650);
+ btn(1464,384,148,64,'GC',currency==='GC'?'green':'dark',currency==='GC',locked);btn(1632,384,148,64,'DC','dark',currency==='DC',locked);
+ text('Choose bet',1322,458,19,'#93aabd','left',650);
+ rounded(1296,495,544,110,18,'#0a1424','#42556e',2);
+ btn(1312,514,94,72,'−','dark',false,locked);text(viewMoney(currentBet()),1568,551,46,'#f3f7f4','center',900);btn(1730,514,94,72,'+','dark',false,locked);
+ text('Allowed bets come from Zoya7',1568,592,17,'#8fa4bc','center',600);
+ let label=mode==='idle'?'PLAY CARD':mode==='waiting'?'LOADING…':mode==='scratch'?'REVEAL ALL':mode==='revealed'?'PLAY AGAIN':mode==='loading'?'CONNECTING…':'REVEAL ALL';
+ btn(1296,640,544,108,label,mode==='idle'||mode==='revealed'?'gold':mode==='scratch'?'green':'dark',false,mode==='waiting'||mode==='loading');
+ rounded(1296,772,544,124,18,'#101b2d','#334760',1);
+ text(mode==='idle'?'1. Press PLAY CARD.':mode==='waiting'?'Waiting for a result from Zoya7…':mode==='scratch'?'2. Scratch the foil or tap REVEAL ALL.':mode==='revealed'?'Card finished. Press PLAY AGAIN.':mode==='error'?'Please use the note below.':'',1568,810,22,'#e8edf3','center',700);
+ text(mode==='idle'?'Then scratch the large silver area.':mode==='waiting'?'Your result is already determined.':mode==='scratch'?'Matching all 3 symbols wins the shown prize.':mode==='revealed'?'You can keep the same card style or switch.':'',1568,848,18,'#a9bed2','center',600);
+ rounded(1296,914,544,68,15,'#0c1525','#314256',1);
+ text('LAST RESULT',1320,948,18,'#a8b7c9','left',850);text(shownWin>0?'WIN  '+viewMoney(shownWin,shownRoundCurrency)+' '+shownRoundCurrency:round&&mode==='revealed'?'NO MATCH':'—',1812,948,22,shownWin>0?'#f8d58b':'#d1d5dd','right',850);
 }
 function status(){
- if(mode==='scratch'&&round){text('SCRATCH THE FOIL OR TAP REVEAL ALL',78,1023,24,'#dcebdd','left',850);text(Math.round(scratchRatio*100)+'% SCRATCHED',1848,1023,23,'#e9c685','right',800);}
- else if(mode==='revealed'&&round){const p=PRIZES[round.outcome]||PRIZES.nomatch;const message=round.win>0?'YOU REVEALED  '+p.text+'  •  '+round.multiplier+'×':'NO MATCH THIS ROUND';text(message,80,1023,29,round.win>0?'#f5dba2':'#b5c8d6','left',850);text(round.win>0?'+ '+viewMoney(round.win,round.currency)+' '+round.currency:'Try another ticket',1848,1023,25,round.win>0?'#8ce6c3':'#d0d7df','right',800);}
- else if(notice&&performance.now()<noticeTo){text(notice,78,1023,24,'#f3d6ab','left',750);}
- else {text(mode==='loading'?'CONNECTING TO ZOYA7…':mode==='waiting'?'CONFIRMING YOUR ROUND…':'01  PICK A TICKET      02  CHOOSE A BET      03  PLAY      04  SCRATCH',78,1023,23,'#94aabb','left',750);text('All outcomes are decided by Zoya7',1839,1023,20,'#879bae','right',600);}
- if(mode==='error'){rounded(330,738,1260,110,16,'#4b2530','#a94f60',2);text(notice||'Unable to connect. Open from a local web server.',960,792,28,'#fff2e9','center',750);}
+ rounded(52,1022,1816,42,14,'rgba(9,16,30,.75)','rgba(62,78,97,.8)',1);
+ if(mode==='scratch'&&round){text('Scratch the foil or tap REVEAL ALL',76,1043,22,'#dcebdd','left',800);text(Math.round(scratchRatio*100)+'% cleared',1842,1043,21,'#e9c685','right',800);}
+ else if(mode==='revealed'&&round){const p=PRIZES[round.outcome]||PRIZES.nomatch;const message=round.win>0?'Revealed '+p.text+'  •  '+round.multiplier+'×':'No match this round';text(message,76,1043,22,round.win>0?'#f5dba2':'#b5c8d6','left',800);text(round.win>0?'+ '+viewMoney(round.win,round.currency)+' '+round.currency:'Pick a card and play again',1842,1043,21,round.win>0?'#8ce6c3':'#d0d7df','right',750);}
+ else if(notice&&performance.now()<noticeTo){text(notice,76,1043,21,'#f3d6ab','left',750);text('All results are decided by Zoya7',1842,1043,18,'#879bae','right',600);}
+ else {text(mode==='loading'?'Connecting to Zoya7…':mode==='waiting'?'Confirming your round…':'Pick a card  •  Choose a bet  •  Play  •  Scratch',76,1043,20,'#94aabb','left',750);text('Landscape layout optimized for wide screens',1842,1043,18,'#879bae','right',600);}
+ if(mode==='error'){rounded(330,726,1260,110,16,'#4b2530','#a94f60',2);text(notice||'Unable to connect. Open from a local web server.',960,780,28,'#fff2e9','center',750);}
 }
 function infoModal(){if(!info)return;g.fillStyle='rgba(3,7,16,.82)';g.fillRect(0,0,W,H);rounded(310,112,1300,862,30,'#132033','#88a8bf',2);
  text('HOW SCRATCH ROYALE WORKS',388,180,45,'#f9e4b6','left',850);btn(1445,142,109,67,'CLOSE');
@@ -113,7 +116,7 @@ function infoModal(){if(!info)return;g.fillStyle='rgba(3,7,16,.82)';g.fillRect(0
  text('POSSIBLE RESULTS',399,433,25,'#f9ddaa','left',850);text('PAYOUT',1065,433,25,'#f9ddaa','left',850);text('CHANCE',1265,433,25,'#f9ddaa','left',850);
  let o=session?.options?.[ticket]?.outcomes||[];
  o.forEach((p,i)=>{const y=491+i*67;if(i%2===0)rounded(380,y-26,1152,56,11,'#203149');text(p.label,402,y,27,'#e5eff3','left',700);text(p.multiplier+'×',1072,y,28,'#e6c88f','left',800);text(p.chance>0?'1 in '+(1/p.chance<10?(1/p.chance).toFixed(1):Math.round(1/p.chance).toLocaleString()):'—',1267,y,24,'#bfcbd7','left',700);});
- text('05 / 10 / 20 / 30 / 50 are collection labels, not fixed bet amounts.',395,925,22,'#95b0c3','left',650);
+ text('05 / 10 / 20 / 30 / 50 are collection labels, not fixed bet amounts. This version is arranged for landscape play.',395,925,22,'#95b0c3','left',650);
 }
 function render(t){let dt=lastT?Math.min(.06,(t-lastT)/1000):0;lastT=t;if(!paused)elapsed+=dt;
  g.setTransform(dpr,0,0,dpr,0,0);base();header();shelf();ticketPlate();sidePanel();status();infoModal();g.restore();

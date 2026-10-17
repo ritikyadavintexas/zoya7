@@ -9,3 +9,6 @@
 **Integration**: identical `id` to prior scratchroyale so uploads can replace that game. `zoya7-bridge.js` is copied unchanged from provided prompt. Host handles wagers, payouts, bets, and currencies. Offline and no CDNs. Audio MP3 cues are bundled; WebAudio fallback if playback is unavailable. Responsive full canvas, keyboard Space/Enter and Escape, a single reveal action for accessibility.
 
 **Browser testing**: test scripts or screenshots, where available, are separate from the ZIP. Production payouts and host loading should be tested in Zoya7's actual sandbox before publishing.
+
+
+This package includes a revised landscape layout with a larger scratch area, clearer right-side controls, and fewer tiny labels for wide phone screens.
