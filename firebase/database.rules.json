@@ -33,12 +33,10 @@
         }
       },
       "games": {
-        ".read": "auth != null",
-        ".write": "auth != null && (root.child('zoya7/staff/' + auth.uid + '/r').val() === 0 || root.child('zoya7/staff/' + auth.uid + '/r').val() === 1)"
+        ".read": "auth != null"
       },
       "meta": {
-        ".read": "auth != null",
-        ".write": "auth != null && (root.child('zoya7/staff/' + auth.uid + '/r').val() === 0 || root.child('zoya7/staff/' + auth.uid + '/r').val() === 1)"
+        ".read": "auth != null"
       },
       "staff": {
         "$uid": {
