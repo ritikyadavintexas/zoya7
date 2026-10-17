@@ -1,0 +1,190 @@
+{
+  "zoya7": 1,
+  "id": "scratchroyale",
+  "name": "Scratch Royale",
+  "category": "INSTANT",
+  "description": "Choose a ticket collection and scratch three matching symbols to reveal a host-decided prize.",
+  "credits": "Original procedural canvas art, lobby artwork and synthesized audio created for Scratch Royale.",
+  "options": [
+    {
+      "id": "ticket5",
+      "label": "Lucky 05",
+      "outcomes": [
+        {
+          "id": "nomatch",
+          "label": "No match",
+          "multiplier": 0
+        },
+        {
+          "id": "clover",
+          "label": "Clover trio",
+          "multiplier": 1.5
+        },
+        {
+          "id": "pearl",
+          "label": "Pearl trio",
+          "multiplier": 3
+        },
+        {
+          "id": "ruby",
+          "label": "Ruby trio",
+          "multiplier": 8
+        },
+        {
+          "id": "crown",
+          "label": "Crown trio",
+          "multiplier": 25
+        },
+        {
+          "id": "diamond",
+          "label": "Diamond trio",
+          "multiplier": 100
+        }
+      ]
+    },
+    {
+      "id": "ticket10",
+      "label": "Ruby 10",
+      "outcomes": [
+        {
+          "id": "nomatch",
+          "label": "No match",
+          "multiplier": 0
+        },
+        {
+          "id": "clover",
+          "label": "Clover trio",
+          "multiplier": 1.5
+        },
+        {
+          "id": "pearl",
+          "label": "Pearl trio",
+          "multiplier": 3
+        },
+        {
+          "id": "ruby",
+          "label": "Ruby trio",
+          "multiplier": 8
+        },
+        {
+          "id": "crown",
+          "label": "Crown trio",
+          "multiplier": 25
+        },
+        {
+          "id": "diamond",
+          "label": "Diamond trio",
+          "multiplier": 100
+        }
+      ]
+    },
+    {
+      "id": "ticket20",
+      "label": "Ocean 20",
+      "outcomes": [
+        {
+          "id": "nomatch",
+          "label": "No match",
+          "multiplier": 0
+        },
+        {
+          "id": "clover",
+          "label": "Clover trio",
+          "multiplier": 1.5
+        },
+        {
+          "id": "pearl",
+          "label": "Pearl trio",
+          "multiplier": 3
+        },
+        {
+          "id": "ruby",
+          "label": "Ruby trio",
+          "multiplier": 8
+        },
+        {
+          "id": "crown",
+          "label": "Crown trio",
+          "multiplier": 25
+        },
+        {
+          "id": "diamond",
+          "label": "Diamond trio",
+          "multiplier": 100
+        }
+      ]
+    },
+    {
+      "id": "ticket30",
+      "label": "Royal 30",
+      "outcomes": [
+        {
+          "id": "nomatch",
+          "label": "No match",
+          "multiplier": 0
+        },
+        {
+          "id": "clover",
+          "label": "Clover trio",
+          "multiplier": 1.5
+        },
+        {
+          "id": "pearl",
+          "label": "Pearl trio",
+          "multiplier": 3
+        },
+        {
+          "id": "ruby",
+          "label": "Ruby trio",
+          "multiplier": 8
+        },
+        {
+          "id": "crown",
+          "label": "Crown trio",
+          "multiplier": 25
+        },
+        {
+          "id": "diamond",
+          "label": "Diamond trio",
+          "multiplier": 100
+        }
+      ]
+    },
+    {
+      "id": "ticket50",
+      "label": "Diamond 50",
+      "outcomes": [
+        {
+          "id": "nomatch",
+          "label": "No match",
+          "multiplier": 0
+        },
+        {
+          "id": "clover",
+          "label": "Clover trio",
+          "multiplier": 1.5
+        },
+        {
+          "id": "pearl",
+          "label": "Pearl trio",
+          "multiplier": 3
+        },
+        {
+          "id": "ruby",
+          "label": "Ruby trio",
+          "multiplier": 8
+        },
+        {
+          "id": "crown",
+          "label": "Crown trio",
+          "multiplier": 25
+        },
+        {
+          "id": "diamond",
+          "label": "Diamond trio",
+          "multiplier": 100
+        }
+      ]
+    }
+  ]
+}
