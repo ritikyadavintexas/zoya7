@@ -11,6 +11,7 @@ import '../icons.dart';
 import '../nav.dart';
 import '../state.dart';
 import '../theme.dart';
+import '../site.dart';
 import '../widgets.dart';
 
 /// Open a game tile: Blackjack has its table, Classic 777 / Fruit Spin play
@@ -28,6 +29,8 @@ void openGame(BuildContext context, GameInfo g) {
     return;
   }
   switch (g.id) {
+    case _ when g.uploaded:
+      Nav.push(R.htmlGame, g.id);
     case 'blackjack':
       Nav.push(R.blackjack);
     case _ when g.playable:
@@ -49,7 +52,8 @@ void openDailyBonus(BuildContext context) {
 /// The games players can see, in lobby order.
 List<GameInfo> visibleGames(Casino casino) => [
       for (final g in games)
-        if (casino.statusOf(g.id) != GameStatus.hidden) g,
+        // An uploaded game shows once the site has it.
+        if (casino.statusOf(g.id) != GameStatus.hidden && (casino.config(g.id).html?.live ?? true)) g,
     ];
 
 /// A tile's corner tag: off, coming soon, or the back office's ribbon.
@@ -262,7 +266,7 @@ class _FeaturedTile extends StatelessWidget {
                 alignment: const Alignment(0, .55),
                 child: g.id == 'classic777'
                     ? Image.asset(A.welcomeHero, fit: BoxFit.cover, alignment: const Alignment(0, .9))
-                    : Image.asset(A.card(g.id), fit: BoxFit.cover, alignment: Alignment.topCenter),
+                    : gameImage(g.cardArt, alignment: Alignment.topCenter),
               ),
               const DecoratedBox(
                 decoration: BoxDecoration(
@@ -362,10 +366,10 @@ class _GameTile extends StatelessWidget {
                     colorFilter: const ColorFilter.matrix(<double>[
                       .2, .6, .1, 0, 0, .2, .6, .1, 0, 0, .2, .6, .1, 0, 0, 0, 0, 0, 1, 0, //
                     ]),
-                    child: Image.asset(A.card(g.id), fit: BoxFit.cover, alignment: Alignment.topCenter),
+                    child: gameImage(g.cardArt, alignment: Alignment.topCenter),
                   )
                 else
-                  Image.asset(A.card(g.id), fit: BoxFit.cover, alignment: Alignment.topCenter),
+                  gameImage(g.cardArt, alignment: Alignment.topCenter),
                 const DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(

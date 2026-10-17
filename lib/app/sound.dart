@@ -29,6 +29,9 @@ class Sounds {
   static const coins = '$_d/coins.mp3';
   static const lobby = Track('$_d/lobby', 38.4);
 
+  /// No music (a game that plays its own).
+  static const silence = Track('', 0);
+
   static const blackjackMusic = Track('assets/games/blackjack/sounds/music', 40);
   static String blackjack(String name) => 'assets/games/blackjack/sounds/$name.mp3';
 }
@@ -121,7 +124,8 @@ class Sound {
   }
 
   void _applyMusic() {
-    final want = _musicOn && !_paused && _tracks.isNotEmpty ? _tracks.last : null;
+    final top = _tracks.isEmpty ? null : _tracks.last;
+    final want = _musicOn && !_paused && top != null && top.path.isNotEmpty ? top : null;
     if (want == _playing) return;
     _playing = want;
     if (want == null) {

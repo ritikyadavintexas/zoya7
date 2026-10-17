@@ -17,6 +17,7 @@ build/
 !/web/flutter_bootstrap.js
 !/web/viewport.js
 !/web/sound.js
+!/web/games/
 !/web/favicon.png
 !/web/icons/
 !/web/admin/

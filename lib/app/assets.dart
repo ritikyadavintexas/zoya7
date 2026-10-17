@@ -36,6 +36,8 @@ class GameInfo {
     this.category = '',
     this.blurb = '',
     this.tags = const [],
+    this.card,
+    this.uploaded = false,
   });
   final String id;
   final String name;
@@ -50,9 +52,24 @@ class GameInfo {
   final String category;
   final String blurb;
   final List<String> tags;
+
+  /// Square-ish lobby art; built-in games have theirs in [A.card].
+  final String? card;
+
+  /// Uploaded from the admin panel: its art is on the site, not in the app.
+  final bool uploaded;
+
+  String get cardArt => card ?? A.card(id);
 }
 
-const games = [
+/// Games uploaded from the admin panel, newest first (the back office keeps
+/// this up to date).
+List<GameInfo> uploadedGames = const [];
+
+/// Every game: the uploaded ones first, then the app's own.
+List<GameInfo> get games => [...uploadedGames, ...builtInGames];
+
+const builtInGames = [
   GameInfo(id: 'classic777', name: 'Classic 777', cat: 'SLOTS', image: A.classic777, playable: true, players: '1.2k'),
   GameInfo(id: 'phoenixruby', name: 'Phoenix Ruby', cat: 'SLOTS', image: A.phoenixRuby, playable: true, players: '930'),
   GameInfo(

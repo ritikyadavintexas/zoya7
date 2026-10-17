@@ -12,6 +12,8 @@ dependencies:
   google_fonts: ^6.2.1
   flutter_svg: ^2.0.10
   audioplayers: ^6.1.0
+  archive: ^4.0.0
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -30,3 +32,4 @@ flutter:
     - assets/games/blackjack/sounds/
     - assets/app/
     - assets/sounds/
+    - assets/sdk/

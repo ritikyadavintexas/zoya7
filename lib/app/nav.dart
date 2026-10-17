@@ -14,6 +14,9 @@ class R {
   static const profile = '/profile';
   static const gold = '/gold';
   static const blackjack = '/blackjack';
+
+  /// An uploaded game (argument: its id).
+  static const htmlGame = '/play';
   static const chat = '/chat';
   static const notifications = '/notifications';
   static const settings = '/settings';

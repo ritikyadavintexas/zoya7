@@ -1,5 +1,9 @@
 # Zoya7 — GAME.md: how to deliver a game
 
+> **A completely new game (made with GPT)?** Use [GAME_PROMPT.md](GAME_PROMPT.md) instead and upload
+> the zip from the admin panel (Games → Upload a game). This document is for a new look on the
+> built-in 3-reel slot.
+
 Hand everything below the line to whoever (or whatever tool) designs the game. When the finished
 folder comes back, zip it and drop the zip in chat. If it follows this document exactly, it goes
 into the app in one step: art, sounds, math, lobby, admin panel and reports.

@@ -10,6 +10,7 @@ import 'app/screens/blackjack.dart';
 import 'app/screens/chat.dart';
 import 'app/screens/game.dart';
 import 'app/screens/games.dart';
+import 'app/screens/html_game.dart';
 import 'app/screens/onboarding.dart';
 import 'app/screens/profile.dart';
 import 'app/screens/promotions.dart';
@@ -210,6 +211,8 @@ class Zoya7App extends StatelessWidget {
         page = GoldScreen(gameId: arg is String ? arg : 'classic777');
       case R.blackjack:
         page = const BlackjackScreen();
+      case R.htmlGame:
+        page = HtmlGameScreen(gameId: arg is String ? arg : '');
       case R.chat:
         page = ChatScreen(room: arg is String ? arg : 'community');
       case R.notifications:

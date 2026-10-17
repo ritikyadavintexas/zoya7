@@ -2,14 +2,17 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../app/assets.dart' show A, GameInfo, games;
+import '../app/assets.dart' show GameInfo, games;
+import '../app/site.dart';
 import '../backoffice/casino.dart';
 import '../backoffice/slot_math.dart';
 import '../games/blackjack/engine.dart' show BjRules;
 import '../games/gold/src/assets.dart' show GoldAssets;
 import '../games/gold/src/math.dart';
+import '../games/html/model.dart';
 import 'admin_app.dart';
 import 'kit.dart';
+import 'upload.dart';
 
 String _betStep(int i) => '${compact(GoldRules.bets[Currency.gc]![i])} GC / ${grouped(GoldRules.bets[Currency.sc]![i])} DC';
 
@@ -27,8 +30,14 @@ class GamesAdminPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final casino = CasinoScope.of(context);
+    GameUpload.resume(casino);
+    final owner = casino.admin?.role == StaffRole.owner;
     if (!K.desktop(context)) {
       return ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
+        if (owner) ...[
+          KButton('Upload a game', icon: Icons.upload_file_rounded, expand: true, onTap: () => showUploadGame(context)),
+          const SizedBox(height: 14),
+        ],
         const _MaintenanceCard(compact: true),
         const SizedBox(height: 14),
         KCard(
@@ -38,13 +47,13 @@ class GamesAdminPage extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(children: [
-                  ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.asset(A.card(g.id), width: 52, height: 52, fit: BoxFit.cover)),
+                  ClipRRect(borderRadius: BorderRadius.circular(12), child: gameImage(g.cardArt, width: 52, height: 52)),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(g.name, style: kt(16, w: FontWeight.w600)),
                       Text(
-                        '${statusName(casino.config(g.id).status) == 'Maintenance' ? 'Off' : statusName(casino.config(g.id).status)} · RTP ${pct(casino.config(g.id).rtp, 1)}',
+                        '${casino.config(g.id).html?.live == false ? 'Publishing' : statusName(casino.config(g.id).status) == 'Maintenance' ? 'Off' : statusName(casino.config(g.id).status)} · RTP ${pct(casino.config(g.id).rtp, 1)}',
                         style: kt(13, c: K.sub),
                       ),
                     ]),
@@ -66,6 +75,9 @@ class GamesAdminPage extends StatelessWidget {
     return DeskPage(
       title: 'Games',
       sub: 'What players can open, what the lobby features, and the bets each table takes',
+      actions: [
+        if (owner) KButton('Upload a game', icon: Icons.upload_file_rounded, onTap: () => showUploadGame(context)),
+      ],
       children: [
         const _MaintenanceCard(),
         const SizedBox(height: 16),
@@ -151,9 +163,13 @@ class _GameCard extends StatelessWidget {
         SizedBox(
           height: 120,
           child: Stack(fit: StackFit.expand, children: [
-            Image.asset(A.card(g.id), fit: BoxFit.cover, alignment: const Alignment(0, -.3)),
+            gameImage(g.cardArt, alignment: const Alignment(0, -.3)),
             Positioned(left: 12, top: 12, child: KBadge.game(c.status)),
             if (!g.playable) const Positioned(right: 12, top: 12, child: KBadge('Coming soon', fg: K.blue, bg: K.blueSoft)),
+            if (c.html?.live == false)
+              const Positioned(right: 12, top: 12, child: KBadge('Publishing · about 5 min', fg: K.amber, bg: K.amberSoft))
+            else if (g.uploaded)
+              Positioned(right: 12, top: 12, child: KBadge('Uploaded · v${c.html!.version}', fg: K.blue, bg: K.blueSoft)),
           ]),
         ),
         Padding(
@@ -203,6 +219,10 @@ class _GameCard extends StatelessWidget {
                 }),
               ),
             ]),
+            if (g.uploaded && casino.admin?.role == StaffRole.owner) ...[
+              const SizedBox(height: 8),
+              KButton('Remove game', tone: KTone.red, height: 40, expand: true, onTap: () => showRemoveGame(context, g)),
+            ],
           ]),
         ),
       ]),
@@ -336,11 +356,12 @@ class _MathPageState extends State<MathPage> {
         const SizedBox(height: 16),
         KeyedSubtree(
           key: ValueKey(id),
-          child: switch (kindOf(id)) {
+          child: switch (casino.config(id).kind) {
             GameKind.goldSlot => _SlotMath(g),
             GameKind.blackjack => _BlackjackMath(g),
             GameKind.roulette => _RouletteMath(g),
             GameKind.plinko || GameKind.slot => _TargetMath(g),
+            GameKind.html => _HtmlMath(g),
           },
         ),
       ],
@@ -660,6 +681,113 @@ class _TargetMathState extends State<_TargetMath> {
           ),
         ]),
       ),
+    ]);
+  }
+}
+
+/// An uploaded game: its pay tables (the game's own multipliers) and the
+/// chances the payout rule gives them at the chosen RTP ([chancesFor]).
+class _HtmlMath extends StatefulWidget {
+  const _HtmlMath(this.g);
+  final GameInfo g;
+
+  @override
+  State<_HtmlMath> createState() => _HtmlMathState();
+}
+
+class _HtmlMathState extends State<_HtmlMath> {
+  late final casino = CasinoScope.read(context);
+  late double rtp = casino.config(widget.g.id).targetRtp;
+
+  /// The highest RTP every one of the game's pay tables can reach (at most 99%).
+  double _ceiling(HtmlGame h) {
+    var top = .99;
+    while (top > .8 && h.options.any((o) => chancesFor(o.outcomes, top) == null)) {
+      top = ((top - .005) * 1000).roundToDouble() / 1000;
+    }
+    return top;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = CasinoScope.of(context).config(widget.g.id);
+    final h = c.html!;
+    final top = _ceiling(h);
+    final shown = rtp.clamp(.8, top);
+    final main = h.options.first;
+    final p = chancesFor(main.outcomes, shown)!;
+    final hit = [for (var i = 0; i < p.length; i++) if (main.outcomes[i].wins) p[i]].fold<double>(0, (a, b) => a + b);
+    final best = main.outcomes.map((o) => o.multiplier).reduce(math.max);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      KGrid(min: 200, children: [
+        KStat(label: 'Return to player', value: pct(shown, 1), color: K.greenInk),
+        KStat(label: 'House edge', value: pct(1 - shown, 1)),
+        KStat(label: 'Rounds that win', value: pct(hit, 1), sub: main.label.isEmpty ? main.id : main.label),
+        KStat(label: 'Top win', value: '${grouped(best, best % 1 == 0 ? 0 : 2)}×', sub: oneIn(p[main.outcomes.indexWhere((o) => o.multiplier == best)])),
+      ]),
+      const SizedBox(height: 16),
+      KCard(
+        padding: const EdgeInsets.all(18),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          const KTitle('Return to player'),
+          Row(children: [
+            Expanded(
+              child: Slider(
+                value: shown,
+                min: .8,
+                max: top,
+                divisions: math.max(1, ((top - .8) / .005).round()),
+                activeColor: K.green,
+                label: pct(shown, 1),
+                onChanged: (v) => setState(() => rtp = (v * 1000).roundToDouble() / 1000),
+              ),
+            ),
+            SizedBox(width: 70, child: Text(pct(shown, 1), textAlign: TextAlign.right, style: kt(18, w: FontWeight.w700, num: true))),
+          ]),
+          Text(
+              'The game sets what each result pays; Zoya7 sets how often, so the game pays back exactly this. '
+              'Every win gets its share of the payback (the game can weight them), and the rest of the time the round is a no-win. '
+              '${top < .99 ? 'These pays can reach at most ${pct(top, 1)}.' : ''}',
+              style: kt(13, c: K.sub, h: 1.4)),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: KButton('Save', icon: Icons.check_rounded, onTap: (shown - c.targetRtp).abs() < 1e-9
+                ? null
+                : () {
+                    casino.updateGame(widget.g.id, 'RTP ${pct(shown, 1)}', (x) => x.targetRtp = shown);
+                    kToast(context, 'Saved');
+                  }),
+          ),
+        ]),
+      ),
+      for (final o in h.options) ...[
+        const SizedBox(height: 16),
+        KCard(
+          padding: const EdgeInsets.all(18),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            KTitle(h.options.length == 1 ? 'Pay table' : 'Pay table · ${o.label.isEmpty ? o.id : o.label}'),
+            Builder(builder: (context) {
+              final q = chancesFor(o.outcomes, shown)!;
+              return KTable(
+                minWidth: 640,
+                columns: const ['Result', 'Pays (× bet)', 'Chance', 'How often', 'Share of RTP'],
+                numeric: const {1, 2, 3, 4},
+                rows: [
+                  for (final (i, x) in o.outcomes.indexed)
+                    [
+                      cellText(x.label.isEmpty ? x.id : x.label, w: FontWeight.w600),
+                      cellText(x.wins ? '${grouped(x.multiplier, x.multiplier % 1 == 0 ? 0 : 2)}×' : 'No win'),
+                      cellText(pct(q[i], 2)),
+                      cellText(oneIn(q[i]), c: K.sub),
+                      cellText(x.wins ? pct(q[i] * x.multiplier / shown, 1) : '—', c: K.sub),
+                    ],
+                ],
+              );
+            }),
+          ]),
+        ),
+      ],
     ]);
   }
 }

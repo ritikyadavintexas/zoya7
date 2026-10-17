@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../app/assets.dart' show A, games;
+import '../app/assets.dart' show games;
+import '../app/site.dart';
 import '../backoffice/casino.dart';
 import 'admin_app.dart';
 import 'coins.dart';
@@ -191,7 +192,7 @@ class _GameLine extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(children: [
-        ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.asset(A.card(id), width: 40, height: 40, fit: BoxFit.cover)),
+        ClipRRect(borderRadius: BorderRadius.circular(10), child: gameImage(g.cardArt, width: 40, height: 40)),
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

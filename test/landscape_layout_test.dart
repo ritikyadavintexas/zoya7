@@ -11,6 +11,7 @@ import 'package:zoya7_gold/app/screens/blackjack.dart';
 import 'package:zoya7_gold/app/screens/chat.dart';
 import 'package:zoya7_gold/app/screens/game.dart';
 import 'package:zoya7_gold/app/screens/games.dart';
+import 'package:zoya7_gold/app/screens/html_game.dart';
 import 'package:zoya7_gold/app/screens/onboarding.dart';
 import 'package:zoya7_gold/app/screens/profile.dart';
 import 'package:zoya7_gold/app/screens/promotions.dart';
@@ -76,6 +77,7 @@ void main() {
     'fruit spin': () => const GoldScreen(gameId: 'fruitspin'),
     'phoenix ruby': () => const GoldScreen(gameId: 'phoenixruby'),
     'blackjack': () => const BlackjackScreen(),
+    'uploaded game': () => const HtmlGameScreen(gameId: 'lanterns'),
   };
 
   // Full reports (which widget overflowed, where, by how much) for failures.

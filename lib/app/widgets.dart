@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'icons.dart';
 import 'nav.dart';
+import 'site.dart';
 import 'sound.dart';
 import 'state.dart';
 import 'theme.dart';
@@ -732,6 +733,6 @@ class RoundImage extends StatelessWidget {
           border: Border.all(color: borderColor, width: 1.5),
         ),
         clipBehavior: Clip.antiAlias,
-        child: Image.asset(asset, fit: fit, alignment: alignment, width: double.infinity, semanticLabel: semantic),
+        child: gameImage(asset, fit: fit, alignment: alignment, width: double.infinity, semanticLabel: semantic),
       );
 }

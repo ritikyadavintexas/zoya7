@@ -2,9 +2,10 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
-import '../app/assets.dart' show games;
+import '../app/assets.dart' show GameInfo, games, uploadedGames;
 import '../games/blackjack/engine.dart' show BjRules;
 import '../games/gold/src/math.dart';
+import '../games/html/model.dart';
 import 'slot_math.dart';
 
 /// The casino's back office: player accounts, the coin ledger, each game's
@@ -27,8 +28,9 @@ enum GameStatus { live, maintenance, hidden }
 
 enum StaffRole { owner, manager, cashier }
 
-/// What kind of math a game has (decides its math screen).
-enum GameKind { goldSlot, slot, blackjack, roulette, plinko }
+/// What kind of math a game has (decides its math screen). html: a game
+/// uploaded from the admin panel ([HtmlGame]).
+enum GameKind { goldSlot, slot, blackjack, roulette, plinko, html }
 
 GameKind kindOf(String gameId) => switch (gameId) {
       'classic777' || 'fruitspin' || 'phoenixruby' => GameKind.goldSlot,
@@ -188,6 +190,7 @@ class GameConfig {
     this.risk = 'medium',
     this.targetRtp = .96,
     this.badge = '',
+    this.html,
   });
 
   final String id;
@@ -218,7 +221,11 @@ class GameConfig {
   /// Lobby ribbon: '', 'NEW' or 'HOT'.
   String badge;
 
-  GameKind get kind => kindOf(id);
+  /// A game uploaded from the admin panel: its pay tables and where it lives.
+  /// Its chances follow [targetRtp] ([chancesFor]).
+  HtmlGame? html;
+
+  GameKind get kind => html != null ? GameKind.html : kindOf(id);
 
   /// Theoretical return to player of the current settings.
   double get rtp => switch (kind) {
@@ -242,6 +249,7 @@ class GameConfig {
         'rk': risk,
         'rtp': targetRtp,
         'bd': badge,
+        if (html != null) 'html': html!.toJson(),
       };
 
   static GameConfig fromJson(Map<String, dynamic> j) {
@@ -262,6 +270,7 @@ class GameConfig {
       risk: j['rk'] as String,
       targetRtp: (j['rtp'] as num).toDouble(),
       badge: j['bd'] as String? ?? '',
+      html: j['html'] == null ? null : HtmlGame.fromJson(Map<String, dynamic>.from(j['html'] as Map)),
     );
   }
 }
@@ -1032,6 +1041,54 @@ class Casino extends ChangeNotifier {
 
   void _log(String action) => audit.add(AuditEntry(now, actor, action));
 
+  /// Keeps the lobby's list of uploaded games in step with the settings.
+  @override
+  void notifyListeners() {
+    uploadedGames = [
+      for (final c in configs.values)
+        if (c.html case final h?)
+          GameInfo(
+            id: c.id,
+            name: h.name,
+            cat: h.cat,
+            image: '${h.folder(c.id)}/lobby/tile.png',
+            card: '${h.folder(c.id)}/lobby/icon.png',
+            playable: true,
+            blurb: h.blurb,
+            uploaded: true,
+          ),
+    ]..sort((a, b) => configs[b.id]!.html!.uploaded.compareTo(configs[a.id]!.html!.uploaded));
+    super.notifyListeners();
+  }
+
+  // ── Uploaded games ─────────────────────────────────────────────────────────
+  /// Adds an uploaded game (or its new version), starting at a 95% payback
+  /// with its own bet limits. It shows in the lobby once the site has it ([markLive]).
+  GameConfig addUploadedGame(String id, HtmlGame game) {
+    final old = configs[id];
+    final c = old ?? GameConfig(id: id, targetRtp: .95, minGc: 100, maxGc: 50000, minSc: .2, maxSc: 50, badge: 'NEW');
+    c.html = game;
+    configs[id] = c;
+    _log('Uploaded game: ${game.name} (version ${game.version})');
+    _changed();
+    return c;
+  }
+
+  /// The site now serves this version of the game.
+  void markLive(String id, int version) {
+    final h = configs[id]?.html;
+    if (h == null || h.version != version || h.live) return;
+    h.live = true;
+    _changed();
+  }
+
+  void removeUploadedGame(String id) {
+    final c = configs.remove(id);
+    if (c == null) return;
+    _log('Removed game: ${c.html?.name ?? id}');
+    _changed();
+  }
+
   void _changed({bool notify = true}) {
     if (_batch) return;
     recompute();
@@ -1065,6 +1122,8 @@ class Casino extends ChangeNotifier {
     staff.clear();
     logins.clear();
     uids.clear();
+    // Built-in games keep their settings; uploaded ones come only from the records.
+    configs.removeWhere((_, c) => c.html != null);
     for (final MapEntry(key: path, value: j) in records.entries) {
       final slash = path.indexOf('/');
       final kind = path.substring(0, slash), key = path.substring(slash + 1);

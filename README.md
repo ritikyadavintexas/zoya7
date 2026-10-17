@@ -137,6 +137,13 @@ GoldGame(
 - **Sound:** every game has its own music loop and effects, and the lobby its own loop
   (`lib/app/sound.dart`; Web Audio via `web/sound.js` on the web, audioplayers on phones). All of it
   is made by `tools/sounds/make_sounds.py`. New games: `docs/GAME.md` and `tools/add_game.py`.
+- **Uploaded games:** any game made with `docs/GAME_PROMPT.md` (an HTML5 canvas game in one folder)
+  is uploaded from the admin panel (Games → Upload a game, owner only). The panel checks the zip
+  (`lib/games/html/package.dart`), commits it to `web/games/<id>/<version>/` with a GitHub token,
+  and switches it on in the lobby when the rebuilt site serves it. It runs in a sandboxed frame and
+  talks to the app only through `zoya7-bridge.js` (`assets/sdk/`, `lib/app/html_host.dart`): the app
+  draws every round from the game's pay table at the RTP set in Game math and books it. Web only for
+  now (the Android app shows a note).
 - **Fonts:** Lilita One and Rubik load via `google_fonts`. For offline release builds, bundle the
   font files and set `GoogleFonts.config.allowRuntimeFetching = false`.
 
