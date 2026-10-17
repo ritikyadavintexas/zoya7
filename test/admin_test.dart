@@ -22,7 +22,7 @@ import 'fake_firebase.dart';
 
 /// The admin panel at desktop, tablet and phone sizes (portrait first, and a
 /// phone on its side): every page lays out with nothing overflowing, a phone
-/// gets the basic four tabs, a desktop the full sidebar.
+/// gets four tabs and More, a desktop the full sidebar.
 void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
   setUpAll(() async {
@@ -85,7 +85,7 @@ void main() {
       });
 
       for (final (uid, sections) in [
-        ('owner', desktop ? Section.values : const [Section.dashboard, Section.team, Section.players, Section.games]),
+        ('owner', Section.values),
         ('maya', const [Section.dashboard, Section.team, Section.players]),
         ('leo', const [Section.dashboard, Section.players, Section.coins, Section.team]),
       ]) {
@@ -199,22 +199,30 @@ void main() {
     await clear(tester);
   });
 
-  testWidgets('under an iPhone status bar the strip is admin green and pages start below it', (tester) async {
+  testWidgets('under an iPhone status bar the strip is the panel’s light grey and pages start below it', (tester) async {
     tester.view.padding = const FakeViewPadding(top: 47);
     addTearDown(tester.view.resetPadding);
     await show(tester, const Size(390, 844), uid: null);
     final band = tester.widget<ColoredBox>(find.descendant(of: find.byType(StatusBand), matching: find.byType(ColoredBox)).first);
-    expect(band.color, K.green);
+    expect(band.color, K.bg);
     expect(tester.getTopLeft(find.byType(SignInGate)).dy, 47);
     await clear(tester);
   });
 
-  testWidgets('a phone gets four tabs; a desktop the full sidebar', (tester) async {
+  testWidgets('a phone gets four tabs and More (everything else, each page fitting); a desktop the full sidebar', (tester) async {
     await show(tester, const Size(390, 844));
-    for (final t in ['Home', 'Team', 'Players', 'Games']) {
+    for (final t in ['Home', 'Players', 'Coins', 'Team', 'More']) {
       expect(find.bySemanticsLabel(RegExp('^$t(\$|\n)')), findsWidgets, reason: t);
     }
     expect(find.text('Game math'), findsNothing);
+    for (final s in [Section.games, Section.reports, Section.math, Section.settings]) {
+      await tester.tap(find.bySemanticsLabel(RegExp('^(More|${Section.values.map((x) => x.tab).join('|')})(\$|\n)')).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ListTile, s.label));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: s.label);
+      expect(find.bySemanticsLabel(RegExp('^${s.tab}(\$|\n)')), findsWidgets, reason: 'the More tab shows ${s.label}');
+    }
     await clear(tester);
     await show(tester, const Size(1440, 900));
     for (final s in Section.values) {

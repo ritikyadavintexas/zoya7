@@ -43,7 +43,7 @@ Future<void> main() async {
   runApp(Zoya7Root(state: AppState(casino: casino, playerId: playerId, sync: sync), sync: sync, adminApp: adminApp));
 }
 
-/// The game is landscape. Browsers can't lock it, so ForceLandscape asks to turn the phone there.
+/// The game is landscape. Browsers can't lock it, so ForceLandscape draws it turned on an upright phone.
 Future<void> _lockLandscape() async {
   if (kIsWeb) return;
   await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);

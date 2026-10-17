@@ -79,9 +79,9 @@ actions (coin in / out, settings, accounts) are enforced by the rules. Server-si
 Cloud Functions (the Blaze plan). Coin packs can't be bought in the app (no payments connected).
 
 **Landscape everywhere.** The Android and iOS builds lock to landscape. Browsers can't lock
-orientation, so while the window is taller than wide (phone held upright) the game waits behind a
-gold swirl and carries on, where it left off, once the phone is turned — plain landscape, status bar
-on top (the admin panel stays upright) (`lib/app/landscape.dart`). Pages use a left side rail for navigation and a
+orientation, so while the window is taller than wide (phone held upright) the whole game is drawn
+turned a quarter: it is landscape from the first frame, however the phone is held, and carries on
+where it left off when the phone is turned (the admin panel stays upright) (`lib/app/landscape.dart`). Pages use a left side rail for navigation and a
 side pane + main pane layout sized for a phone on its side.
 
 App code lives in `lib/app/` (`screens/` one file per area, `state.dart` holds the prototype balances,

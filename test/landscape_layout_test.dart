@@ -213,16 +213,16 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('held upright, the game swirls as if starting; sideways it is plain landscape, where it left off', (tester) async {
+  testWidgets('held upright, the game is drawn turned, in landscape at once; sideways it is plain, where it left off', (tester) async {
     await show(tester, const Size(390, 844), const SettingsScreen());
-    expect(find.byType(TurnPhoneCard), findsOneWidget);
-    expect(find.byType(SettingsScreen, skipOffstage: false), findsOneWidget);
-    expect(find.byType(RotatedBox), findsNothing);
-    final page = tester.state(find.byType(SettingsScreen, skipOffstage: false));
+    expectFits(tester);
+    expect(tester.widget<RotatedBox>(find.byType(RotatedBox).first).quarterTurns, 1);
+    expect(tester.getSize(find.byType(SettingsScreen)), const Size(844, 390), reason: 'laid out in landscape');
+    final page = tester.state(find.byType(SettingsScreen));
 
     tester.view.physicalSize = const Size(844, 390);
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byType(TurnPhoneCard), findsNothing);
+    expect(tester.widget<RotatedBox>(find.byType(RotatedBox).first).quarterTurns, 0);
     expect(tester.getSize(find.byType(SettingsScreen)), const Size(844, 390));
     expect(tester.state(find.byType(SettingsScreen)), same(page), reason: 'the page is kept, not rebuilt');
     await tester.pumpWidget(const SizedBox());

@@ -146,13 +146,25 @@ class _ReportsPageState extends State<ReportsPage> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: KTitle('Each player',
-                  trailing: KSegment(
-                    values: _PlayerSort.values,
-                    selected: sort,
-                    label: (s) => switch (s) { _PlayerSort.net => 'Net', _PlayerSort.coinIn => 'Coin in', _PlayerSort.coinOut => 'Coin out', _PlayerSort.ending => 'Ending' },
-                    onChanged: (s) => setState(() => sort = s),
-                  )),
+              // The sort buttons go under the title when they don't fit beside it.
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text('Each player', style: kt(18, w: FontWeight.w700)),
+                    KSegment(
+                      values: _PlayerSort.values,
+                      selected: sort,
+                      label: (s) => switch (s) { _PlayerSort.net => 'Net', _PlayerSort.coinIn => 'Coin in', _PlayerSort.coinOut => 'Coin out', _PlayerSort.ending => 'Ending' },
+                      onChanged: (s) => setState(() => sort = s),
+                    ),
+                  ],
+                ),
+              ),
             ),
             if (rows.isEmpty) const KEmpty('No player activity in this period'),
             if (rows.isNotEmpty)

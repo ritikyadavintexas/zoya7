@@ -120,7 +120,7 @@ class _InstallCardState extends State<InstallCard> {
         'Tap the Share button (the square with an arrow).',
         'Choose “Add to Home Screen”, then Add.',
       ] else ...[
-        'Open the browser menu (⋮) and choose “Install app” or “Add to Home screen”.',
+        'Open the browser menu (the three dots) and choose “Install app” or “Add to Home screen”.',
         'On a computer, use the install icon at the right of the address bar.',
       ],
       'Open “Z7 Admin” from your home screen: it stands upright, separate from the game, and stays signed in.',

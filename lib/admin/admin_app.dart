@@ -151,9 +151,8 @@ class _SignInGateState extends State<SignInGate> {
 
   @override
   Widget build(BuildContext context) {
-    const white = Colors.white;
     return Scaffold(
-      backgroundColor: K.green,
+      backgroundColor: K.bg,
       body: SafeArea(
         child: Stack(children: [
           if (widget.onExit != null)
@@ -162,8 +161,8 @@ class _SignInGateState extends State<SignInGate> {
               top: 8,
               child: TextButton.icon(
                 onPressed: widget.onExit,
-                icon: const Icon(Icons.arrow_back_rounded, color: white),
-                label: Text('Back to the game', style: kt(15, w: FontWeight.w600, c: white)),
+                icon: const Icon(Icons.arrow_back_rounded, color: K.text),
+                label: Text('Back to the game', style: kt(15, w: FontWeight.w600)),
               ),
             ),
           Center(
@@ -175,18 +174,18 @@ class _SignInGateState extends State<SignInGate> {
                     ? Column(mainAxisSize: MainAxisSize.min, children: [
                         const AdminLogo(size: 72),
                         const SizedBox(height: 18),
-                        const CircularProgressIndicator(color: white),
+                        const CircularProgressIndicator(color: K.green),
                         const SizedBox(height: 14),
-                        Text('Signing in…', style: kt(17, w: FontWeight.w600, c: white)),
+                        Text('Signing in…', style: kt(17, w: FontWeight.w600, c: K.sub)),
                       ])
                     : AutofillGroup(
                         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                           const Center(child: AdminLogo(size: 72)),
                           const SizedBox(height: 16),
-                          Text('Zoya7 Admin', textAlign: TextAlign.center, style: kt(28, w: FontWeight.w800, c: white)),
+                          Text('Zoya7 Admin', textAlign: TextAlign.center, style: kt(28, w: FontWeight.w800)),
                           const SizedBox(height: 4),
-                          Text('Sign in',
-                              textAlign: TextAlign.center, style: kt(17, w: FontWeight.w600, c: const Color(0xE6FFFFFF))),
+                          Text('Sign in to manage players and coins',
+                              textAlign: TextAlign.center, style: kt(15, w: FontWeight.w500, c: K.sub)),
                           const SizedBox(height: 20),
                           KCard(
                             padding: const EdgeInsets.all(16),
@@ -259,8 +258,8 @@ class Keypad extends StatelessWidget {
   }
 }
 
-/// The strip under the phone's status bar (clock, battery) is the admin
-/// green on every screen, and the pages start below it.
+/// The strip under the phone's status bar (clock, battery) is the panel's
+/// own light grey on every screen, and the pages start below it.
 class StatusBand extends StatelessWidget {
   const StatusBand({super.key, required this.child});
   final Widget child;
@@ -270,7 +269,7 @@ class StatusBand extends StatelessWidget {
     final top = MediaQuery.paddingOf(context).top;
     if (top <= 0) return child;
     return ColoredBox(
-      color: K.green,
+      color: K.bg,
       child: Padding(
         padding: EdgeInsets.only(top: top),
         child: MediaQuery.removePadding(context: context, removeTop: true, child: child),
@@ -321,16 +320,17 @@ extension SectionInfo on Section {
 /// What each role can open. The owner: everything. An executive: their
 /// agents and points, and their agents' players. An agent: their players,
 /// coin in / out, and referring agents.
-List<Section> sectionsFor(Staff s, {required bool desktop}) {
+List<Section> sectionsFor(Staff s) {
   final all = switch (s.role) {
     StaffRole.agent => const [Section.dashboard, Section.players, Section.coins, Section.team],
     StaffRole.executive => const [Section.dashboard, Section.team, Section.players],
     StaffRole.owner => Section.values,
   };
-  // A phone gets the basics (four tabs at most).
-  const ownerPhone = [Section.dashboard, Section.team, Section.players, Section.games];
-  return desktop || !s.isOwner ? all : all.where(ownerPhone.contains).toList();
+  return all;
 }
+
+/// A phone's bottom bar: these as tabs (when allowed), the rest under More.
+const phoneTabs = [Section.dashboard, Section.players, Section.coins, Section.team];
 
 /// Lets a page switch sections (quick actions, "see all" links).
 class AdminNav extends InheritedWidget {
@@ -386,7 +386,7 @@ class _AdminShellState extends State<AdminShell> {
     final casino = CasinoScope.of(context);
     final me = casino.admin!;
     final desktop = K.desktop(context);
-    final sections = sectionsFor(me, desktop: desktop);
+    final sections = sectionsFor(me);
     final current = sections.contains(section) ? section : sections.first;
     _watchRequests(casino);
     final waiting = casino.waitingRequests.length;
@@ -412,7 +412,12 @@ class _AdminShellState extends State<AdminShell> {
                 child: _PhoneTopBar(title: current == Section.dashboard ? 'Today' : current.label, onExit: widget.onExit),
               ),
               body: page,
-              bottomNavigationBar: _TabBar(sections: sections, current: current, onPick: (s) => setState(() => section = s)),
+              bottomNavigationBar: _TabBar(
+                tabs: [for (final s in phoneTabs) if (sections.contains(s)) s],
+                more: [for (final s in sections) if (!phoneTabs.contains(s)) s],
+                current: current,
+                onPick: (s) => setState(() => section = s),
+              ),
             ),
     );
   }
@@ -599,40 +604,96 @@ class _PhoneTopBar extends StatelessWidget {
 }
 
 class _TabBar extends StatelessWidget {
-  const _TabBar({required this.sections, required this.current, required this.onPick});
-  final List<Section> sections;
+  const _TabBar({required this.tabs, required this.more, required this.current, required this.onPick});
+  final List<Section> tabs;
+
+  /// Sections behind the More tab (a sheet).
+  final List<Section> more;
   final Section current;
   final ValueChanged<Section> onPick;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(color: K.card, border: Border(top: BorderSide(color: K.line))),
-      child: SafeArea(
+  Future<void> _openMore(BuildContext context) async {
+    final picked = await showModalBottomSheet<Section>(
+      context: context,
+      backgroundColor: K.card,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => SafeArea(
         top: false,
-        child: SizedBox(
-          height: 60,
-          child: Row(children: [
-            for (final s in sections)
-              Expanded(
-                child: Semantics(
-                  selected: s == current,
-                  button: true,
-                  label: s.tab,
-                  child: InkResponse(
-                    onTap: () => onPick(s),
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(s.icon, size: 26, color: s == current ? K.green : K.ink),
-                      const SizedBox(height: 2),
-                      ExcludeSemantics(
-                        child: Text(s.tab, style: kt(11, w: FontWeight.w600, c: s == current ? K.green : K.sub)),
-                      ),
-                    ]),
-                  ),
-                ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            for (final s in more)
+              ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                selected: s == current,
+                selectedTileColor: K.greenSoft,
+                selectedColor: K.greenInk,
+                leading: Icon(s.icon),
+                title: Text(s.label, style: kt(16, w: FontWeight.w600, c: s == current ? K.greenInk : K.text)),
+                trailing: const Icon(Icons.chevron_right_rounded, color: K.faint),
+                onTap: () => Navigator.of(context).pop(s),
               ),
           ]),
         ),
+      ),
+    );
+    if (picked != null) onPick(picked);
+  }
+
+  Widget _item({required String label, required IconData icon, required bool selected, required VoidCallback onTap}) => Expanded(
+        child: Semantics(
+          selected: selected,
+          button: true,
+          label: label,
+          child: InkWell(
+            onTap: onTap,
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 56,
+                height: 30,
+                decoration: BoxDecoration(color: selected ? K.greenSoft : Colors.transparent, borderRadius: BorderRadius.circular(15)),
+                child: Icon(icon, size: 23, color: selected ? K.greenInk : K.sub),
+              ),
+              const SizedBox(height: 3),
+              ExcludeSemantics(
+                child: Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: kt(11.5, w: selected ? FontWeight.w700 : FontWeight.w500, c: selected ? K.text : K.sub)),
+              ),
+            ]),
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    // Above the home indicator; a little air when the phone has none.
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    final inMore = more.contains(current);
+    return Container(
+      decoration: const BoxDecoration(
+        color: K.card,
+        border: Border(top: BorderSide(color: K.line)),
+        boxShadow: [BoxShadow(color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, -2))],
+      ),
+      padding: EdgeInsets.only(top: 6, bottom: bottom > 0 ? bottom : 8),
+      child: SizedBox(
+        height: 56,
+        child: Row(children: [
+          for (final s in tabs) _item(label: s.tab, icon: s.icon, selected: s == current, onTap: () => onPick(s)),
+          if (more.isNotEmpty)
+            _item(
+              label: inMore ? current.tab : 'More',
+              icon: inMore ? current.icon : Icons.menu_rounded,
+              selected: inMore,
+              onTap: () => _openMore(context),
+            ),
+        ]),
       ),
     );
   }
@@ -647,26 +708,30 @@ class DeskPage extends StatelessWidget {
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.fromLTRB(28, 26, 28, 40),
-        children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            alignment: WrapAlignment.spaceBetween,
-            children: [
-              Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                Text(title, style: kt(30, w: FontWeight.w800)),
-                if (sub != null) Text(sub!, style: kt(15, c: K.sub)),
-              ]),
-              Wrap(spacing: 8, runSpacing: 8, children: actions),
-            ],
-          ),
-          const SizedBox(height: 22),
-          ...children,
-        ],
-      );
+  Widget build(BuildContext context) {
+    // A phone's top bar already shows the title: just the line under it.
+    final desktop = K.desktop(context);
+    return ListView(
+      padding: desktop ? const EdgeInsets.fromLTRB(28, 26, 28, 40) : const EdgeInsets.fromLTRB(16, 4, 16, 28),
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          alignment: WrapAlignment.spaceBetween,
+          children: [
+            Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              if (desktop) Text(title, style: kt(30, w: FontWeight.w800)),
+              if (sub != null) Text(sub!, style: kt(desktop ? 15 : 14, c: K.sub)),
+            ]),
+            Wrap(spacing: 8, runSpacing: 8, children: actions),
+          ],
+        ),
+        SizedBox(height: desktop ? 22 : 14),
+        ...children,
+      ],
+    );
+  }
 }
 
 /// Lays [children] out in as many columns of at least [min] wide as fit.
