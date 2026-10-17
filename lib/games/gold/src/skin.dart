@@ -7,7 +7,8 @@ import 'style.dart';
 /// How a slot on the Gold engine looks. Classic 777, Fruit Spin and Phoenix
 /// Ruby share the reels, pays and jackpots ([GoldRules]); a skin only swaps the
 /// artwork, colours and where its frame's reel windows are, so each symbol
-/// keeps its pay.
+/// keeps its pay. Each has its own music and sound effects, and may swap the
+/// buttons, jackpot plaques and win banners too (docs/GAME.md).
 class SlotSkin {
   const SlotSkin({
     required this.name,
@@ -18,6 +19,11 @@ class SlotSkin {
     this.reelCols = const [(11.1, 24.6), (37.8, 24.4), (64.3, 24.7)],
     this.reelTop = .25,
     this.reelHeight = .573,
+    this.sounds = 'assets/games/gold/sounds',
+    this.musicLoop = 30,
+    this.extraSounds = const {},
+    this.backgroundImage,
+    this.overrides = const {},
   });
 
   final String name;
@@ -38,10 +44,32 @@ class SlotSkin {
   final List<(double, double)> reelCols;
   final double reelTop, reelHeight;
 
+  /// Folder of the game's sounds: `music` (.mp3 and .ogg, [musicLoop] seconds
+  /// long), `spin`, `reel_stop`, `win_small`, `win_big`, `jackpot`, and any of
+  /// [extraSounds] (`button`, `collect`), all .mp3.
+  final String sounds;
+  final double musicLoop;
+  final Set<String> extraSounds;
+
+  /// Full-screen backdrop, over the [background] glow.
+  final String? backgroundImage;
+
+  /// The skin's own versions of Classic 777's buttons, jackpot plaques and win
+  /// banners, by [GoldAssets] path.
+  final Map<String, String> overrides;
+
   String symbol(Sym s) => art[s] ?? GoldAssets.symbol(s);
   String label(Sym s) => labels[s] ?? s.name;
   String get frame => reelFrame ?? GoldAssets.reelFrame;
-  List<String> get assets => [for (final s in Sym.values) symbol(s), frame];
+  String asset(String goldAsset) => overrides[goldAsset] ?? goldAsset;
+  String sound(String name) => '$sounds/$name.mp3';
+  List<String> get effects => [for (final n in ['spin', 'reel_stop', 'win_small', 'win_big', 'jackpot', ...extraSounds]) sound(n)];
+  List<String> get assets => [
+        for (final s in Sym.values) symbol(s),
+        frame,
+        if (backgroundImage != null) backgroundImage!,
+        ...overrides.values,
+      ];
 
   static const classic = SlotSkin(name: 'Classic 777', background: [GC.bgHot, GC.bgMid, GC.bgDeep]);
 
@@ -52,6 +80,8 @@ class SlotSkin {
     name: 'Fruit Spin',
     background: [Color(0xFF2E8B3E), Color(0xFF0E4A20), Color(0xFF03180A)],
     reelFrame: '$_fruit/reel_frame.png',
+    sounds: '$_fruit/sounds',
+    musicLoop: 1512000 / 44100,
     art: {
       Sym.seven: '$_fruit/sym_grapes.png',
       Sym.diamond: '$_fruit/sym_strawberry.png',
@@ -72,6 +102,8 @@ class SlotSkin {
     reelCols: [(10.6, 24.3), (38.2, 23.6), (65.2, 24.3)],
     reelTop: .155,
     reelHeight: .63,
+    sounds: '$_phoenix/sounds',
+    musicLoop: 1840696 / 44100,
     art: {
       Sym.seven: '$_phoenix/sym_seven.png',
       Sym.diamond: '$_phoenix/sym_phoenix.png',

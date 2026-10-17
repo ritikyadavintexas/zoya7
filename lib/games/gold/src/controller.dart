@@ -17,11 +17,21 @@ class ChatMessage {
   final bool system;
 }
 
-/// Optional sound hooks — the design ships no audio, so wire your own.
+/// Sound hooks (the app plays each skin's sounds). Effects are only asked
+/// for while the player's Sound effects setting is on.
 abstract class GoldAudio {
   void spinStart() {}
   void reelStop(int reel) {}
   void win(WinTier? tier, double amount) {}
+
+  /// Bet −/+, max bet, auto.
+  void button() {}
+
+  /// COLLECT on a win banner.
+  void collect() {}
+
+  /// The player switched sound effects or music on or off in the game's settings.
+  void sfx(bool on) {}
   void music(bool on) {}
 }
 
@@ -39,6 +49,8 @@ class GoldController extends ChangeNotifier {
     GoldPanel previewPanel = GoldPanel.none,
     this.minBetIdx = 0,
     this.maxBetIdx = GoldRules.maxBetIndex,
+    this.sfx = true,
+    this.music = true,
   })  : outcomes = outcomes ?? LocalGoldMath(),
         audio = audio ?? _SilentAudio(),
         gc = initialGc,
@@ -83,8 +95,8 @@ class GoldController extends ChangeNotifier {
   bool chatOpen = false;
   bool chatSeen = false;
   int chatUnread = 3;
-  bool sfx = true;
-  bool music = true;
+  bool sfx;
+  bool music;
   bool fastSpin = false;
   bool haptics = true;
 
@@ -147,17 +159,25 @@ class GoldController extends ChangeNotifier {
 
   void betDown() {
     if (!busy && betIdx > minBetIdx) _set(() => betIdx--);
+    _click();
   }
 
   void betUp() {
     if (!busy && betIdx < maxBetIdx) _set(() => betIdx++);
+    _click();
   }
 
   void maxBet() {
     if (!busy) _set(() => betIdx = maxBetIdx);
+    _click();
+  }
+
+  void _click() {
+    if (sfx) audio.button();
   }
 
   void toggleAuto() {
+    _click();
     final next = !auto;
     _set(() => auto = next);
     if (next) spin();
@@ -268,10 +288,13 @@ class GoldController extends ChangeNotifier {
     }
   }
 
-  void collect() => _set(() {
-        overlay = null;
-        auto = false;
-      });
+  void collect() {
+    if (sfx && overlay != null) audio.collect();
+    _set(() {
+      overlay = null;
+      auto = false;
+    });
+  }
 
   /// Amount shown on the celebration overlay (design uses samples in preview states).
   double overlayAmount() {
@@ -314,7 +337,10 @@ class GoldController extends ChangeNotifier {
         lastMult = 0;
       });
 
-  void toggleSfx() => _set(() => sfx = !sfx);
+  void toggleSfx() {
+    _set(() => sfx = !sfx);
+    audio.sfx(sfx);
+  }
   void toggleMusic() {
     _set(() => music = !music);
     audio.music(music);

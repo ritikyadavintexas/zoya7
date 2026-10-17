@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../gold/src/math.dart' show Currency;
 import '../gold/src/style.dart' show curLabel, fmtAmount;
 import 'engine.dart';
+
+/// The table's sounds, by moment.
+enum BjSound { chip, card, shuffle, win, blackjack, lose, push }
 
 /// Where the table takes bets from and pays winnings to.
 abstract class BlackjackWallet {
@@ -19,6 +24,7 @@ class BlackjackController extends ChangeNotifier {
     this.rules = const BjRules(),
     this.limits = defaultLimits,
     this.onSettled,
+    this.onSound,
     this.pace = const Duration(milliseconds: 520),
   }) : shoe = shoe ?? Shoe(decks: rules.decks) {
     round = BlackjackRound(this.shoe, rules: rules);
@@ -34,6 +40,11 @@ class BlackjackController extends ChangeNotifier {
 
   /// Called once per settled round with what was staked and paid back.
   final void Function(Currency currency, double staked, double returned)? onSettled;
+
+  /// Asked to play a sound at each moment of the round.
+  final void Function(BjSound sound)? onSound;
+
+  void _sound(BjSound s) => onSound?.call(s);
 
   /// Time between dealer cards (and the base for deal animations).
   final Duration pace;
@@ -107,6 +118,7 @@ class BlackjackController extends ChangeNotifier {
     } else {
       bet = next;
       note = null;
+      _sound(BjSound.chip);
     }
     notifyListeners();
   }
@@ -122,6 +134,7 @@ class BlackjackController extends ChangeNotifier {
     if (!betting || busy || lastBet == 0) return;
     bet = lastBet <= balance ? lastBet : 0;
     note = bet == 0 ? 'Not enough coins to repeat the last bet' : null;
+    if (bet > 0) _sound(BjSound.chip);
     notifyListeners();
   }
 
@@ -131,6 +144,7 @@ class BlackjackController extends ChangeNotifier {
     note = null;
     if (shoe.needsShuffle) {
       shuffling = true;
+      _sound(BjSound.shuffle);
       notifyListeners();
       await _wait(1.6);
       shoe.shuffle();
@@ -140,6 +154,13 @@ class BlackjackController extends ChangeNotifier {
     lastBet = bet;
     round = BlackjackRound(shoe, rules: rules)..deal(bet);
     dealSerial++;
+    // One for each card as it flies in (they leave the shoe 200 ms apart).
+    _sound(BjSound.card);
+    if (onSound != null) {
+      for (var i = 1; i < 4; i++) {
+        Timer(Duration(milliseconds: 200 * i), () => _sound(BjSound.card));
+      }
+    }
     notifyListeners();
     // Let the four cards fly in.
     await _wait(1.6);
@@ -151,7 +172,10 @@ class BlackjackController extends ChangeNotifier {
   void insurance(bool take) {
     if (phase != Phase.insurance || busy) return;
     final buy = take && canInsure;
-    if (buy) wallet.add(currency, -insuranceCost);
+    if (buy) {
+      wallet.add(currency, -insuranceCost);
+      _sound(BjSound.chip);
+    }
     round.insurance(buy);
     _afterAction();
   }
@@ -159,6 +183,7 @@ class BlackjackController extends ChangeNotifier {
   void hit() {
     if (!canHit) return;
     round.hit();
+    _sound(BjSound.card);
     _afterAction();
   }
 
@@ -172,6 +197,8 @@ class BlackjackController extends ChangeNotifier {
     if (!canDouble) return;
     wallet.add(currency, -round.hand.bet);
     round.doubleDown();
+    _sound(BjSound.chip);
+    _sound(BjSound.card);
     _afterAction();
   }
 
@@ -179,6 +206,7 @@ class BlackjackController extends ChangeNotifier {
     if (!canSplit) return;
     wallet.add(currency, -round.hand.bet);
     round.split();
+    _sound(BjSound.card);
     _afterAction();
   }
 
@@ -197,6 +225,7 @@ class BlackjackController extends ChangeNotifier {
     notifyListeners();
     await _wait(.8);
     while (round.dealerStep()) {
+      _sound(BjSound.card);
       notifyListeners();
       await _wait();
     }
@@ -208,6 +237,13 @@ class BlackjackController extends ChangeNotifier {
   void _payout() {
     if (round.returned > 0) wallet.add(currency, round.returned);
     onSettled?.call(currency, round.staked, round.returned);
+    _sound(round.hands.any((h) => h.outcome == Outcome.blackjack)
+        ? BjSound.blackjack
+        : net > 0
+            ? BjSound.win
+            : net == 0
+                ? BjSound.push
+                : BjSound.lose);
   }
 
   /// Back to betting, keeping the last bet on the circle when affordable.

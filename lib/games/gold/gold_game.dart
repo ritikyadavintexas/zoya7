@@ -40,7 +40,13 @@ class GoldGame extends StatefulWidget {
     this.minBetIdx = 0,
     this.maxBetIdx = GoldRules.maxBetIndex,
     this.skin = SlotSkin.classic,
+    this.sfx = true,
+    this.music = true,
   });
+
+  /// The player's Sound effects and Music settings when the game opens.
+  final bool sfx;
+  final bool music;
 
   /// Classic 777 or Fruit Spin.
   final SlotSkin skin;
@@ -85,6 +91,8 @@ class _GoldGameState extends State<GoldGame> {
     previewPanel: widget.previewPanel,
     minBetIdx: widget.minBetIdx,
     maxBetIdx: widget.maxBetIdx,
+    sfx: widget.sfx,
+    music: widget.music,
   );
 
   bool _precached = false;
@@ -130,6 +138,9 @@ class _GoldGameState extends State<GoldGame> {
           colors: widget.skin.background,
           stops: const [0, .52, 1],
         ),
+        image: widget.skin.backgroundImage == null
+            ? null
+            : DecorationImage(image: AssetImage(widget.skin.backgroundImage!), fit: BoxFit.cover),
       ),
       child: SafeArea(
         child: LayoutBuilder(

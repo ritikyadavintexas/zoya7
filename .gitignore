@@ -16,6 +16,7 @@ build/
 !/web/manifest.json
 !/web/flutter_bootstrap.js
 !/web/viewport.js
+!/web/sound.js
 !/web/favicon.png
 !/web/icons/
 !/web/admin/

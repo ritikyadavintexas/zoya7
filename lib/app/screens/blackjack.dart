@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../games/blackjack/blackjack_game.dart';
 import '../../games/gold/src/math.dart' show Currency;
+import '../../games/blackjack/controller.dart' show BjSound;
 import '../nav.dart';
+import '../sound.dart';
 import '../state.dart';
 
 /// The Blackjack table, playing with the app's GC / DC balances, with the
-/// rules and limits set in the back office.
+/// rules and limits set in the back office, and its own music and sounds.
 class BlackjackScreen extends StatelessWidget {
   const BlackjackScreen({super.key});
 
@@ -15,7 +17,10 @@ class BlackjackScreen extends StatelessWidget {
     final s = AppScope.read(context);
     final cfg = s.casino.config('blackjack');
     final wallet = _AppWallet(s);
-    return Scaffold(
+    return SoundScope(
+      music: Sounds.blackjackMusic,
+      effects: [for (final x in BjSound.values) Sounds.blackjack(x.name)],
+      child: Scaffold(
         backgroundColor: const Color(0xFF06200F),
         resizeToAvoidBottomInset: false,
         body: BlackjackGame(
@@ -23,10 +28,12 @@ class BlackjackScreen extends StatelessWidget {
           rules: cfg.bj,
           limits: {Currency.gc: (cfg.minGc, cfg.maxGc), Currency.sc: (cfg.minSc, cfg.maxSc)},
           onSettled: (c, staked, returned) => wallet.settle(c, staked, returned),
+          onSound: (x) => Sound.instance.play(Sounds.blackjack(x.name), duck: x == BjSound.blackjack),
           onExit: () => Nav.back(context),
           onBuyCoins: (_) => Nav.tab(AppTab.wallet, walletTab: 'buy'),
         ),
-      );
+      ),
+    );
   }
 }
 

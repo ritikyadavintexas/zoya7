@@ -134,7 +134,9 @@ GoldGame(
   admin panel's *Game math* (95% / 94% RTP by default; the design prototype's were ≈22.8%).
 - **Jackpots:** meter values are simulated in `GoldController.jackpots()`; feed live values from your server.
 - **Chat:** the auto-reply is the design's demo; connect `chatSend` to your chat service.
-- **Sound:** the design has no audio; implement `GoldAudio` (spin, reel stop, win, music).
+- **Sound:** every game has its own music loop and effects, and the lobby its own loop
+  (`lib/app/sound.dart`; Web Audio via `web/sound.js` on the web, audioplayers on phones). All of it
+  is made by `tools/sounds/make_sounds.py`. New games: `docs/GAME.md` and `tools/add_game.py`.
 - **Fonts:** Lilita One and Rubik load via `google_fonts`. For offline release builds, bundle the
   font files and set `GoogleFonts.config.allowRuntimeFetching = false`.
 

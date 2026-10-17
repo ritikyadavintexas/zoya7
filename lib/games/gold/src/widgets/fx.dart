@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../icons.dart';
+import '../skin.dart';
 import '../style.dart';
 
 /// Tappable region with a subtle press response, cursor and semantics.
@@ -70,9 +71,10 @@ class Img extends StatelessWidget {
   final double w, h;
   final BoxFit fit;
 
+  /// The playing skin's own version of [asset], if it has one.
   @override
   Widget build(BuildContext context) => Image.asset(
-        asset,
+        SlotSkin.of(context).asset(asset),
         width: w,
         height: h,
         fit: fit,

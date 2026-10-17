@@ -4,6 +4,7 @@ import '../assets.dart';
 import '../controller.dart';
 import '../icons.dart';
 import '../math.dart';
+import '../skin.dart';
 import '../style.dart';
 import 'fx.dart';
 
@@ -186,7 +187,7 @@ class _JackpotMeters extends StatelessWidget {
                 Positioned.fill(
                   child: Semantics(
                     label: '${t.name} jackpot',
-                    child: Image.asset(GoldAssets.jackpot(t), fit: BoxFit.fill, filterQuality: FilterQuality.medium),
+                    child: Image.asset(SlotSkin.of(context).asset(GoldAssets.jackpot(t)), fit: BoxFit.fill, filterQuality: FilterQuality.medium),
                   ),
                 ),
                 Positioned(

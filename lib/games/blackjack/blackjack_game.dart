@@ -23,6 +23,7 @@ class BlackjackGame extends StatefulWidget {
     this.rules = const BjRules(),
     this.limits = BlackjackController.defaultLimits,
     this.onSettled,
+    this.onSound,
     this.shoe,
     this.pace,
   });
@@ -34,6 +35,7 @@ class BlackjackGame extends StatefulWidget {
   final BjRules rules;
   final Map<Currency, (double, double)> limits;
   final void Function(Currency currency, double staked, double returned)? onSettled;
+  final void Function(BjSound sound)? onSound;
 
   /// For tests: a stacked shoe and fast pacing.
   final Shoe? shoe;
@@ -50,6 +52,7 @@ class _BlackjackGameState extends State<BlackjackGame> {
     rules: widget.rules,
     limits: widget.limits,
     onSettled: widget.onSettled,
+    onSound: widget.onSound,
     pace: widget.pace ?? const Duration(milliseconds: 520),
   );
 

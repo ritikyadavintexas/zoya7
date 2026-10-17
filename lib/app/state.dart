@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../games/gold/src/math.dart' show Currency;
 import 'nav.dart';
+import 'sound.dart';
 
 import '../backoffice/auth.dart';
 import '../backoffice/casino.dart';
@@ -165,6 +166,7 @@ class AppState extends ChangeNotifier {
     if (bonusClaimed || !casino.settings.dailyBonus || p == null) return;
     bonusClaimed = true;
     casino.credit(p, gc: todayBonus.toDouble(), note: 'Daily bonus');
+    Sound.instance.play(Sounds.coins);
   }
 
   void selectPack(int i) {
@@ -199,8 +201,13 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleSetting(String key) {
-    settings[key] = !(settings[key] ?? false);
+  void toggleSetting(String key) => setSetting(key, !(settings[key] ?? false));
+
+  void setSetting(String key, bool on) {
+    settings[key] = on;
+    if (key == 'sound' || key == 'music') {
+      Sound.instance.configure(sfx: settings['sound'] ?? false, music: settings['music'] ?? false);
+    }
     notifyListeners();
   }
 

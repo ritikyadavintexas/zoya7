@@ -15,6 +15,7 @@ import 'app/screens/profile.dart';
 import 'app/screens/promotions.dart';
 import 'app/screens/shell.dart';
 import 'app/screens/wallet.dart';
+import 'app/sound.dart';
 import 'app/state.dart';
 import 'app/theme.dart';
 import 'app/web_env.dart';
@@ -66,15 +67,23 @@ class _Zoya7RootState extends State<Zoya7Root> {
   /// Coming back from the admin panel goes straight to the lobby.
   var _startAt = R.splash;
 
+  /// Quiet while the app is in the background.
+  late final _lifecycle = AppLifecycleListener(
+    onStateChange: (s) => Sound.instance.setPaused(
+        s == AppLifecycleState.hidden || s == AppLifecycleState.paused || s == AppLifecycleState.detached),
+  );
+
   @override
   void initState() {
     super.initState();
+    _lifecycle;
     Nav.adminMode.addListener(_showAdminInAddressBar);
     _showAdminInAddressBar();
   }
 
   @override
   void dispose() {
+    _lifecycle.dispose();
     Nav.adminMode.removeListener(_showAdminInAddressBar);
     super.dispose();
   }
@@ -145,7 +154,11 @@ class Zoya7App extends StatelessWidget {
                 if (name != R.home) _route(RouteSettings(name: name)),
               ],
         onGenerateRoute: _route,
-        builder: (context, child) => WebSafeArea(
+        // The lobby's music plays under every page; a game plays its own over it.
+        builder: (context, child) => SoundScope(
+          music: Sounds.lobby,
+          effects: const [Sounds.tap, Sounds.coins],
+          child: WebSafeArea(
           child: _SessionGuard(
             state: state,
             child: ForceLandscape(
@@ -163,6 +176,7 @@ class Zoya7App extends StatelessWidget {
             ]),
             ),
           ),
+        ),
         ),
       ),
     );

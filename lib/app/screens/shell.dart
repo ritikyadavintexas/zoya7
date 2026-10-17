@@ -65,6 +65,7 @@ class Hud extends StatelessWidget {
           final w = box.maxWidth;
           final showLevel = w >= 880; // after the name has room
           final showSound = w >= 620;
+          final soundOn = (s.settings['sound'] ?? false) || (s.settings['music'] ?? false);
           final showName = w >= 600;
           final showBadge = w >= 520;
           // Small phones: tighter icon buttons and spacing.
@@ -175,9 +176,12 @@ class Hud extends StatelessWidget {
               if (showSound)
                 _HudIcon(
                   extent: iconW,
-                  label: s.settings['sound'] ?? false ? 'Sound on' : 'Sound off',
-                  onTap: () => s.toggleSetting('sound'),
-                  child: RawIco(s.settings['sound'] ?? false ? _soundOnSvg : _soundOffSvg, size: 27),
+                  label: soundOn ? 'Sound on' : 'Sound off',
+                  // Mutes (or brings back) both the effects and the music.
+                  onTap: () => s
+                    ..setSetting('sound', !soundOn)
+                    ..setSetting('music', !soundOn),
+                  child: RawIco(soundOn ? _soundOnSvg : _soundOffSvg, size: 27),
                 ),
               _HudIcon(
                 extent: iconW,

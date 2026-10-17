@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'icons.dart';
 import 'nav.dart';
+import 'sound.dart';
 import 'state.dart';
 import 'theme.dart';
 
@@ -42,6 +43,7 @@ class _PressState extends State<Press> {
               ? null
               : () {
                   HapticFeedback.selectionClick();
+                  Sound.instance.tap();
                   widget.onTap!();
                 },
           child: AnimatedScale(
