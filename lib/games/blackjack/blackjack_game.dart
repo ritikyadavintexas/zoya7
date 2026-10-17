@@ -6,7 +6,7 @@ import '../../app/icons.dart';
 import '../../app/theme.dart';
 import '../../app/widgets.dart';
 import '../gold/src/math.dart' show Currency;
-import '../gold/src/style.dart' show curLabel, fmtAmount;
+import '../gold/src/style.dart' show curLabel, fmtAmount, withUnit;
 import 'controller.dart';
 import 'engine.dart';
 
@@ -199,7 +199,7 @@ class _TopStrip extends StatelessWidget {
               border: Border.all(color: c.currency == Currency.gc ? Z.goldEdge : const Color(0xFF2FB58E), width: 1.5),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Coin(label: curLabel(c.currency), size: 28, fontSize: 10, teal: c.currency == Currency.sc),
+              Coin(label: c.currency == Currency.gc ? 'GC' : '', size: 28, fontSize: 10, teal: c.currency == Currency.sc),
               const SizedBox(width: 8),
               Text(fmtAmount(c.balance, c.currency),
                   style: outfit(16, w: FontWeight.w800, c: Z.cream, features: tabular)),
@@ -247,8 +247,9 @@ class _CurrencyToggle extends StatelessWidget {
                 ),
                 child: Center(
                   widthFactor: 1,
-                  child: Text(curLabel(cur),
-                      style: outfit(12, w: FontWeight.w800, c: c.currency == cur ? Z.brown : Z.tabOff)),
+                  child: cur == Currency.gc
+                      ? Text('GC', style: outfit(12, w: FontWeight.w800, c: c.currency == cur ? Z.brown : Z.tabOff))
+                      : Icon(Icons.savings_rounded, size: 16, color: c.currency == cur ? Z.brown : Z.tabOff),
                 ),
               ),
             ),
@@ -410,10 +411,9 @@ class _Middle extends StatelessWidget {
         return Text('Dealer plays…', style: outfit(15, w: FontWeight.w700, c: const Color(0xFFF2E6DA)));
       case Phase.settled:
         final net = c.net;
-        final cur = curLabel(c.currency);
         final blackjack = c.round.hands.any((h) => h.outcome == Outcome.blackjack);
         final (text, color) = net > 0
-            ? ('${blackjack ? 'BLACKJACK! ' : 'YOU WIN '}+${fmtAmount(net, c.currency)} $cur', Z.goldHi)
+            ? ('${blackjack ? 'BLACKJACK! ' : 'YOU WIN '}+${withUnit(net, c.currency)}', Z.goldHi)
             : net == 0
                 ? ('PUSH — BET RETURNED', const Color(0xFFF2E6DA))
                 : (c.round.dealerBlackjack ? 'DEALER BLACKJACK' : 'DEALER WINS', Z.coral);
@@ -501,7 +501,7 @@ class _HandView extends StatelessWidget {
               ],
               if (bet != null) ...[
                 const SizedBox(width: 6),
-                Text('${fmtAmount(bet!, currency)} ${curLabel(currency)}',
+                Text(withUnit(bet!, currency),
                     style: outfit(11, w: FontWeight.w700, c: const Color(0xFFE8C06A))),
               ],
               if (tag != null) ...[
@@ -709,7 +709,7 @@ class _BetCircle extends StatelessWidget {
           Text(c.bet > 0 ? 'YOUR BET' : 'PLACE YOUR BET',
               style: outfit(12, w: FontWeight.w800, ls: .12, c: const Color(0xB3F2E6DA))),
           const SizedBox(height: 2),
-          Text(c.bet > 0 ? '${fmtAmount(c.bet, c.currency)} ${curLabel(c.currency)}' : 'Tap chips below',
+          Text(c.bet > 0 ? withUnit(c.bet, c.currency) : 'Tap chips below',
               style: outfit(18, w: FontWeight.w800, c: Z.cream)),
           if (c.note != null) ...[
             const SizedBox(height: 2),
@@ -820,7 +820,7 @@ class _Controls extends StatelessWidget {
             case Phase.insurance:
               return Row(children: [
                 Expanded(
-                  child: Text('Insurance costs ${fmtAmount(c.insuranceCost, c.currency)} $cur and pays 2 to 1 if the dealer has blackjack.',
+                  child: Text('Insurance costs ${withUnit(c.insuranceCost, c.currency)} and pays 2 to 1 if the dealer has blackjack.',
                       maxLines: 2, style: outfit(13, c: const Color(0xFFF2E6DA), h: 1.3)),
                 ),
                 const SizedBox(width: 10),

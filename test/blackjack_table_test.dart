@@ -97,7 +97,7 @@ void main() {
     await tap(tester, 'Add 5 DC chip');
     await tap(tester, 'DEAL');
     await tester.pump(const Duration(seconds: 1));
-    expect(find.textContaining('BLACKJACK! +7.50 DC'), findsOneWidget);
+    expect(find.textContaining('BLACKJACK! +7.50'), findsOneWidget);
     expect(w.b[Currency.sc], 258.0);
     expect(tester.takeException(), isNull);
   });

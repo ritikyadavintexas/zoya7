@@ -224,4 +224,8 @@ String _commas(String digits) {
   return neg ? '-$b' : b.toString();
 }
 
+/// The currency's name for screen readers and messages ('DC' / 'GC').
 String curLabel(Currency c) => c == Currency.sc ? 'DC' : 'GC';
+
+/// An amount as players see it: GC carry their name, DC is just the number.
+String withUnit(double v, Currency c) => c == Currency.sc ? fmtAmount(v, c) : '${fmtAmount(v, c)} GC';

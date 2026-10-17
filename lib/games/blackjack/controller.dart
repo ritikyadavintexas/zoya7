@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../gold/src/math.dart' show Currency;
-import '../gold/src/style.dart' show curLabel, fmtAmount;
+import '../gold/src/style.dart' show withUnit;
 import 'engine.dart';
 
 /// The table's sounds, by moment.
@@ -118,7 +118,7 @@ class BlackjackController extends ChangeNotifier {
     if (next > balance) {
       note = 'Not enough coins for that chip';
     } else if (next > maxBet) {
-      note = 'Table limit is ${fmtAmount(maxBet, currency)} ${curLabel(currency)}';
+      note = 'Table limit is ${withUnit(maxBet, currency)}';
     } else {
       bet = next;
       note = null;

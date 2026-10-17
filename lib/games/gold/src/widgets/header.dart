@@ -54,7 +54,7 @@ class GoldHeader extends StatelessWidget {
                 _BalanceBar(
                   asset: GoldAssets.balanceSc,
                   imgH: 89,
-                  textInset: .30,
+                  textInset: .22,
                   active: c.mode == Currency.sc,
                   amount: fmtAmount(c.sc, Currency.sc),
                   label: 'Play with DC',

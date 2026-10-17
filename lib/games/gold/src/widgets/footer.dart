@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../assets.dart';
 import '../controller.dart';
+import '../math.dart' show Currency;
 import '../style.dart';
 import 'fx.dart';
 
@@ -70,8 +71,10 @@ class GoldFooter extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(fmtAmount(c.bet, c.mode), style: lilita(40, shadows: goldGlow())),
-                  const SizedBox(width: 8),
-                  Text(curLabel(c.mode), style: rubik(18, weight: FontWeight.w700, color: GC.goldLabel)),
+                  if (c.mode == Currency.gc) ...[
+                    const SizedBox(width: 8),
+                    Text(curLabel(c.mode), style: rubik(18, weight: FontWeight.w700, color: GC.goldLabel)),
+                  ],
                 ],
               ),
             ),

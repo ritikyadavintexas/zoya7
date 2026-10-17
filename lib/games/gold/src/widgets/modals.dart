@@ -300,8 +300,7 @@ class NoCoinsModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cur = curLabel(c.mode);
-    final other = c.mode == Currency.sc ? 'PLAY WITH GC' : 'PLAY WITH DC';
+    final other = c.mode == Currency.sc ? 'PLAY WITH GC' : 'PLAY WITH OTHER COINS';
     return _ModalCard(
       width: 900,
       glow: const Color(0xFF5A1A10),
@@ -325,14 +324,16 @@ class NoCoinsModal extends StatelessWidget {
               ),
               boxShadow: [bs(0, 0, 40, GC.a(255, 200, 80, .6))],
             ),
-            child: Text(cur, style: lilita(54, color: const Color(0xFF4A2E05))),
+            child: c.mode == Currency.gc
+                ? Text('GC', style: lilita(54, color: const Color(0xFF4A2E05)))
+                : const Icon(Icons.savings_rounded, size: 72, color: Color(0xFF4A2E05)),
           ),
           const SizedBox(height: 18),
           Text('NOT ENOUGH COINS', textAlign: TextAlign.center, style: _h2(60, .04)),
           const SizedBox(height: 18),
           Text(
-            'A ${fmtAmount(c.bet, c.mode)} $cur spin is more than your balance of '
-            '${fmtAmount(c.balance, c.mode)} $cur. Grab a package, lower your bet or switch currency.',
+            'A ${withUnit(c.bet, c.mode)} spin is more than your balance of '
+            '${withUnit(c.balance, c.mode)}. Grab a package, lower your bet or switch currency.',
             textAlign: TextAlign.center,
             style: rubik(26, height: 1.45, color: const Color(0xFFE9DCC0)),
           ),
