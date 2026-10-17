@@ -121,4 +121,70 @@ void main() {
     final owner = as('owner');
     expect(owner.coinInSc, greaterThanOrEqualTo(147));
   });
+
+  test('a player asks for coins; their agent puts them on from their own points', () {
+    c.givePoints(exec, gc: 1000000, sc: 500);
+    c.signIn('u-exec');
+    c.givePoints(agent, gc: 500000, sc: 200);
+    c.signIn('u-agent');
+    final p = c.createPlayer(username: 'asker');
+    final before = p.sc;
+
+    final r = c.requestCoins(p, sc: 37.5, gc: 20000);
+    expect(c.waitingRequests, [r]);
+    c.signIn('u-exec');
+    expect(c.waitingRequests, isEmpty, reason: 'executives don’t load players');
+    c.signIn('leo');
+    expect(c.waitingRequests, isEmpty, reason: 'another agent’s player');
+    c.signIn('owner');
+    expect(c.waitingRequests, [r], reason: 'the owner sees every request');
+
+    c.signIn('u-agent');
+    c.approveRequest(r);
+    expect(p.sc, before + 37.5);
+    expect((agent.gc, agent.sc), (480000, 162.5));
+    expect(r.status, RequestStatus.done);
+    expect(c.waitingRequests, isEmpty);
+    expect(() => c.approveRequest(r), throwsA(isA<CasinoError>()), reason: 'only once');
+
+    final r2 = c.requestCoins(p, sc: 5);
+    c.declineRequest(r2);
+    expect(r2.status, RequestStatus.declined);
+    expect(p.sc, before + 37.5);
+
+    // Requests and avatars survive the database records.
+    c.setAvatar(p.id, 'phoenix');
+    final copy = Casino.empty()..loadRecords(c.toRecords());
+    expect(copy.requests.map((x) => (x.id, x.playerId, x.sc, x.gc, x.status)), c.requests.map((x) => (x.id, x.playerId, x.sc, x.gc, x.status)));
+    expect(copy.avatars[p.id], 'phoenix');
+  });
+
+  test('request limits: an amount, at most three waiting, store and GC switches', () {
+    c.signIn('owner');
+    final p = c.players.first;
+    expect(() => c.requestCoins(p), throwsA(isA<CasinoError>()), reason: 'nothing asked for');
+    expect(() => c.requestCoins(p, sc: c.settings.maxCoinInPerDay + 1), throwsA(isA<CasinoError>()));
+    for (var i = 0; i < 3; i++) {
+      c.requestCoins(p, sc: 1);
+    }
+    expect(() => c.requestCoins(p, sc: 1), throwsA(isA<CasinoError>()), reason: 'three already waiting');
+
+    final q = c.players[1];
+    c.settings.hidden = {'gc'};
+    expect(c.requestCoins(q, gc: 5000, sc: 2).gc, 0, reason: 'GC off: no Gold Coins asked for');
+    c.settings.hidden = {'store'};
+    expect(() => c.requestCoins(q, sc: 2), throwsA(isA<CasinoError>()), reason: 'buying switched off');
+  });
+
+  test('switching parts of the player app off', () {
+    final s = c.settings;
+    expect(CasinoSettings.playerFeatures.keys.every(s.shows), isTrue, reason: 'everything on by default');
+    s.hidden = {'gc'};
+    expect((s.gcOn, s.shows('daily'), s.shows('jackpots'), s.shows('vip')), (false, false, false, true),
+        reason: 'GC off takes the GC bonus and jackpots with it');
+    s.hidden = {'vip', 'jackpots'};
+    expect((s.gcOn, s.shows('vip'), s.shows('jackpots'), s.shows('daily')), (true, false, false, true));
+    final copy = CasinoSettings.fromJson(s.toJson());
+    expect(copy.hidden, {'vip', 'jackpots'});
+  });
 }

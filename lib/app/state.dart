@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../games/gold/src/math.dart' show Currency;
 import 'nav.dart';
 import 'sound.dart';
+import 'theme.dart' show fmtInt, fmtSc;
 
 import '../backoffice/auth.dart';
 import '../backoffice/casino.dart';
@@ -48,6 +49,11 @@ class AppState extends ChangeNotifier {
   /// The database answering for the first time decides whether the account
   /// this device remembers still exists.
   void _syncChanged() {
+    if (sync!.accountGone && playerId != null) {
+      kickedOut = 'This player ID no longer exists';
+      signOut();
+      return;
+    }
     final ready = sync!.ready;
     if (ready == _ready) return;
     _ready = ready;
@@ -81,6 +87,51 @@ class AppState extends ChangeNotifier {
       return;
     }
     notifyListeners();
+  }
+
+  /// Checks with the server that this player ID still exists and may play
+  /// (before every game); if not, signs out with the reason.
+  Future<bool> confirmPlayer() async {
+    final s = sync;
+    if (playerId == null) return false;
+    if (s != null && !await s.playerStillExists()) return false;
+    final p = player;
+    if (p == null || p.status != PlayerStatus.active) {
+      _casinoChanged();
+      return false;
+    }
+    return true;
+  }
+
+  /// Ask the player's agent for coins (any amount); returns an error to show, or null.
+  String? requestCoins({double gc = 0, double sc = 0}) {
+    final p = player;
+    if (p == null) return 'Sign in first';
+    try {
+      casino.requestCoins(p, gc: gc, sc: sc);
+      return null;
+    } on CasinoError catch (e) {
+      return e.message;
+    }
+  }
+
+  /// This player's coin requests, newest first.
+  List<CoinRequest> get myRequests =>
+      [for (final r in casino.requests) if (r.playerId == playerId) r]..sort((a, b) => b.at.compareTo(a.at));
+
+  /// Whether the owner has [feature] switched on in the player app
+  /// ([CasinoSettings.playerFeatures]; 'daily' is the daily bonus).
+  bool shows(String feature) => casino.settings.shows(feature);
+
+  /// The player's chosen avatar (an asset), or the standard one.
+  String get avatar {
+    final a = casino.avatars[playerId];
+    return a != null && avatarNames.contains(a) ? 'assets/app/avatars/$a.webp' : 'assets/app/avatar.webp';
+  }
+
+  void setAvatar(String name) {
+    final id = playerId;
+    if (id != null) casino.setAvatar(id, name);
   }
 
   /// Log in with a player ID (or username) and password; returns an error to
@@ -142,7 +193,6 @@ class AppState extends ChangeNotifier {
 
   /// VIP rewards waiting to be collected (shown on the lobby's VIP icon).
   int vipRewards = 2;
-  bool notificationsRead = false;
   final Set<String> notifyAtLaunch = {};
   final Map<String, bool> settings = {
     'sound': true,
@@ -151,7 +201,7 @@ class AppState extends ChangeNotifier {
     'fast': false,
     'push': true,
     'bonus': true,
-    'mentions': true,
+    'coins': true,
     'reminder': true,
   };
 
@@ -159,7 +209,39 @@ class AppState extends ChangeNotifier {
   CoinPack get pack => coinPacks[selectedPack];
 
   int get todayBonus => streakAmounts[streakDay - 1];
-  int get unreadNotifications => notificationsRead ? 0 : 2;
+  /// What the player is told, newest first: coins their agent put on or
+  /// took off, requests declined, and the daily bonus (when it's on).
+  List<PlayerNote> get notes {
+    final p = player;
+    if (p == null) return const [];
+    final gcOn = shows('gc');
+    String amount(double gc, double sc) =>
+        [if (sc.abs() > 0) '${fmtSc(sc.abs())} DC', if (gcOn && gc.abs() > 0) '${fmtInt(gc.abs())} GC'].join(' and ');
+    final today = DateTime(casino.now.year, casino.now.month, casino.now.day);
+    final out = <PlayerNote>[
+      for (final t in casino.txnsOf(p.id))
+        if (t.type == TxnType.coinIn && amount(t.gc, t.sc).isNotEmpty)
+          (kind: NoteKind.coinsIn, title: 'Coins added', body: '${amount(t.gc, t.sc)} put on your account by your agent.', at: t.at)
+        else if (t.type == TxnType.coinOut && amount(t.gc, t.sc).isNotEmpty)
+          (kind: NoteKind.coinsOut, title: 'Coins taken off', body: '${amount(t.gc, t.sc)} taken off your account by your agent.', at: t.at),
+      for (final r in myRequests)
+        if (r.status == RequestStatus.declined)
+          (
+            kind: NoteKind.declined,
+            title: 'Request declined',
+            body: 'Your agent declined your request for ${amount(r.gc, r.sc)}.',
+            at: DateTime.fromMillisecondsSinceEpoch(r.handled),
+          ),
+      if (shows('daily') && !bonusClaimed)
+        (kind: NoteKind.bonus, title: 'Daily bonus ready', body: 'Day $streakDay of your streak: claim ${fmtInt(todayBonus)} GC.', at: today),
+    ]..sort((a, b) => b.at.compareTo(a.at));
+    return out.take(12).toList();
+  }
+
+  /// Notes newer than the last time the player marked them read.
+  bool isUnread(PlayerNote n) => n.at.millisecondsSinceEpoch > (casino.notesRead[playerId] ?? 0);
+
+  int get unreadNotifications => notes.where(isUnread).length;
 
   void claimBonus() {
     final p = player;
@@ -192,8 +274,9 @@ class AppState extends ChangeNotifier {
   }
 
   void markAllRead() {
-    notificationsRead = true;
-    notifyListeners();
+    final id = playerId;
+    final n = notes;
+    if (id != null && n.isNotEmpty) casino.markNotesRead(id, n.first.at);
   }
 
   void toggleNotify(String game) {
@@ -238,3 +321,10 @@ void logOut(BuildContext context) {
   AppScope.read(context).signOut();
   Nav.reset(R.welcome);
 }
+
+/// The avatars a player can pick (assets/app/avatars/<name>.webp).
+enum NoteKind { coinsIn, coinsOut, declined, bonus }
+
+typedef PlayerNote = ({NoteKind kind, String title, String body, DateTime at});
+
+const avatarNames = ['seven', 'crown', 'diamond', 'star', 'bell', 'cherry', 'phoenix', 'ruby', 'sun', 'lotus', 'grapes', 'strawberry'];

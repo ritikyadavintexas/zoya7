@@ -11,7 +11,6 @@ import 'src/controller.dart';
 import 'src/math.dart';
 import 'src/skin.dart';
 import 'src/style.dart';
-import 'src/widgets/chat_drawer.dart';
 import 'src/widgets/footer.dart';
 import 'src/widgets/fx.dart';
 import 'src/widgets/header.dart';
@@ -42,7 +41,11 @@ class GoldGame extends StatefulWidget {
     this.skin = SlotSkin.classic,
     this.sfx = true,
     this.music = true,
+    this.gc = true,
   });
+
+  /// Gold Coins on (the owner can switch them off: then DC only).
+  final bool gc;
 
   /// The player's Sound effects and Music settings when the game opens.
   final bool sfx;
@@ -93,6 +96,7 @@ class _GoldGameState extends State<GoldGame> {
     maxBetIdx: widget.maxBetIdx,
     sfx: widget.sfx,
     music: widget.music,
+    gcAllowed: widget.gc,
   );
 
   bool _precached = false;
@@ -189,7 +193,6 @@ class _GoldGameState extends State<GoldGame> {
         ),
         Expanded(child: GoldFooter(c: c)),
       ]),
-      if (c.chatOpen) Positioned.fill(child: ChatDrawer(c: c)),
       if (c.panel == GoldPanel.paytable)
         Positioned.fill(child: ModalScrim(opacity: .82, label: 'Paytable', child: PaytableModal(c: c))),
       if (c.panel == GoldPanel.settings)

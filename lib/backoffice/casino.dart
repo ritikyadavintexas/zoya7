@@ -369,6 +369,62 @@ class Play {
     ..last = j.length > 8 ? (j[8] as num).toInt() : 0;
 }
 
+enum RequestStatus { pending, done, declined }
+
+/// A player asking for coins in the app ("Get coins", any amount). Their agent
+/// sees it at once in the admin panel and puts the coins on (from their own
+/// points) or declines.
+class CoinRequest {
+  CoinRequest({
+    required this.id,
+    required this.playerId,
+    required this.at,
+    this.gc = 0,
+    this.sc = 0,
+    this.note = '',
+    this.status = RequestStatus.pending,
+    this.by = '',
+    this.handled = 0,
+  });
+
+  final String id;
+  final String playerId;
+  final DateTime at;
+  final double gc, sc;
+  final String note;
+  RequestStatus status;
+
+  /// Who handled it, and when (ms since 1970).
+  String by;
+  int handled;
+
+  bool get pending => status == RequestStatus.pending;
+
+  Map<String, Object> toJson() => {
+        'id': id,
+        'p': playerId,
+        'at': at.millisecondsSinceEpoch,
+        'gc': gc,
+        'sc': sc,
+        if (note.isNotEmpty) 'no': note,
+        'st': status.index,
+        if (by.isNotEmpty) 'by': by,
+        if (handled > 0) 'h': handled,
+      };
+
+  static CoinRequest fromJson(Map<String, dynamic> j) => CoinRequest(
+        id: j['id'] as String,
+        playerId: j['p'] as String,
+        at: DateTime.fromMillisecondsSinceEpoch(j['at'] as int),
+        gc: (j['gc'] as num?)?.toDouble() ?? 0,
+        sc: (j['sc'] as num?)?.toDouble() ?? 0,
+        note: j['no'] as String? ?? '',
+        status: RequestStatus.values[(j['st'] as num?)?.toInt() ?? 0],
+        by: j['by'] as String? ?? '',
+        handled: (j['h'] as num?)?.toInt() ?? 0,
+      );
+}
+
 /// Someone who signs in to the admin panel, by their Firebase account [uid]:
 /// the owner, an executive or an agent.
 class Staff {
@@ -455,6 +511,31 @@ class CasinoSettings {
   bool registrationOpen = true;
   bool dailyBonus = true;
 
+  /// Parts of the player app the owner switched off ([playerFeatures]).
+  Set<String> hidden = {};
+
+  /// What the owner can switch off in the player app. Off means shown
+  /// nowhere. The player ID, the games, DC, sound and notifications always stay.
+  static const playerFeatures = {
+    'gc': 'Gold Coins (GC)',
+    'store': 'Get coins (coin requests)',
+    'jackpots': 'Jackpots',
+    'vip': 'VIP club and badge',
+    'level': 'Player level',
+    'promotions': 'Promotions',
+    'race': 'Slots race',
+  };
+
+  /// Whether the player app shows [feature] ('daily' is the daily bonus).
+  /// The daily bonus and jackpots are in GC, so they go when GC does.
+  bool shows(String feature) => switch (feature) {
+        'daily' => dailyBonus && !hidden.contains('gc'),
+        'jackpots' => !hidden.contains('jackpots') && !hidden.contains('gc'),
+        _ => !hidden.contains(feature),
+      };
+
+  bool get gcOn => shows('gc');
+
   /// Every game closed to players, with [maintenanceMessage].
   bool maintenance = false;
   String maintenanceMessage = 'We’re upgrading the games. Back soon!';
@@ -465,6 +546,7 @@ class CasinoSettings {
         'cid': maxCoinInPerDay,
         'reg': registrationOpen,
         'db': dailyBonus,
+        if (hidden.isNotEmpty) 'off': (hidden.toList()..sort()),
         'mt': maintenance,
         'mm': maintenanceMessage,
       };
@@ -478,6 +560,7 @@ class CasinoSettings {
       ..maxCoinInPerDay = d('cid', s.maxCoinInPerDay)
       ..registrationOpen = j['reg'] as bool? ?? true
       ..dailyBonus = j['db'] as bool? ?? true
+      ..hidden = {for (final f in j['off'] as List? ?? const []) '$f'}
       ..maintenance = j['mt'] as bool? ?? false
       ..maintenanceMessage = j['mm'] as String? ?? s.maintenanceMessage;
   }
@@ -586,6 +669,13 @@ class Casino extends ChangeNotifier {
   final plays = <String, Play>{};
   final staff = <Staff>[];
   final points = <PointMove>[];
+  final requests = <CoinRequest>[];
+
+  /// Each player's chosen avatar (player ID → avatar name, [avatarNames]).
+  final avatars = <String, String>{};
+
+  /// When each player last read their notifications (player ID → ms).
+  final notesRead = <String, int>{};
   final audit = <AuditEntry>[];
   var settings = CasinoSettings();
   String featured = 'classic777';
@@ -772,6 +862,9 @@ class Casino extends ChangeNotifier {
     players.remove(p);
     logins.removeWhere((_, l) => l.playerId == p.id);
     uids.removeWhere((_, id) => id == p.id);
+    requests.removeWhere((r) => r.playerId == p.id && r.pending);
+    avatars.remove(p.id);
+    notesRead.remove(p.id);
     _log('Deleted player ${p.username} (${p.id})');
     _changed();
   }
@@ -1037,6 +1130,72 @@ class Casino extends ChangeNotifier {
     _changed();
   }
 
+  // ── Coin requests ──────────────────────────────────────────────────────────
+  /// A player asks for coins ("Get coins" in the app); their agent is told.
+  CoinRequest requestCoins(Player p, {double gc = 0, double sc = 0, String note = ''}) {
+    if (!settings.shows('store')) throw CasinoError('Coin requests are closed');
+    if (!settings.gcOn) gc = 0;
+    gc = gc.roundToDouble();
+    sc = _r2(sc);
+    if (gc < 0 || sc < 0 || (gc == 0 && sc == 0)) throw CasinoError('Enter an amount');
+    if (sc > settings.maxCoinInPerDay) throw CasinoError('At most ${settings.maxCoinInPerDay.toStringAsFixed(0)} DC at a time');
+    if (gc > 100000000) throw CasinoError('That’s too many Gold Coins');
+    if (p.status != PlayerStatus.active) throw CasinoError(Casino.blocked(p)!);
+    if (requests.where((r) => r.playerId == p.id && r.pending).length >= 3) {
+      throw CasinoError('You have 3 requests waiting — your agent will get to them');
+    }
+    final r = CoinRequest(id: _txnId(), playerId: p.id, at: now, gc: gc, sc: sc, note: note.trim());
+    requests.add(r);
+    _changed();
+    return r;
+  }
+
+  /// Requests waiting for the signed-in staff member: an agent's players',
+  /// or (the owner) everyone's. Oldest first.
+  List<CoinRequest> get waitingRequests {
+    final me = admin;
+    if (me == null || me.isExecutive) return const [];
+    final ids = {for (final p in visiblePlayers) p.id};
+    return [for (final r in requests) if (r.pending && ids.contains(r.playerId)) r]..sort((a, b) => a.at.compareTo(b.at));
+  }
+
+  /// Put the asked-for coins on (a coin in, from the agent's points).
+  Txn approveRequest(CoinRequest r) {
+    final p = player(r.playerId);
+    if (p == null) throw CasinoError('That player ID no longer exists');
+    if (!r.pending) throw CasinoError('Already handled');
+    final t = coinIn(p, gc: r.gc, sc: r.sc, note: 'Coin request');
+    r
+      ..status = RequestStatus.done
+      ..by = actor
+      ..handled = now.millisecondsSinceEpoch;
+    _changed();
+    return t;
+  }
+
+  void declineRequest(CoinRequest r) {
+    if (!r.pending) return;
+    r
+      ..status = RequestStatus.declined
+      ..by = actor
+      ..handled = now.millisecondsSinceEpoch;
+    _log('Declined coin request from ${player(r.playerId)?.username ?? r.playerId}');
+    _changed();
+  }
+
+  /// A player picks their avatar.
+  void setAvatar(String playerId, String avatar) {
+    avatars[playerId] = avatar;
+    _changed();
+  }
+
+  /// A player read their notifications up to [upTo] (the newest one's time,
+  /// so a clock that's off on the phone doesn't hide later news).
+  void markNotesRead(String playerId, DateTime upTo) {
+    notesRead[playerId] = upTo.millisecondsSinceEpoch;
+    _changed();
+  }
+
   /// The points ledger lines the signed-in staff member can see.
   List<PointMove> get visiblePoints {
     final me = admin;
@@ -1053,6 +1212,9 @@ class Casino extends ChangeNotifier {
     plays.clear();
     seen.clear();
     points.clear();
+    requests.clear();
+    avatars.clear();
+    notesRead.clear();
     logins.clear();
     uids.clear();
     _log('Cleared all players and the ledger');
@@ -1065,6 +1227,7 @@ class Casino extends ChangeNotifier {
   void resetData() {
     txns.clear();
     points.clear();
+    requests.clear();
     plays.clear();
     seen.clear();
     audit.clear();
@@ -1377,6 +1540,9 @@ class Casino extends ChangeNotifier {
         'meta/settings': {...settings.toJson(), 'featured': featured},
         for (final st in staff) 'staff/${st.uid}': st.toJson(),
         for (final m in points) 'points/${m.id}': m.toJson(),
+        for (final r in requests) 'requests/${r.playerId}/${r.id}': r.toJson(),
+        for (final id in {...avatars.keys, ...notesRead.keys})
+          'prefs/$id': {if (avatars[id] case final a?) 'av': a, if (notesRead[id] case final r?) 'rd': r},
         for (final e in logins.entries) 'logins/${e.key}': {'e': e.value.email, 'p': e.value.playerId},
         for (final e in uids.entries) 'uids/${e.key}': {'p': e.value},
       };
@@ -1390,6 +1556,9 @@ class Casino extends ChangeNotifier {
     seen.clear();
     staff.clear();
     points.clear();
+    requests.clear();
+    avatars.clear();
+    notesRead.clear();
     logins.clear();
     uids.clear();
     // Built-in games keep their settings; uploaded ones come only from the records.
@@ -1419,6 +1588,11 @@ class Casino extends ChangeNotifier {
             staff.add(Staff.fromJson(key, j));
           case 'points':
             points.add(PointMove.fromJson(j));
+          case 'requests':
+            requests.add(CoinRequest.fromJson(j));
+          case 'prefs':
+            if (j['av'] is String) avatars[key] = j['av'] as String;
+            if (j['rd'] is num) notesRead[key] = (j['rd'] as num).toInt();
           case 'logins':
             logins[key] = (email: j['e'] as String, playerId: j['p'] as String);
           case 'uids':
@@ -1449,6 +1623,9 @@ class Casino extends ChangeNotifier {
         'plays': [for (final p in plays.values) p.toJson()],
         'staff': {for (final s in staff) s.uid: s.toJson()},
         'points': [for (final m in points) m.toJson()],
+        'requests': [for (final r in requests) r.toJson()],
+        'avatars': avatars,
+        'notesRead': notesRead,
         'logins': {for (final e in logins.entries) e.key: {'e': e.value.email, 'p': e.value.playerId}},
         'uids': uids,
         'audit': [for (final a in audit.length > 500 ? audit.sublist(audit.length - 500) : audit) a.toJson()],
@@ -1473,6 +1650,13 @@ class Casino extends ChangeNotifier {
       c.staff.add(Staff.fromJson(e.key as String, (e.value as Map).cast<String, dynamic>()));
     }
     c.points.addAll([for (final m in j['points'] as List? ?? const []) PointMove.fromJson(m as Map<String, dynamic>)]);
+    c.requests.addAll([for (final r in j['requests'] as List? ?? const []) CoinRequest.fromJson(r as Map<String, dynamic>)]);
+    for (final e in (j['avatars'] as Map? ?? const {}).entries) {
+      c.avatars['${e.key}'] = '${e.value}';
+    }
+    for (final e in (j['notesRead'] as Map? ?? const {}).entries) {
+      if (e.value is num) c.notesRead['${e.key}'] = (e.value as num).toInt();
+    }
     for (final e in (j['logins'] as Map? ?? const {}).entries) {
       final l = e.value as Map;
       c.logins[e.key as String] = (email: l['e'] as String, playerId: l['p'] as String);

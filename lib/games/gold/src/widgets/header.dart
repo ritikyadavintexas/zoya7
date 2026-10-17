@@ -37,18 +37,20 @@ class GoldHeader extends StatelessWidget {
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _BalanceBar(
-                  asset: GoldAssets.balanceGc,
-                  imgH: 94,
-                  textInset: .31,
-                  active: c.mode == Currency.gc,
-                  amount: fmtAmount(c.gc, Currency.gc),
-                  label: 'Play with Gold Coins',
-                  onPick: () => c.pickCurrency(Currency.gc),
-                  onMore: () => onGetMore(Currency.gc),
-                  moreLabel: 'Get more Gold Coins',
-                ),
-                const SizedBox(height: 10),
+                if (c.gcAllowed) ...[
+                  _BalanceBar(
+                    asset: GoldAssets.balanceGc,
+                    imgH: 94,
+                    textInset: .31,
+                    active: c.mode == Currency.gc,
+                    amount: fmtAmount(c.gc, Currency.gc),
+                    label: 'Play with Gold Coins',
+                    onPick: () => c.pickCurrency(Currency.gc),
+                    onMore: () => onGetMore(Currency.gc),
+                    moreLabel: 'Get more Gold Coins',
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 _BalanceBar(
                   asset: GoldAssets.balanceSc,
                   imgH: 89,
@@ -72,58 +74,6 @@ class GoldHeader extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Tap(onTap: onBack, label: 'Back to lobby', child: const Img(GoldAssets.back, w: 128, h: 112)),
-          const SizedBox(width: 16),
-          // Chat
-          Tap(
-            onTap: c.openChat,
-            label: 'Open table chat',
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 96,
-                  height: 96,
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: GC.goldRim,
-                    boxShadow: [bs(0, 6, 16, GC.a(0, 0, 0, .5)), bs(0, 0, 18, GC.a(255, 170, 40, .35))],
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: circleGradient(
-                        cx: .5,
-                        cy: .3,
-                        colors: const [Color(0xFFFF4A4A), Color(0xFFD0101C), Color(0xFF7A0309)],
-                        stops: const [0, .45, 1],
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: GoldIcons.chat(44),
-                  ),
-                ),
-                if (!c.chatSeen)
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      constraints: const BoxConstraints(minWidth: 32),
-                      height: 32,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: GC.green,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: GC.bgDeep, width: 3),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text('${c.chatUnread}',
-                          style: rubik(16, weight: FontWeight.w700, color: const Color(0xFF062E14), height: 1)),
-                    ),
-                  ),
-              ],
-            ),
-          ),
           const SizedBox(width: 16),
           // Settings
           Tap(

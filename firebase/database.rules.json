@@ -32,6 +32,22 @@
           ".write": "auth != null && root.child('zoya7/uids/' + auth.uid + '/p').val() === $pid && root.child('zoya7/players/' + $pid + '/st').val() === 0"
         }
       },
+      "prefs": {
+        ".write": "auth != null && root.child('zoya7/staff/' + auth.uid).exists()",
+        "$pid": {
+          ".read": "auth != null && root.child('zoya7/uids/' + auth.uid + '/p').val() === $pid",
+          ".write": "auth != null && root.child('zoya7/uids/' + auth.uid + '/p').val() === $pid && root.child('zoya7/players/' + $pid + '/st').val() === 0"
+        }
+      },
+      "requests": {
+        ".write": "auth != null && root.child('zoya7/staff/' + auth.uid).exists()",
+        "$pid": {
+          ".read": "auth != null && root.child('zoya7/uids/' + auth.uid + '/p').val() === $pid",
+          "$rid": {
+            ".write": "auth != null && root.child('zoya7/uids/' + auth.uid + '/p').val() === $pid && root.child('zoya7/players/' + $pid + '/st').val() === 0 && !data.exists() && newData.child('p').val() === $pid && newData.child('st').val() === 0 && newData.child('gc').isNumber() && newData.child('gc').val() >= 0 && newData.child('gc').val() <= 100000000 && newData.child('sc').isNumber() && newData.child('sc').val() >= 0 && newData.child('sc').val() <= 1000000"
+          }
+        }
+      },
       "games": {
         ".read": "auth != null"
       },

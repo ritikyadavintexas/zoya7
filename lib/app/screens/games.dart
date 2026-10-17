@@ -206,7 +206,8 @@ class _Featured extends StatelessWidget {
                           w: FontWeight.w800, c: Z.cream, h: 1.05, sh: [ts(0, 2, 8, const Color(0xCC000000))])),
                   if (box.maxHeight >= 90) ...[
                     const SizedBox(height: 2),
-                    Text('MEGA jackpot over 1.2M GC', style: outfit(13, c: Z.soft)),
+                    Text(AppScope.of(context).shows('jackpots') ? 'MEGA jackpot over 1.2M GC' : '3-reel slot',
+                        style: outfit(13, c: Z.soft)),
                   ],
                 ]),
                 Container(

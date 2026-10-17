@@ -355,6 +355,21 @@ class AdminShell extends StatefulWidget {
 class _AdminShellState extends State<AdminShell> {
   late Section section = widget.initial;
 
+  /// Coin requests already announced, so each new one toasts only once.
+  Set<String>? _announced;
+
+  void _watchRequests(Casino casino) {
+    final ids = {for (final r in casino.waitingRequests) r.id};
+    final before = _announced;
+    _announced = ids;
+    if (before == null) return;
+    final fresh = ids.difference(before).length;
+    if (fresh == 0) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) kToast(context, fresh == 1 ? 'New coin request from a player' : '$fresh new coin requests');
+    });
+  }
+
   Widget _page(Section s) => switch (s) {
         Section.dashboard => const DashboardPage(),
         Section.players => const PlayersPage(),
@@ -373,7 +388,13 @@ class _AdminShellState extends State<AdminShell> {
     final desktop = K.desktop(context);
     final sections = sectionsFor(me, desktop: desktop);
     final current = sections.contains(section) ? section : sections.first;
-    final page = KeyedSubtree(key: ValueKey(current), child: _page(current));
+    _watchRequests(casino);
+    final waiting = casino.waitingRequests.length;
+    final page = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (waiting > 0 && current != Section.coins && current != Section.dashboard && sections.contains(Section.coins))
+        _RequestsBanner(count: waiting, onTap: () => setState(() => section = Section.coins)),
+      Expanded(child: KeyedSubtree(key: ValueKey(current), child: _page(current))),
+    ]);
     return AdminNav(
       go: (s) => setState(() => section = s),
       child: desktop
@@ -395,6 +416,30 @@ class _AdminShellState extends State<AdminShell> {
             ),
     );
   }
+}
+
+/// A strip above every other page while players wait for coins.
+class _RequestsBanner extends StatelessWidget {
+  const _RequestsBanner({required this.count, required this.onTap});
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: K.amberSoft,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(children: [
+              const Icon(Icons.notifications_active_rounded, color: K.amber, size: 20),
+              const SizedBox(width: 10),
+              Expanded(child: Text(count == 1 ? '1 player is waiting for coins' : '$count players are waiting for coins', style: kt(14, w: FontWeight.w600))),
+              Text('OPEN', style: kt(13, w: FontWeight.w800, c: K.amber)),
+            ]),
+          ),
+        ),
+      );
 }
 
 class _Sidebar extends StatelessWidget {

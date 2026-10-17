@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../icons.dart';
@@ -5,7 +7,7 @@ import '../nav.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'lobby.dart' show Avatar;
+import 'lobby.dart' show Avatar, openDailyBonus;
 
 /// A row inside a dark list card: label, optional value, chevron.
 class ListRow extends StatelessWidget {
@@ -63,9 +65,8 @@ class ProfilePage extends StatelessWidget {
     final items = [
       ('Edit profile', P.pencil, () => Nav.push(R.editProfile), 0),
       ('Wallet & history', P.wallet, () => Nav.tab(AppTab.wallet, walletTab: 'history'), 0),
-      ('VIP Club', P.crown, () => Nav.push(R.vip), 0),
+      if (s.shows('vip')) ('VIP Club', P.crown, () => Nav.push(R.vip), 0),
       ('Notifications', P.bell, () => Nav.push(R.notifications), s.unreadNotifications),
-      ('Help & support', P.chat, () => Nav.push(R.chat, 'support'), 0),
       ('Responsible gaming', P.shield, () => Nav.push(R.settings, 'responsible'), 0),
       ('Settings', P.gear, () => Nav.push(R.settings), 0),
       ('Log out', P.back, () => logOut(context), 0),
@@ -319,17 +320,34 @@ class EditProfileScreen extends StatelessWidget {
             minSide: 240,
             maxSide: 320,
             side: [Center(child: Column(children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: 104,
-                    height: 104,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: cur, width: 4),
-                      boxShadow: [bs(0, 0, 26, cur)],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: const Avatar(size: 104, border: 0),
+                  // Tap the picture to choose another avatar.
+                  Press(
+                    label: 'Change avatar',
+                    onTap: () => showAvatarPicker(context),
+                    child: Stack(clipBehavior: Clip.none, children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 104,
+                        height: 104,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: cur, width: 4),
+                          boxShadow: [bs(0, 0, 26, cur)],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: const Avatar(size: 104, border: 0),
+                      ),
+                      Positioned(
+                        right: -2,
+                        bottom: -2,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(shape: BoxShape.circle, gradient: Z.red3, border: Border.all(color: Z.rimBright, width: 1.5)),
+                          child: const Center(child: StrokeIco(P.pencil, size: 14, color: Z.cream, width: 2.4)),
+                        ),
+                      ),
+                    ]),
                   ),
                   const SizedBox(height: 12),
                   Text('AVATAR FRAME', style: outfit(13, w: FontWeight.w700, ls: .12, c: Z.label)),
@@ -381,7 +399,7 @@ class EditProfileScreen extends StatelessWidget {
                   // beside phone, then email (it needs the width for its badge).
                   return box.maxWidth >= 400
                       ? Column(children: [
-                          ZField(label: 'USERNAME', initial: s.name, helper: 'Shown in chat and on leaderboards.'),
+                          ZField(label: 'USERNAME', initial: s.name, helper: 'Shown on leaderboards.'),
                           const SizedBox(height: 10),
                           pair(email, phone),
                         ])
@@ -397,10 +415,6 @@ class EditProfileScreen extends StatelessWidget {
                   height: 40,
                   child: ListView(scrollDirection: Axis.horizontal, children: [
                     _AccountAction('Change password', onTap: () => Nav.push(R.forgot)),
-                    const SizedBox(width: 8),
-                    _AccountAction('Verify identity', highlight: true, onTap: () => Nav.push(R.chat, 'support')),
-                    const SizedBox(width: 8),
-                    _AccountAction('Close account', danger: true, onTap: () => Nav.push(R.chat, 'support')),
                   ]),
                 ),
               ],
@@ -411,12 +425,81 @@ class EditProfileScreen extends StatelessWidget {
   }
 }
 
+/// The avatar gallery, in a popup: tap one, or let Random choose.
+void showAvatarPicker(BuildContext context) => showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close avatars',
+      barrierColor: const Color(0xB3000000),
+      transitionDuration: const Duration(milliseconds: 180),
+      transitionBuilder: (_, a, __, child) => FadeTransition(opacity: a, child: child),
+      pageBuilder: (_, __, ___) => const _AvatarPicker(),
+    );
+
+class _AvatarPicker extends StatelessWidget {
+  const _AvatarPicker();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppScope.of(context);
+    final size = MediaQuery.sizeOf(context);
+    final tile = size.height < 360 ? 46.0 : 56.0;
+    return Center(
+      child: Material(
+        type: MaterialType.transparency,
+        child: Container(
+          width: math.min(size.width - 40, 600),
+          padding: const EdgeInsets.fromLTRB(18, 12, 12, 18),
+          decoration: BoxDecoration(
+            color: Z.card,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Z.cardBorder, width: 1.5),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Row(children: [
+              Text('CHOOSE AVATAR', style: outfit(18, w: FontWeight.w800, ls: .12, c: Z.goldHi)),
+              const Spacer(),
+              LinkText('Random', size: 14, w: FontWeight.w700, onTap: () {
+                final others = [for (final a in avatarNames) if (s.avatar != 'assets/app/avatars/$a.webp') a];
+                s.setAvatar(others[math.Random().nextInt(others.length)]);
+              }),
+              const SizedBox(width: 14),
+              RoundBtn(
+                label: 'Close',
+                onTap: () => Navigator.of(context).pop(),
+                child: const StrokeIco(P.close, size: 16),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            Wrap(alignment: WrapAlignment.center, spacing: 10, runSpacing: 10, children: [
+              for (final a in avatarNames)
+                Press(
+                  label: 'Avatar $a',
+                  selected: s.avatar == 'assets/app/avatars/$a.webp',
+                  onTap: () => s.setAvatar(a),
+                  child: Container(
+                    width: tile,
+                    height: tile,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: s.avatar == 'assets/app/avatars/$a.webp' ? Z.goldBright : Z.chip, width: 3),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.asset('assets/app/avatars/$a.webp', fit: BoxFit.cover),
+                  ),
+                ),
+            ]),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
 class _AccountAction extends StatelessWidget {
-  const _AccountAction(this.label, {required this.onTap, this.highlight = false, this.danger = false});
+  const _AccountAction(this.label, {required this.onTap});
   final String label;
   final VoidCallback onTap;
-  final bool highlight;
-  final bool danger;
 
   @override
   Widget build(BuildContext context) => Press(
@@ -428,12 +511,12 @@ class _AccountAction extends StatelessWidget {
           decoration: BoxDecoration(
             color: Z.card,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: danger ? const Color(0xFF8A2A2A) : (highlight ? Z.border : Z.cardBorder), width: 1.5),
+            border: Border.all(color: Z.cardBorder, width: 1.5),
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Text(label, style: outfit(13, w: FontWeight.w700, c: danger ? Z.coral : (highlight ? Z.gold : Z.cream))),
+            Text(label, style: outfit(13, w: FontWeight.w700, c: Z.cream)),
             const SizedBox(width: 6),
-            StrokeIco(P.forward, size: 12, color: danger ? Z.coral : Z.faint, width: 2.6),
+            const StrokeIco(P.forward, size: 12, color: Z.faint, width: 2.6),
           ]),
         ),
       );
@@ -450,8 +533,8 @@ class VipScreen extends StatefulWidget {
 
 class _VipScreenState extends State<VipScreen> {
   static const tiers = [
-    ('Bronze', Color(0xFFD9915A), '0 – 9,999 pts', ['Daily bonus', 'Weekly promotions', 'Live chat support']),
-    ('Silver', Color(0xFFD9DAE6), '10,000 pts', ['Bigger daily bonus', 'Birthday gift', 'Priority chat support']),
+    ('Bronze', Color(0xFFD9915A), '0 – 9,999 pts', ['Daily bonus', 'Weekly promotions', 'Help from your agent']),
+    ('Silver', Color(0xFFD9DAE6), '10,000 pts', ['Bigger daily bonus', 'Birthday gift', 'Priority help from your agent']),
     ('Gold', Color(0xFFF2C869), '50,000 pts', ['Gold daily bonus', 'Bigger daily bonus', 'Exclusive tournaments']),
     ('Platinum', Color(0xFF9FD8FF), '150,000 pts', ['Platinum bonus wheel', 'Monthly cashback in GC', 'Dedicated VIP host']),
     ('Diamond', Color(0xFFC99BFF), 'Invite only', ['Custom rewards', 'Event invitations', 'Priority support']),
@@ -462,15 +545,10 @@ class _VipScreenState extends State<VipScreen> {
     return ZPage(
       gradient: Z.pageGlow(ry: .4, top: const Color(0xFF5A3510)),
       child: Column(children: [
-        TopBar(
+        const TopBar(
           title: 'VIP CLUB',
           backLabel: 'Back to profile',
           border: false,
-          right: RoundBtn(
-            label: 'Contact VIP host',
-            onTap: () => Nav.push(R.chat, 'support'),
-            child: const Ico(P.chat, size: 20),
-          ),
         ),
         Expanded(
           child: Panes(
@@ -618,19 +696,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ('NOTIFICATIONS', P.bell, [
         t('push', 'Push notifications', 'Jackpots and account alerts'),
         t('bonus', 'Bonus reminders', 'Daily bonus and streaks'),
-        t('mentions', 'Chat mentions', 'When someone replies to you'),
+        t('coins', 'Coins added', 'When your agent loads your coins'),
       ]),
       ('RESPONSIBLE GAMING', P.shield, [
         t('reminder', 'Session reminder', 'Remind me every 60 minutes'),
-        l('Daily purchase limit', 'Not set', () => showToast(context, 'Set a daily limit with Zoya Support')),
+        l('Daily purchase limit', 'Not set', () => showToast(context, 'Ask your agent to set a daily limit')),
         l('Take a break', '', () => showToast(context, 'Breaks of 24h, 7 days or 30 days')),
-        l('Self-exclusion', '', () => Nav.push(R.chat, 'support')),
+        l('Self-exclusion', '', () => showToast(context, 'Ask your agent to close your account for the time you choose')),
       ]),
       ('ACCOUNT & HELP', P.profile, [
         l('Language', 'English', () => showToast(context, 'More languages coming soon')),
         l('Edit profile', '', () => Nav.push(R.editProfile)),
         l('Change password', '', () => Nav.push(R.forgot)),
-        l('Live chat support', '', () => Nav.push(R.chat, 'support')),
         l('Terms, privacy & rules', '', () => Nav.push(R.legal)),
         l('Connection test', '', () => Nav.push(R.offline)),
       ]),
@@ -777,26 +854,8 @@ class NotificationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
-    final groups = [
-      ('TODAY', [
-        ('Daily bonus ready', 'Day ${s.streakDay} of your streak — claim ${fmtInt(s.todayBonus)} GC now.', '9:00 AM', P.gift, Z.gold,
-            () => Nav.tab(AppTab.promotions), true),
-        ('Support replied', 'Zoya Support answered your question about coin packages.', '8:47 AM', P.chat, Z.teal,
-            () => Nav.push(R.chat, 'support'), true),
-        ('MEGA jackpot climbing', 'The MEGA jackpot just passed 1.2M GC. Spin Classic 777 for a shot.', '8:15 AM', P.trophy,
-            Z.coral, () => Nav.push(R.gold), false),
-      ]),
-      ('EARLIER', [
-        ('Package delivered', '120,000 GC and 10 free DC were added to your wallet.', 'Yesterday', P.coin, Z.gold,
-            () => Nav.tab(AppTab.wallet, walletTab: 'history'), false),
-        ('Almost Silver', 'You are 3,800 points away from VIP Silver.', 'Oct 13', P.crown, const Color(0xFFD9DAE6),
-            () => Nav.push(R.vip), false),
-        ('Weekend Slots Race', 'The race starts Friday — join from Promotions.', 'Oct 12', P.trophy, const Color(0xFFC99BFF),
-            () => Nav.tab(AppTab.promotions), false),
-      ]),
-    ];
+    final notes = s.notes;
     final unread = s.unreadNotifications;
-    final notes = [for (final (_, items) in groups) ...items];
     return ZPage(
       child: Column(children: [
         TopBar(
@@ -826,7 +885,9 @@ class NotificationsScreen extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
             // As many columns as fit 420px cards; rows share the height.
-            child: LayoutBuilder(builder: (context, box) {
+            child: notes.isEmpty
+                ? Center(child: Text('Nothing yet. When your agent adds coins, you’ll see it here.', style: outfit(14, c: Z.muted)))
+                : LayoutBuilder(builder: (context, box) {
               const gap = 8.0;
               final cols = columnsFor(box.maxWidth, 420, gap: gap);
               final rows = (notes.length / cols).ceil();
@@ -837,15 +898,17 @@ class NotificationsScreen extends StatelessWidget {
                 crossAxisSpacing: 10,
                 childAspectRatio: ((box.maxWidth - 10 * (cols - 1)) / cols) / tileH,
                 children: [
-                  for (final (t, b, at, path, color, onTap, u) in notes)
+                  for (final n in notes)
                     _Note(
-                      title: t,
-                      body: b,
-                      when: at,
-                      path: path,
-                      color: color,
-                      unread: u && !s.notificationsRead,
-                      onTap: onTap,
+                      title: n.title,
+                      body: n.body,
+                      when: _when(n.at, s.casino.now),
+                      path: n.kind == NoteKind.bonus ? P.gift : P.coin,
+                      color: switch (n.kind) { NoteKind.coinsIn => Z.teal, NoteKind.declined => Z.coral, _ => Z.gold },
+                      unread: s.isUnread(n),
+                      onTap: n.kind == NoteKind.bonus
+                          ? () => openDailyBonus(context)
+                          : () => Nav.tab(AppTab.wallet, walletTab: 'history'),
                     ),
                 ],
               );
@@ -855,6 +918,18 @@ class NotificationsScreen extends StatelessWidget {
       ]),
     );
   }
+}
+
+/// "9:05 AM" today, "Yesterday", or "Oct 13".
+String _when(DateTime at, DateTime now) {
+  final day = DateTime(at.year, at.month, at.day), today = DateTime(now.year, now.month, now.day);
+  if (day == today) {
+    final h = at.hour % 12 == 0 ? 12 : at.hour % 12;
+    return '$h:${at.minute.toString().padLeft(2, '0')} ${at.hour < 12 ? 'AM' : 'PM'}';
+  }
+  if (today.difference(day).inDays == 1) return 'Yesterday';
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return '${months[at.month - 1]} ${at.day}';
 }
 
 class _Note extends StatelessWidget {
@@ -937,7 +1012,7 @@ class _LegalScreenState extends State<LegalScreen> {
       ('2. Your account', '[One account per person, accurate information, account security.]'),
       ('3. Virtual currencies', 'Gold Coins and DC are for play only. They have no cash value and can’t be redeemed for money or prizes.'),
       ('4. Purchases & refunds', '[Package purchases, payment methods, refund policy.]'),
-      ('5. Prohibited conduct', '[Cheating, multiple accounts, abuse in chat, automated play.]'),
+      ('5. Prohibited conduct', '[Cheating, multiple accounts, abusive behaviour, automated play.]'),
       ('6. Ending your account', '[Closure, suspension and what happens to balances.]'),
     ]),
     ('PRIVACY', 'Privacy Policy', [
@@ -996,7 +1071,7 @@ class _LegalScreenState extends State<LegalScreen> {
               const SizedBox(height: 8),
             ],
             const SizedBox(height: 6),
-            LinkText('Questions? Contact support ›', size: 14, w: FontWeight.w700, onTap: () => Nav.push(R.chat, 'support')),
+            Text('Questions? Ask your agent.', style: outfit(14, w: FontWeight.w700, c: Z.muted)),
           ],
         main: [
             Text(title, style: outfit(24, w: FontWeight.w800, c: Z.cream)),

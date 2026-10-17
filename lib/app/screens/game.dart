@@ -29,6 +29,7 @@ class GoldScreen extends StatelessWidget {
           audio: _SlotSounds(s, skin),
           sfx: s.settings['sound'] ?? true,
           music: s.settings['music'] ?? true,
+        gc: s.shows('gc'),
           initialGc: s.gc,
           initialSc: s.sc,
           minBetIdx: cfg.minIdx,

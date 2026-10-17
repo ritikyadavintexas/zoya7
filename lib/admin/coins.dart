@@ -95,7 +95,8 @@ class _CoinFormState extends State<_CoinForm> {
   Widget build(BuildContext context) {
     final casino = CasinoScope.of(context);
     final p = widget.p, out = widget.out;
-    final s = amountOf(sc.text) ?? 0, g = (amountOf(gc.text) ?? 0).roundToDouble();
+    final gcOn = casino.settings.gcOn;
+    final s = amountOf(sc.text) ?? 0, g = gcOn ? (amountOf(gc.text) ?? 0).roundToDouble() : 0.0;
     final what = [if (s > 0) scAmt(s), if (g > 0) gcAmt(g)].join(' + ');
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       _PlayerChip(p),
@@ -128,17 +129,19 @@ class _CoinFormState extends State<_CoinForm> {
       ]),
       const SizedBox(height: 14),
       Row(children: [
-        Expanded(
-          child: KField(
-            label: 'Gold Coins',
-            controller: gc,
-            hint: '0',
-            keyboard: TextInputType.number,
-            formatters: KField.money,
-            onChanged: (_) => setState(() {}),
+        if (gcOn) ...[
+          Expanded(
+            child: KField(
+              label: 'Gold Coins',
+              controller: gc,
+              hint: '0',
+              keyboard: TextInputType.number,
+              formatters: KField.money,
+              onChanged: (_) => setState(() {}),
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
+          const SizedBox(width: 12),
+        ],
         Expanded(child: KField(label: 'Note (optional)', controller: note)),
       ]),
       const SizedBox(height: 16),
@@ -151,7 +154,7 @@ class _CoinFormState extends State<_CoinForm> {
           Expanded(
             child: Text(
                 what.isEmpty
-                    ? 'Balance ${scAmt(p.sc)} · ${gcAmt(p.gc)}'
+                    ? 'Balance ${scAmt(p.sc)}${gcOn ? ' · ${gcAmt(p.gc)}' : ''}'
                     : out
                         ? '$what comes off ${p.username}'
                         : '${p.username} gets $what',
@@ -218,8 +221,10 @@ class _CreditFormState extends State<_CreditForm> {
       ],
       const SizedBox(height: 14),
       Row(children: [
-        Expanded(child: KField(label: 'Gold Coins', controller: gc, hint: '0', keyboard: TextInputType.number, formatters: KField.money)),
-        const SizedBox(width: 12),
+        if (casino.settings.gcOn) ...[
+          Expanded(child: KField(label: 'Gold Coins', controller: gc, hint: '0', keyboard: TextInputType.number, formatters: KField.money)),
+          const SizedBox(width: 12),
+        ],
         Expanded(child: KField(label: 'DC', controller: sc, hint: '0.00', keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money)),
       ]),
       const SizedBox(height: 12),
@@ -373,6 +378,7 @@ class _CoinsPageState extends State<CoinsPage> {
         KButton('Coin in', icon: Icons.south_west_rounded, onTap: () => showCoinIn(context)),
       ],
       children: [
+        const RequestsCard(),
         KGrid(min: 190, children: [
           KStat(label: 'Coin in today', value: scAmt(r.coinInSc), sub: '${r.coinIns} times · ${compact(r.coinInGc)} GC', icon: Icons.south_west_rounded, color: K.greenInk),
           KStat(label: 'Coin out today', value: scAmt(r.coinOutSc), sub: '${r.coinOuts} times · ${compact(r.coinOutGc)} GC', icon: Icons.north_east_rounded),
@@ -432,7 +438,7 @@ class _CoinsPageState extends State<CoinsPage> {
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
         child: KSegment(
-          values: const ['Pad', 'History'],
+          values: const ['Pad', 'Requests', 'History'],
           selected: tab,
           expand: true,
           label: (t) => t,
@@ -442,6 +448,11 @@ class _CoinsPageState extends State<CoinsPage> {
       Expanded(
         child: tab == 'Pad'
             ? const CoinPad()
+            : tab == 'Requests'
+            ? ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
+                const RequestsCard(),
+                if (casino.waitingRequests.isEmpty) const KCard(child: KEmpty('No coin requests waiting', icon: Icons.notifications_none_rounded)),
+              ])
             : ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
                 KField(hint: 'Search player or txn ID', icon: Icons.search_rounded, onChanged: (v) => setState(() => q = v)),
                 const SizedBox(height: 8),
@@ -557,7 +568,7 @@ class _CoinPadState extends State<CoinPad> {
                   ),
                   const SizedBox(height: 6),
                   Row(mainAxisSize: MainAxisSize.min, children: [
-                    for (final (sc, label) in const [(true, 'DC'), (false, 'Gold Coins')])
+                    for (final (sc, label) in [(true, 'DC'), if (casino.settings.gcOn) (false, 'Gold Coins')])
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 3),
                         child: Semantics(
@@ -612,4 +623,61 @@ class _PadButton extends StatelessWidget {
           child: SizedBox(height: 52, child: Center(child: Text(label, style: kt(17, w: FontWeight.w700, c: Colors.white)))),
         ),
       );
+}
+
+/// Players asking for coins ("Get coins" in the app), waiting for the
+/// signed-in agent (or the owner). Adding them is a coin in from the agent's
+/// points; nothing shows when none are waiting.
+class RequestsCard extends StatelessWidget {
+  const RequestsCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final casino = CasinoScope.of(context);
+    final list = casino.waitingRequests;
+    if (list.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: KCard(
+        color: K.amberSoft,
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            const Icon(Icons.notifications_active_rounded, color: K.amber),
+            const SizedBox(width: 8),
+            Expanded(child: Text('Coin requests (${list.length})', style: kt(17, w: FontWeight.w700))),
+          ]),
+          for (final r in list)
+            Builder(builder: (context) {
+              final p = casino.player(r.playerId);
+              final what = [if (r.sc > 0) scAmt(r.sc), if (r.gc > 0) gcAmt(r.gc)].join(' + ');
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Wrap(spacing: 10, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, alignment: WrapAlignment.spaceBetween, children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 180, maxWidth: 360),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      KAvatar(p?.name ?? '?', size: 34),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('${p?.username ?? r.playerId} asks for $what', style: kt(15, w: FontWeight.w600)),
+                          Text('${r.playerId} · ${when(r.at, casino.now)}', style: kt(12.5, c: K.sub)),
+                        ]),
+                      ),
+                    ]),
+                  ),
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    KButton('Add coins', height: 36, icon: Icons.south_west_rounded,
+                        onTap: () => attempt(context, () => casino.approveRequest(r), done: '$what added for ${p?.username ?? r.playerId}')),
+                    const SizedBox(width: 8),
+                    KButton('Decline', tone: KTone.light, height: 36, onTap: () => attempt(context, () => casino.declineRequest(r), done: 'Declined')),
+                  ]),
+                ]),
+              );
+            }),
+        ]),
+      ),
+    );
+  }
 }

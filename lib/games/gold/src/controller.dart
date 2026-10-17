@@ -51,11 +51,12 @@ class GoldController extends ChangeNotifier {
     this.maxBetIdx = GoldRules.maxBetIndex,
     this.sfx = true,
     this.music = true,
+    this.gcAllowed = true,
   })  : outcomes = outcomes ?? LocalGoldMath(),
         audio = audio ?? _SilentAudio(),
         gc = initialGc,
         sc = initialSc,
-        mode = currency,
+        mode = gcAllowed ? currency : Currency.sc,
         overlay = previewOverlay,
         panel = previewPanel {
     _tickTimer = Timer.periodic(const Duration(milliseconds: 180), (_) => tick.value++);
@@ -63,6 +64,9 @@ class GoldController extends ChangeNotifier {
 
   final GoldOutcomeSource outcomes;
   final GoldAudio audio;
+
+  /// Gold Coins switched off by the owner: DC only, and GC shown nowhere.
+  final bool gcAllowed;
 
   // Wallet & bet
   Currency mode;
@@ -149,7 +153,7 @@ class GoldController extends ChangeNotifier {
 
   // ── Currency & bet ─────────────────────────────────────────────────────────
   void pickCurrency(Currency c) {
-    if (busy) return;
+    if (busy || (c == Currency.gc && !gcAllowed)) return;
     _set(() {
       mode = c;
       win = 0;
@@ -331,7 +335,7 @@ class GoldController extends ChangeNotifier {
       });
 
   void switchCurrency() => _set(() {
-        mode = mode == Currency.sc ? Currency.gc : Currency.sc;
+        if (gcAllowed) mode = mode == Currency.sc ? Currency.gc : Currency.sc;
         panel = GoldPanel.none;
         win = 0;
         lastMult = 0;

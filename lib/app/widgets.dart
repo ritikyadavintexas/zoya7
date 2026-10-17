@@ -621,8 +621,12 @@ class ResponsibleFooter extends StatelessWidget {
 
 /// Pill toast near the bottom of the screen.
 void showToast(BuildContext context, String text,
-    {Color border = Z.border, Color color = Z.text, double bottom = 40, Duration duration = const Duration(milliseconds: 1800)}) {
-  final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    {Color border = Z.border,
+    Color color = Z.text,
+    double bottom = 40,
+    Duration duration = const Duration(milliseconds: 1800),
+    OverlayState? overlay}) {
+  overlay ??= Overlay.maybeOf(context, rootOverlay: true);
   if (overlay == null) return;
   _toast?.remove();
   _toastTimer?.cancel();

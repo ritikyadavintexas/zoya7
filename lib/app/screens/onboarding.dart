@@ -276,11 +276,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
                   Row(children: [
                     Expanded(child: Text('LOG IN', style: outfit(20, w: FontWeight.w800, ls: .08, c: Z.goldHi))),
-                    Press(
-                      label: 'Need help? Chat with support',
-                      onTap: () => Nav.push(R.chat, 'support'),
-                      child: const Padding(padding: EdgeInsets.all(6), child: Ico(P.chat, size: 22)),
-                    ),
                   ]),
                   const SizedBox(height: 10),
                   if (pairs)
@@ -408,8 +403,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ]),
               ),
             ),
-            LinkText('Still stuck? Chat with support',
-                size: 14, w: FontWeight.w600, onTap: () => Nav.push(R.chat, 'support')),
+            Text('Still stuck? Your agent can reset your password.', style: outfit(14, w: FontWeight.w600, c: Z.muted)),
           ]),
         ),
         main: Center(

@@ -7,7 +7,6 @@ import 'admin/admin_app.dart';
 import 'app/landscape.dart';
 import 'app/nav.dart';
 import 'app/screens/blackjack.dart';
-import 'app/screens/chat.dart';
 import 'app/screens/game.dart';
 import 'app/screens/games.dart';
 import 'app/screens/html_game.dart';
@@ -21,6 +20,7 @@ import 'app/state.dart';
 import 'app/theme.dart';
 import 'app/web_env.dart';
 import 'app/web_safe_area.dart';
+import 'app/widgets.dart' show showToast;
 import 'backoffice/auth.dart';
 import 'backoffice/casino.dart';
 import 'backoffice/sync.dart';
@@ -213,8 +213,6 @@ class Zoya7App extends StatelessWidget {
         page = const BlackjackScreen();
       case R.htmlGame:
         page = HtmlGameScreen(gameId: arg is String ? arg : '');
-      case R.chat:
-        page = ChatScreen(room: arg is String ? arg : 'community');
       case R.notifications:
         page = const NotificationsScreen();
       case R.settings:
@@ -279,6 +277,9 @@ class _SessionGuard extends StatefulWidget {
 class _SessionGuardState extends State<_SessionGuard> {
   late bool _wasIn = widget.state.signedIn;
 
+  /// The newest coin news already seen; anything newer pops up a toast.
+  DateTime? _newest;
+
   @override
   void initState() {
     super.initState();
@@ -299,6 +300,29 @@ class _SessionGuardState extends State<_SessionGuard> {
       });
     }
     _wasIn = inNow;
+    _announce();
+  }
+
+  /// Coins added, taken off or a request declined while the app is open.
+  void _announce() {
+    final s = widget.state;
+    if (!s.signedIn || s.loading) {
+      _newest = null;
+      return;
+    }
+    final news = [for (final n in s.notes) if (n.kind != NoteKind.bonus) n];
+    final top = news.isEmpty ? DateTime(2000) : news.first.at;
+    final before = _newest;
+    _newest = top;
+    if (before == null || !top.isAfter(before) || s.settings['coins'] == false) return;
+    final n = news.first;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final overlay = Nav.navigatorKey.currentState?.overlay;
+      if (overlay != null) {
+        showToast(overlay.context, '${n.title}: ${n.body}',
+            overlay: overlay, border: Z.green, color: Z.greenHi, duration: const Duration(seconds: 4));
+      }
+    });
   }
 
   @override

@@ -358,8 +358,10 @@ class NoCoinsModal extends StatelessWidget {
           const SizedBox(height: 18),
           Row(children: [
             Expanded(child: PillButton(label: 'LOWER BET', onTap: c.lowerBet, height: 80, fontSize: 28)),
-            const SizedBox(width: 16),
-            Expanded(child: PillButton(label: other, onTap: c.switchCurrency, height: 80, fontSize: 28)),
+            if (c.gcAllowed) ...[
+              const SizedBox(width: 16),
+              Expanded(child: PillButton(label: other, onTap: c.switchCurrency, height: 80, fontSize: 28)),
+            ],
           ]),
         ],
       ),

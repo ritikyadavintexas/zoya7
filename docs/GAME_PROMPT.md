@@ -152,6 +152,7 @@ const session = await Zoya7.init();      // once, at start-up
 // session = {
 //   demo,                  // true when the game runs on its own (pretend coins)
 //   currency: 'GC',        // the starting currency; 'GC' or 'DC'
+//   currencies: ['GC', 'DC'],  // the ones switched on (Zoya7 may switch GC off: then ['DC'])
 //   balances: {GC, DC},    // the player's coins
 //   bets: {GC: [...], DC: [...]},   // the only bets allowed, smallest first
 //   bet: {GC, DC},         // the bet to start with
@@ -208,7 +209,8 @@ so you can build and test everything without Zoya7.
   - Top left: a **back** button (arrow) that calls `Zoya7.exit()`. Keep that corner clear.
   - Top right: the **GC** and **DC** balances (GC as whole numbers with separators, DC with two
     decimals), a switch between playing with GC or DC, and a **+** next to GC only, calling
-    `Zoya7.buyCoins()`. DC never has a +.
+    `Zoya7.buyCoins()`. DC never has a +. Show only the currencies in `session.currencies`: when
+    it's `['DC']`, GC appears nowhere (no balance, no switch, no +).
   - A **bet** selector stepping through `session.bets[currency]`.
   - A **sound** button (mute effects and music) and an **info** button: how to play, and the pay
     table (each outcome's label, multiplier and chance as “1 in N”).

@@ -8,7 +8,6 @@ import 'package:zoya7_gold/app/assets.dart';
 import 'package:zoya7_gold/app/landscape.dart';
 import 'package:zoya7_gold/app/nav.dart';
 import 'package:zoya7_gold/app/screens/blackjack.dart';
-import 'package:zoya7_gold/app/screens/chat.dart';
 import 'package:zoya7_gold/app/screens/game.dart';
 import 'package:zoya7_gold/app/screens/games.dart';
 import 'package:zoya7_gold/app/screens/html_game.dart';
@@ -70,8 +69,6 @@ void main() {
     'settings': () => const SettingsScreen(),
     'notifications': () => const NotificationsScreen(),
     'legal': () => const LegalScreen(doc: 'rules'),
-    'chat': () => const ChatScreen(),
-    'support chat': () => const ChatScreen(room: 'support'),
     'coming soon': () => const ComingSoonScreen(gameId: 'blackjack'),
     'gold game': () => const GoldScreen(),
     'fruit spin': () => const GoldScreen(gameId: 'fruitspin'),
@@ -111,7 +108,7 @@ void main() {
   }
 
   // Only these may scroll vertically: a conversation and long documents.
-  const mayScroll = {'chat', 'support chat', 'legal'};
+  const mayScroll = {'legal'};
 
   /// Vertical scrollables on screen that actually have something to scroll.
   List<double> verticalOverflow(WidgetTester tester) => [
@@ -149,6 +146,15 @@ void main() {
         await tester.tap(find.bySemanticsLabel(RegExp('^Jackpots')));
         await tester.pump(const Duration(milliseconds: 300));
         expect(find.text('JACKPOTS'), findsWidgets);
+        expectFits(tester);
+        await tester.pumpWidget(const SizedBox());
+      });
+
+      testWidgets('avatar picker fits', (tester) async {
+        await show(tester, size, const EditProfileScreen());
+        await tester.tap(find.bySemanticsLabel('Change avatar'));
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.text('CHOOSE AVATAR'), findsOneWidget);
         expectFits(tester);
         await tester.pumpWidget(const SizedBox());
       });

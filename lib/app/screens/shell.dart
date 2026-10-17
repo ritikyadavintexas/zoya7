@@ -63,11 +63,11 @@ class Hud extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, box) {
           final w = box.maxWidth;
-          final showLevel = w >= 880; // after the name has room
+          final showLevel = w >= 880 && s.shows('level'); // after the name has room
           final showSound = w >= 620;
           final soundOn = (s.settings['sound'] ?? false) || (s.settings['music'] ?? false);
           final showName = w >= 600;
-          final showBadge = w >= 520;
+          final showBadge = w >= 520 && s.shows('vip');
           // Small phones: tighter icon buttons and spacing.
           final compact = w < 620;
           final iconW = compact ? 36.0 : 42.0;
@@ -133,17 +133,19 @@ class Hud extends StatelessWidget {
               ),
               if (showLevel) ...[const SizedBox(width: 14), _Level(level: s.level, progress: s.levelProgress)],
               SizedBox(width: compact ? 8 : 16),
-              _BalancePill(
-                height: pillH,
-                coin: Coin(size: pillH * .78, fontSize: pillH * .26),
-                label: 'GC',
-                labelColor: Z.goldBright,
-                value: fmtInt(s.gc),
-                border: Z.goldEdge,
-                onPlus: () => Nav.tab(AppTab.wallet, walletTab: 'buy'),
-                plusLabel: 'Buy Gold Coins',
-              ),
-              const SizedBox(width: 8),
+              if (s.shows('gc')) ...[
+                _BalancePill(
+                  height: pillH,
+                  coin: Coin(size: pillH * .78, fontSize: pillH * .26),
+                  label: 'GC',
+                  labelColor: Z.goldBright,
+                  value: fmtInt(s.gc),
+                  border: Z.goldEdge,
+                  onPlus: s.shows('store') ? () => Nav.tab(AppTab.wallet, walletTab: 'buy') : null,
+                  plusLabel: 'Get Gold Coins',
+                ),
+                const SizedBox(width: 8),
+              ],
               _BalancePill(
                 height: pillH,
                 coin: Coin(label: 'DC', size: pillH * .78, fontSize: pillH * .26, teal: true),
@@ -151,27 +153,24 @@ class Hud extends StatelessWidget {
                 labelColor: Z.teal,
                 value: fmtSc(s.sc),
                 border: const Color(0xFF2FB58E),
+                onPlus: s.shows('store') && !s.shows('gc') ? () => Nav.tab(AppTab.wallet, walletTab: 'buy') : null,
+                plusLabel: 'Get DC',
               ),
               if (!compact) const Spacer() else const SizedBox(width: 4),
-              _HudIcon(
-                extent: iconW,
-                label: s.bonusClaimed ? 'Daily bonus' : 'Daily bonus ready',
-                dot: !s.bonusClaimed,
-                onTap: () => openDailyBonus(context),
-                child: const RawIco(_giftSvg, size: 28),
-              ),
+              if (s.shows('daily'))
+                _HudIcon(
+                  extent: iconW,
+                  label: s.bonusClaimed ? 'Daily bonus' : 'Daily bonus ready',
+                  dot: !s.bonusClaimed,
+                  onTap: () => openDailyBonus(context),
+                  child: const RawIco(_giftSvg, size: 28),
+                ),
               _HudIcon(
                 extent: iconW,
                 label: 'Messages, ${s.unreadNotifications} new',
                 dot: s.unreadNotifications > 0,
                 onTap: () => Nav.push(R.notifications),
                 child: const RawIco(_mailSvg, size: 28),
-              ),
-              _HudIcon(
-                extent: iconW,
-                label: 'Chat',
-                onTap: () => Nav.push(R.chat),
-                child: const Ico(P.chatDots, size: 27),
               ),
               if (showSound)
                 _HudIcon(
@@ -219,13 +218,13 @@ const _menuSvg =
 /// The options panel: everything the HUD doesn't already have one tap away,
 /// as tiles in a gold panel that drops from the top-right corner.
 void showOptionsMenu(BuildContext context) {
+  final s = AppScope.read(context);
   final options = [
     ('All games', P.games, () => Nav.tab(AppTab.games)),
-    ('Promotions', P.giftPlain, () => Nav.tab(AppTab.promotions)),
-    ('VIP Club', P.crown, () => Nav.push(R.vip)),
-    ('Slots race', P.trophyFull, () => Nav.push(R.leaderboard)),
+    if (s.shows('promotions')) ('Promotions', P.giftPlain, () => Nav.tab(AppTab.promotions)),
+    if (s.shows('vip')) ('VIP Club', P.crown, () => Nav.push(R.vip)),
+    if (s.shows('race')) ('Slots race', P.trophyFull, () => Nav.push(R.leaderboard)),
     ('Settings', P.gear, () => Nav.push(R.settings)),
-    ('Help & support', P.chat, () => Nav.push(R.chat, 'support')),
     ('Rules & terms', P.doc, () => Nav.push(R.legal)),
     ('Log out', P.back, () => logOut(context)),
   ];

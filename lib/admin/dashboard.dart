@@ -43,6 +43,7 @@ class _DashboardPageState extends State<DashboardPage> {
         KButton('Coin in', icon: Icons.south_west_rounded, onTap: () => showCoinIn(context)),
       ],
       children: [
+        const RequestsCard(),
         KGrid(min: 200, children: [
           KStat(label: 'Coin in', value: scAmt(r.coinInSc), sub: '${r.coinIns} times · ${compact(r.coinInGc)} GC', icon: Icons.south_west_rounded, color: K.greenInk),
           KStat(label: 'Coin out', value: scAmt(r.coinOutSc), sub: '${r.coinOuts} times · ${compact(r.coinOutGc)} GC', icon: Icons.north_east_rounded),
@@ -100,6 +101,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final r = casino.report(Period.standard(casino.now).first);
     return ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
       const InstallCard(),
+      const RequestsCard(),
       // Cash App's balance: one big number (in coins).
       KCard(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
@@ -237,6 +239,7 @@ class _NetworkHome extends StatelessWidget {
     double sum(TxnType type, bool dc) => todays.where((t) => t.type == type).fold(0, (a, t) => a + (dc ? t.sc : t.gc).abs());
     final agents = me.isExecutive ? casino.agentsOf(me) : const <Staff>[];
     final children = <Widget>[
+      const RequestsCard(),
       MyPointsCard(me),
       const SizedBox(height: 16),
       KGrid(min: 180, children: [

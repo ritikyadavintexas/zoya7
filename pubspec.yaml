@@ -31,5 +31,6 @@ flutter:
     - assets/games/phoenix/sounds/
     - assets/games/blackjack/sounds/
     - assets/app/
+    - assets/app/avatars/
     - assets/sounds/
     - assets/sdk/

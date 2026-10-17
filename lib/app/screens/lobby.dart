@@ -18,8 +18,11 @@ import '../widgets.dart';
 /// Gold, and the rest show "coming soon".
 /// Games switched off in the back office (or everything, in maintenance
 /// mode) say so instead of opening.
-void openGame(BuildContext context, GameInfo g) {
-  final casino = AppScope.read(context).casino;
+/// Opens a game, after checking with the server that the player ID still
+/// exists and may play (a deleted or closed ID is signed out instead).
+Future<void> openGame(BuildContext context, GameInfo g) async {
+  final s = AppScope.read(context);
+  final casino = s.casino;
   if (casino.settings.maintenance) {
     showToast(context, casino.settings.maintenanceMessage);
     return;
@@ -28,6 +31,8 @@ void openGame(BuildContext context, GameInfo g) {
     showToast(context, '${g.name} is under maintenance. Back soon!');
     return;
   }
+  if (g.playable && !await s.confirmPlayer()) return;
+  if (!context.mounted) return;
   switch (g.id) {
     case _ when g.uploaded:
       Nav.push(R.htmlGame, g.id);
@@ -139,8 +144,8 @@ class _LobbyPageState extends State<LobbyPage> {
             // with .2 × size between them.
             final iconSize = ((box.maxHeight - 3 * 28) / 3.4).clamp(34.0, 66.0);
             final mega = jackpotValue(JackpotTier.mega);
-            return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            final rail = [
+              if (s.shows('daily'))
                 _RewardIcon(
                   label: 'DAILY',
                   semantic: s.bonusClaimed ? 'Daily bonus' : 'Daily bonus, 1 to claim',
@@ -149,7 +154,7 @@ class _LobbyPageState extends State<LobbyPage> {
                   onTap: () => openDailyBonus(context),
                   child: Image.asset(A.dailyBonusIcon, fit: BoxFit.cover),
                 ),
-                SizedBox(height: iconSize * .2),
+              if (s.shows('vip'))
                 _RewardIcon(
                   label: 'VIP',
                   semantic: 'VIP Club, ${s.vipRewards} rewards waiting',
@@ -161,7 +166,7 @@ class _LobbyPageState extends State<LobbyPage> {
                     child: Image.asset(GoldAssets.symbol(Sym.crown), fit: BoxFit.contain),
                   ),
                 ),
-                SizedBox(height: iconSize * .2),
+              if (s.shows('jackpots'))
                 _RewardIcon(
                   label: 'JACKPOTS',
                   semantic: 'Jackpots — MEGA ${fmtInt(mega)} GC. Show all',
@@ -178,8 +183,15 @@ class _LobbyPageState extends State<LobbyPage> {
                     ),
                   ),
                 ),
-              ]),
-              const SizedBox(width: 12),
+            ];
+            return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              // The owner can switch each of these off (Settings → Player app).
+              if (rail.isNotEmpty) ...[
+                Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  for (final (i, icon) in rail.indexed) ...[if (i > 0) SizedBox(height: iconSize * .2), icon],
+                ]),
+                const SizedBox(width: 12),
+              ],
               Expanded(
                 // One game highlighted, then two rows of tiles, scrolling sideways.
                 child: CustomScrollView(
@@ -310,7 +322,7 @@ class _FeaturedTile extends StatelessWidget {
                           switch (g.cat) {
                             'TABLE' => 'Table game · ${g.players.isEmpty ? 'live tables' : '${g.players} playing'}',
                             'INSTANT' => 'Instant win',
-                            _ => '3-reel slot · MEGA jackpot',
+                            _ => AppScope.of(context).shows('jackpots') ? '3-reel slot · MEGA jackpot' : '3-reel slot',
                           },
                           maxLines: 1, overflow: TextOverflow.ellipsis, style: outfit(12, c: Z.soft)),
                     ]),
@@ -666,7 +678,7 @@ class Avatar extends StatelessWidget {
         boxShadow: [bs(0, 0, size * .2, c.withValues(alpha: .45))],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Image.asset(A.avatar, fit: BoxFit.cover),
+      child: Image.asset(AppScope.of(context).avatar, fit: BoxFit.cover),
     );
   }
 }

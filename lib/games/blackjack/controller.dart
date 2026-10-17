@@ -25,6 +25,7 @@ class BlackjackController extends ChangeNotifier {
     this.limits = defaultLimits,
     this.onSettled,
     this.onSound,
+    this.gcAllowed = true,
     this.pace = const Duration(milliseconds: 520),
   }) : shoe = shoe ?? Shoe(decks: rules.decks) {
     round = BlackjackRound(this.shoe, rules: rules);
@@ -50,7 +51,10 @@ class BlackjackController extends ChangeNotifier {
   final Duration pace;
 
   late BlackjackRound round;
-  Currency currency = Currency.gc;
+
+  /// Gold Coins switched off by the owner: the table plays in DC only.
+  final bool gcAllowed;
+  late Currency currency = gcAllowed ? Currency.gc : Currency.sc;
 
   /// Chips on the betting circle before the deal.
   double bet = 0;
@@ -100,7 +104,7 @@ class BlackjackController extends ChangeNotifier {
       Future.delayed(Duration(milliseconds: (pace.inMilliseconds * times).round()));
 
   void setCurrency(Currency c) {
-    if (!betting || busy || c == currency) return;
+    if (!betting || busy || c == currency || (c == Currency.gc && !gcAllowed)) return;
     currency = c;
     bet = 0;
     lastBet = 0;

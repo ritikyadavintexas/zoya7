@@ -26,7 +26,11 @@ class BlackjackGame extends StatefulWidget {
     this.onSound,
     this.shoe,
     this.pace,
+    this.gc = true,
   });
+
+  /// Gold Coins on (the owner can switch them off: then DC only).
+  final bool gc;
   final BlackjackWallet wallet;
   final VoidCallback? onExit;
   final ValueChanged<Currency>? onBuyCoins;
@@ -53,6 +57,7 @@ class _BlackjackGameState extends State<BlackjackGame> {
     limits: widget.limits,
     onSettled: widget.onSettled,
     onSound: widget.onSound,
+    gcAllowed: widget.gc,
     pace: widget.pace ?? const Duration(milliseconds: 520),
   );
 
@@ -183,7 +188,7 @@ class _TopStrip extends StatelessWidget {
             Text('Pays ${payLabel(c.rules.blackjackPays)}', style: outfit(11, w: FontWeight.w600, ls: .06, c: const Color(0xFFE6CDB8))),
           ]),
           const Spacer(),
-          _CurrencyToggle(c: c),
+          if (c.gcAllowed) _CurrencyToggle(c: c),
           const SizedBox(width: 8),
           Container(
             height: 36,

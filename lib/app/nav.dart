@@ -17,7 +17,6 @@ class R {
 
   /// An uploaded game (argument: its id).
   static const htmlGame = '/play';
-  static const chat = '/chat';
   static const notifications = '/notifications';
   static const settings = '/settings';
   static const vip = '/vip';

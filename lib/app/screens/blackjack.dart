@@ -30,6 +30,7 @@ class BlackjackScreen extends StatelessWidget {
           onSettled: (c, staked, returned) => wallet.settle(c, staked, returned),
           onSound: (x) => Sound.instance.play(Sounds.blackjack(x.name), duck: x == BjSound.blackjack),
           onExit: () => Nav.back(context),
+          gc: s.shows('gc'),
           onBuyCoins: (_) => Nav.tab(AppTab.wallet, walletTab: 'buy'),
         ),
       ),

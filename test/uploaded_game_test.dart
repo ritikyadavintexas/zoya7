@@ -123,6 +123,16 @@ void main() {
       expect(ask('play', {'currency': 'GC', 'bet': 100})['error'], containsPair('code', 'closed'));
     });
 
+    test('with Gold Coins switched off the game is offered DC only', () {
+      app.casino.settings.hidden = {'gc'};
+      final s = ask('init')['data'] as Map;
+      expect(s['currency'], 'DC');
+      expect(s['currencies'], ['DC']);
+      expect((s['bets'] as Map)['GC'], isEmpty);
+      expect(ask('play', {'option': 'main', 'currency': 'GC', 'bet': 100})['error'], containsPair('code', 'currency'));
+      expect(ask('play', {'option': 'main', 'currency': 'DC', 'bet': (s['bets'] as Map)['DC'].first})['data'], isNotNull);
+    });
+
     test('exit, ready and buy tell the screen what to do; coins added elsewhere reach the game', () {
       expect(host.handle({'zoya7': 1, 'type': 'exit'}).$2, HostAction.exit);
       expect(host.handle({'zoya7': 1, 'type': 'ready'}).$2, HostAction.ready);

@@ -81,7 +81,7 @@ const builtInGames = [
     players: '642',
     category: 'TABLE GAME',
     blurb: 'Classic 21 against the dealer with split, double and side bets.',
-    tags: ['Split & double', 'Side bets', 'Live table chat'],
+    tags: ['Split & double', 'Side bets', 'Insurance'],
   ),
   GameInfo(
     id: 'roulette',

@@ -22,7 +22,7 @@ class _SettingsPageState extends State<SettingsPage> {
     'nsc': TextEditingController(text: _n(s.newPlayerSc)),
     'cid': TextEditingController(text: _n(s.maxCoinInPerDay)),
   };
-  late bool registration = s.registrationOpen, daily = s.dailyBonus;
+  late bool registration = s.registrationOpen;
 
   static String _n(double v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
 
@@ -44,8 +44,7 @@ class _SettingsPageState extends State<SettingsPage> {
       ..newPlayerGc = v['ngc']!
       ..newPlayerSc = v['nsc']!
       ..maxCoinInPerDay = v['cid']!
-      ..registrationOpen = registration
-      ..dailyBonus = daily);
+      ..registrationOpen = registration);
     kToast(context, 'Settings saved');
   }
 
@@ -70,8 +69,8 @@ class _SettingsPageState extends State<SettingsPage> {
               Expanded(child: _num('nsc', 'Starting DC')),
             ]),
             KRow(title: 'Players can sign up in the app', trailing: KSwitch(label: 'Players can sign up', value: registration, onChanged: (v) => setState(() => registration = v))),
-            KRow(title: 'Daily bonus', sub: 'The 7-day streak in the app', trailing: KSwitch(label: 'Daily bonus', value: daily, onChanged: (v) => setState(() => daily = v))),
           ]),
+          if (casino.admin?.isOwner ?? false) const _PlayerAppCard(),
           _card('Coin in', Icons.south_west_rounded, [
             _num('cid', 'Most DC per player per day'),
             const SizedBox(height: 10),
@@ -130,4 +129,59 @@ class _SettingsPageState extends State<SettingsPage> {
           ...children,
         ]),
       );
+}
+
+/// What the player app shows (owner only). Off means shown nowhere; the
+/// player ID, the games, DC, sound and notifications always stay.
+class _PlayerAppCard extends StatelessWidget {
+  const _PlayerAppCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final casino = CasinoScope.of(context);
+    final s = casino.settings;
+    Widget row(String key, String title, {String? sub}) {
+      final on = key == 'daily' ? s.dailyBonus : !s.hidden.contains(key);
+      return KRow(
+        title: title,
+        sub: sub,
+        trailing: KSwitch(
+          label: title,
+          value: on,
+          onChanged: (v) => casino.updateSettings('${v ? 'show' : 'hide'} ${title.toLowerCase()}', (x) {
+            if (key == 'daily') {
+              x.dailyBonus = v;
+            } else if (v) {
+              x.hidden = {...x.hidden}..remove(key);
+            } else {
+              x.hidden = {...x.hidden, key};
+            }
+          }),
+        ),
+      );
+    }
+
+    return KCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          const Icon(Icons.phone_iphone_rounded, size: 20, color: K.sub),
+          const SizedBox(width: 8),
+          Text('Player app', style: kt(18, w: FontWeight.w700)),
+        ]),
+        const SizedBox(height: 6),
+        Text('Off means players see it nowhere. Their player ID, the games, DC, sound and notifications always stay.',
+            style: kt(13, c: K.sub, h: 1.4)),
+        const SizedBox(height: 8),
+        row('gc', 'Gold Coins (GC)', sub: 'Off: DC only, in the lobby and in every game'),
+        row('store', 'Get coins', sub: 'Players ask their agent for coins in the app'),
+        row('daily', 'Daily bonus', sub: s.gcOn ? 'The 7-day streak (paid in GC)' : 'Needs Gold Coins'),
+        row('jackpots', 'Jackpots', sub: s.gcOn ? 'The lobby’s jackpot meters' : 'Needs Gold Coins'),
+        row('vip', 'VIP club and badge'),
+        row('level', 'Player level'),
+        row('promotions', 'Promotions'),
+        row('race', 'Slots race'),
+      ]),
+    );
+  }
 }

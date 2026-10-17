@@ -258,8 +258,10 @@ Future<void> movePoints(BuildContext context, Staff s, {required bool give}) {
         ),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: KField(label: 'Gold Coins', controller: gc, keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money, autofocus: true)),
-          const SizedBox(width: 12),
+          if (casino.settings.gcOn) ...[
+            Expanded(child: KField(label: 'Gold Coins', controller: gc, keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money, autofocus: true)),
+            const SizedBox(width: 12),
+          ],
           Expanded(child: KField(label: 'DC', controller: sc, keyboard: const TextInputType.numberWithOptions(decimal: true), formatters: KField.money)),
         ]),
         const SizedBox(height: 12),

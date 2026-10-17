@@ -25,6 +25,9 @@ class WalletPageState extends State<WalletPage> {
   @override
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
+    // With coin requests switched off there is only the history.
+    final store = s.shows('store');
+    final shown = store ? tab : 1;
     // Small phones: shorter labels in the top strip.
     final narrow = MediaQuery.sizeOf(context).width < 700;
     return ZPage(
@@ -33,11 +36,6 @@ class WalletPageState extends State<WalletPage> {
           title: 'WALLET',
           backLabel: 'Back to lobby',
           onBack: () => Nav.tab(AppTab.home),
-          right: RoundBtn(
-            label: 'Payment help',
-            onTap: () => Nav.push(R.chat, 'support'),
-            child: Text('?', style: outfit(18, w: FontWeight.w800, c: Z.gold)),
-          ),
         ),
         Expanded(
           child: Padding(
@@ -47,13 +45,15 @@ class WalletPageState extends State<WalletPage> {
               SizedBox(
                 height: 50,
                 child: Row(children: [
-                  _BalanceChip(
-                    coin: const Coin(size: 30, fontSize: 10),
-                    label: 'GOLD COINS',
-                    labelColor: Z.label,
-                    value: fmtInt(s.gc),
-                  ),
-                  const SizedBox(width: 8),
+                  if (s.shows('gc')) ...[
+                    _BalanceChip(
+                      coin: const Coin(size: 30, fontSize: 10),
+                      label: 'GOLD COINS',
+                      labelColor: Z.label,
+                      value: fmtInt(s.gc),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   _BalanceChip(
                     coin: const Coin(label: 'DC', size: 30, fontSize: 10, teal: true),
                     label: 'DC',
@@ -64,11 +64,11 @@ class WalletPageState extends State<WalletPage> {
                   Expanded(
                     child: Align(
                       alignment: Alignment.centerRight,
-                      child: ConstrainedBox(
+                      child: !store ? const SizedBox() : ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 380),
                         child: SegTabs(
-                          labels: narrow ? const ['BUY', 'HISTORY'] : const ['BUY COINS', 'HISTORY'],
-                          index: tab,
+                          labels: narrow ? const ['GET', 'HISTORY'] : const ['GET COINS', 'HISTORY'],
+                          index: shown,
                           height: 36,
                           fontSize: 12,
                           ls: .04,
@@ -81,8 +81,8 @@ class WalletPageState extends State<WalletPage> {
               ),
               const SizedBox(height: 10),
               Expanded(
-                child: switch (tab) {
-                  0 => _buy(s),
+                child: switch (shown) {
+                  0 => const _GetCoins(),
                   _ => _history(s),
                 },
               ),
@@ -92,40 +92,6 @@ class WalletPageState extends State<WalletPage> {
       ]),
     );
   }
-
-  // Packs in one row (sideways scroll when they don't fit), buy button below.
-  Widget _buy(AppState s) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Expanded(
-          child: LayoutBuilder(builder: (context, box) {
-            const gap = 10.0;
-            final w = ((box.maxWidth - gap * (coinPacks.length - 1)) / coinPacks.length).clamp(118.0, 180.0);
-            return ListView.separated(
-              scrollDirection: Axis.horizontal,
-              clipBehavior: Clip.none,
-              padding: const EdgeInsets.only(top: 8),
-              itemCount: coinPacks.length,
-              separatorBuilder: (_, __) => const SizedBox(width: gap),
-              itemBuilder: (_, i) => SizedBox(
-                width: w,
-                child: _PackTile(coinPacks[i], selected: i == s.selectedPack, onTap: () => s.selectPack(i)),
-              ),
-            );
-          }),
-        ),
-        const SizedBox(height: 10),
-        Row(children: [
-          Expanded(
-            child: Text('Coins are for play only and have no cash value. DC are a free bonus with Gold Coin packages.',
-                style: outfit(12, c: Z.muted2, h: 1.35)),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 290,
-            child: CtaButton('BUY ${s.pack.gcLabel} GC · ${s.pack.priceLabel}',
-                height: 46, fontSize: 16, ls: .03, onTap: () => Nav.push(R.checkout)),
-          ),
-        ]),
-      ]);
 
   // Two columns of compact entries.
   Widget _history(AppState s) {
@@ -139,12 +105,12 @@ class WalletPageState extends State<WalletPage> {
 
     // The latest moves on this account, from the back office's ledger.
     final hist = [
-      for (final t in s.casino.txnsOf(s.playerId ?? '').take(6))
+      for (final t in s.casino.txnsOf(s.playerId ?? '').where((t) => s.shows('gc') || t.sc != 0).take(6))
         (
           t.sc != 0 && t.gc == 0 ? 'DC' : 'GC',
           t.note.isNotEmpty ? t.note : statusName(t.type),
           when(t.at),
-          t.gc != 0 ? '${t.gc > 0 ? '+' : '−'}${fmtInt(t.gc.abs())} GC' : '${t.sc > 0 ? '+' : '−'}${fmtSc(t.sc.abs())} DC',
+          t.gc != 0 && s.shows('gc') ? '${t.gc > 0 ? '+' : '−'}${fmtInt(t.gc.abs())} GC' : '${t.sc > 0 ? '+' : '−'}${fmtSc(t.sc.abs())} DC',
           t.gc + t.sc >= 0,
         ),
     ];
@@ -183,6 +149,118 @@ class WalletPageState extends State<WalletPage> {
   }
 }
 
+/// Ask your agent for coins: any amount. The agent sees it at once in the
+/// admin panel and puts the coins on (or declines); the status shows here.
+class _GetCoins extends StatefulWidget {
+  const _GetCoins();
+
+  @override
+  State<_GetCoins> createState() => _GetCoinsState();
+}
+
+class _GetCoinsState extends State<_GetCoins> {
+  final dc = TextEditingController(), gc = TextEditingController();
+
+  @override
+  void dispose() {
+    dc.dispose();
+    gc.dispose();
+    super.dispose();
+  }
+
+  double _n(TextEditingController c) => double.tryParse(c.text.trim().replaceAll(',', '')) ?? 0;
+
+  void _send(AppState s) {
+    final error = s.requestCoins(gc: s.shows('gc') ? _n(gc) : 0, sc: _n(dc));
+    if (error != null) {
+      showToast(context, error);
+      return;
+    }
+    dc.clear();
+    gc.clear();
+    FocusScope.of(context).unfocus();
+    showToast(context, 'Sent — your agent has been told', border: Z.green, color: Z.greenHi);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppScope.of(context);
+    final mine = s.myRequests.take(6).toList();
+    final fields = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(child: ZField(label: 'DC', hint: 'Any amount', controller: dc, keyboard: const TextInputType.numberWithOptions(decimal: true))),
+        if (s.shows('gc')) ...[
+          const SizedBox(width: 10),
+          Expanded(child: ZField(label: 'GOLD COINS', hint: 'Any amount', controller: gc, keyboard: TextInputType.number)),
+        ],
+      ]),
+      const SizedBox(height: 8),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        for (final v in const [5, 10, 25, 50, 100])
+          Press(
+            label: '$v DC',
+            onTap: () => setState(() => dc.text = '$v'),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: Z.field,
+                border: Border.all(color: Z.chip, width: 1.2),
+              ),
+              child: Text('$v DC', style: outfit(13, w: FontWeight.w700, c: Z.teal)),
+            ),
+          ),
+      ]),
+    ]);
+    final send = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      CtaButton('REQUEST COINS', height: 46, fontSize: 16, onTap: () => _send(s)),
+      const SizedBox(height: 6),
+      Text('Your agent is told at once. Coins are for play only and have no cash value.',
+          style: outfit(12, c: Z.muted2, h: 1.35)),
+    ]);
+    final list = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (mine.isNotEmpty) ...[
+        const SizedBox(height: 14),
+        Text('YOUR REQUESTS', style: outfit(12, w: FontWeight.w700, ls: .1, c: Z.label)),
+        const SizedBox(height: 6),
+      ],
+      for (final r in mine)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: ZCard(
+            radius: 12,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Row(children: [
+              Expanded(
+                child: Text(
+                  [if (r.sc > 0) '${fmtSc(r.sc)} DC', if (r.gc > 0 && s.shows('gc')) '${fmtInt(r.gc)} GC'].join(' + '),
+                  style: outfit(14, w: FontWeight.w700, c: Z.cream),
+                ),
+              ),
+              Text(
+                switch (r.status) { RequestStatus.pending => 'WAITING', RequestStatus.done => 'ADDED', RequestStatus.declined => 'DECLINED' },
+                style: outfit(12, w: FontWeight.w800, ls: .06, c: switch (r.status) {
+                  RequestStatus.pending => Z.gold,
+                  RequestStatus.done => Z.green,
+                  RequestStatus.declined => Z.coral,
+                }),
+              ),
+            ]),
+          ),
+        ),
+    ]);
+    return LayoutBuilder(
+      builder: (context, box) => box.maxWidth >= 560
+          ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(flex: 3, child: SingleChildScrollView(child: fields)),
+              const SizedBox(width: 16),
+              Expanded(flex: 2, child: SingleChildScrollView(child: Column(children: [send, list]))),
+            ])
+          : ListView(children: [fields, const SizedBox(height: 10), send, list]),
+    );
+  }
+}
+
 class _BalanceChip extends StatelessWidget {
   const _BalanceChip({required this.coin, required this.label, required this.labelColor, required this.value});
   final Widget coin;
@@ -210,69 +288,6 @@ class _BalanceChip extends StatelessWidget {
       );
 }
 
-class _PackTile extends StatelessWidget {
-  const _PackTile(this.p, {required this.selected, required this.onTap});
-  final CoinPack p;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Press(
-        onTap: onTap,
-        selected: selected,
-        label: '${p.gcLabel} Gold Coins plus ${p.sc} DC, ${p.priceLabel}',
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: ellipseGradient(
-                cx: .5, cy: 0, rx: 1, ry: .7, colors: const [Color(0xFF3A2209), Z.field], stops: const [0, .75]),
-            border: Border.all(color: selected ? Z.goldBright : Z.chip, width: selected ? 2 : 1.5),
-            boxShadow: selected ? [bs(0, 0, 16, const Color(0x73FFC846))] : null,
-          ),
-          child: LayoutBuilder(
-            builder: (context, box) {
-              // The coin grows with the tile; the price button stays put.
-              final coin = (box.maxHeight * .3).clamp(26.0, 50.0);
-              return Stack(clipBehavior: Clip.none, alignment: Alignment.topCenter, children: [
-                Column(children: [
-                  const Spacer(),
-                  Coin(size: coin, fontSize: coin * .3, glow: [bs(0, 0, 14, const Color(0x73FFC850))]),
-                  const SizedBox(height: 4),
-                  Text(p.gcLabel, style: outfit(19, w: FontWeight.w800, c: Z.cream, h: 1.1)),
-                  Text('+ ${p.sc} DC FREE', style: outfit(11, w: FontWeight.w700, c: Z.teal)),
-                  const Spacer(),
-                  Container(
-                    height: 32,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), gradient: Z.green3),
-                    child: Text(p.priceLabel, style: outfit(15, w: FontWeight.w800, c: Z.cream)),
-                  ),
-                ]),
-                if (p.tag != null)
-                  Positioned(
-                    top: -19,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                      decoration: const BoxDecoration(
-                        borderRadius: BorderRadius.vertical(bottom: Radius.circular(10)),
-                        gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Color(0xFFE0303B), Color(0xFF9A0A14)]),
-                      ),
-                      child: Text(p.tag!, style: outfit(10, w: FontWeight.w800, ls: .08, c: Z.cream)),
-                    ),
-                  ),
-              ]);
-            },
-          ),
-        ),
-      );
-}
-
-/// Radio option row (payout method, payment method).
 class RadioRow extends StatelessWidget {
   const RadioRow({super.key, required this.label, required this.selected, required this.onTap, this.sub, this.icon, this.glow = false});
   final String label;

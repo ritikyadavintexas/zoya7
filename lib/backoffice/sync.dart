@@ -69,6 +69,25 @@ class CasinoSync extends ChangeNotifier {
   /// [_base] holds a real agreed copy (not just "nothing yet").
   bool _haveBase = false;
 
+  /// The signed-in player's ID no longer exists on the server.
+  bool accountGone = false;
+
+  /// Asks the server whether the signed-in player's ID still exists (before
+  /// a game opens). Unreachable counts as yes: the next sync decides.
+  Future<bool> playerStillExists() async {
+    final p = playerId;
+    if (p == null || url == null || auth == null) return true;
+    try {
+      final res = await transport('GET', _at('players/$p', await _query()));
+      if (res.status == 401 || res.status == 403 || (res.status == 200 && jsonDecode(res.body) == null)) {
+        accountGone = true;
+        notifyListeners();
+        return false;
+      }
+    } catch (_) {}
+    return true;
+  }
+
   /// The database has answered since this device signed in (until then the
   /// back office is empty, not "no such player").
   bool get ready => _haveBase;
@@ -165,6 +184,7 @@ class CasinoSync extends ChangeNotifier {
   void _switch(AuthSession? s, String? player) {
     session = s;
     playerId = player;
+    accountGone = false;
     _base = {};
     _haveBase = false;
   }
@@ -181,7 +201,7 @@ class CasinoSync extends ChangeNotifier {
     if (_open || (session != null && playerId == null)) return const [''];
     final p = playerId;
     if (session == null || p == null) return const [];
-    return ['players/$p', 'txns/$p', 'plays/$p', 'seen/$p', 'games', 'meta'];
+    return ['players/$p', 'txns/$p', 'plays/$p', 'seen/$p', 'prefs/$p', 'requests/$p', 'games', 'meta'];
   }
 
   bool _inScope(String path, List<String> scopes) =>
@@ -193,7 +213,11 @@ class CasinoSync extends ChangeNotifier {
     final p = playerId;
     if (p != null) {
       if (text == null) return false;
-      if (path == 'seen/$p' || path.startsWith('plays/$p/')) return true;
+      if (path == 'seen/$p' || path == 'prefs/$p' || path.startsWith('plays/$p/')) return true;
+      if (path.startsWith('requests/$p/') && !_base.containsKey(path)) {
+        final r = jsonDecode(text) as Map;
+        return r['p'] == p && r['st'] == 0;
+      }
       if (path.startsWith('txns/$p/') && !_base.containsKey(path)) {
         final t = jsonDecode(text) as Map;
         final gc = (t['gc'] as num?) ?? 0, sc = (t['sc'] as num?) ?? 0;
@@ -314,7 +338,12 @@ class CasinoSync extends ChangeNotifier {
       final remote = <String, ({String text, int up})>{};
       for (final s in scopes) {
         final res = await transport('GET', _at(s, q));
-        if (res.status == 401 || res.status == 403) throw 'This account can’t open the database (check the database rules)';
+        if (res.status == 401 || res.status == 403) {
+          // A player's own records refused: the player ID was deleted (its
+          // sign-in no longer leads to it).
+          if (playerId != null && s.startsWith('players/')) accountGone = true;
+          throw 'This account can’t open the database (check the database rules)';
+        }
         if (res.status != 200) throw 'The database answered ${res.status}';
         _flatten(s, jsonDecode(res.body), remote);
       }
@@ -407,7 +436,7 @@ class CasinoSync extends ChangeNotifier {
 
   /// How deep each kind of record sits: txns/<player>/<id> and
   /// plays/<player>/<day|game>; everything else is <kind>/<id>.
-  static int _depth(String kind) => kind == 'txns' || kind == 'plays' ? 3 : 2;
+  static int _depth(String kind) => kind == 'txns' || kind == 'plays' || kind == 'requests' ? 3 : 2;
 
   /// The tree read at [path] → path → (record text without the sync stamp, stamp).
   static void _flatten(String path, Object? tree, Map<String, ({String text, int up})> out) {

@@ -233,4 +233,65 @@ void main() {
     expect(sAdmin.state, SyncState.live);
     expect((db.tree!['players'] as Map).containsKey(p.id), isTrue);
   });
+
+  test('a deleted player ID can’t open a game and is signed out', () async {
+    final (admin, sAdmin) = await join();
+    admin.signIn('owner');
+    final p = await newPlayer(admin, 'goner', 'secret77');
+    await sAdmin.syncNow();
+    final (_, sPhone, app) = await phone();
+    expect(await app.logIn('goner', 'secret77'), isNull);
+    expect(await app.confirmPlayer(), isTrue);
+
+    admin.deletePlayer(admin.player(p.id)!);
+    await sAdmin.syncNow();
+    // Before the phone has synced again, opening a game asks the server first.
+    expect(await app.confirmPlayer(), isFalse);
+    expect(app.signedIn, isFalse);
+    expect(app.kickedOut, 'This player ID no longer exists');
+  });
+
+  test('a coin request goes from the phone to the agent and the coins come back', () async {
+    var t = DateTime.now();
+    final (admin, sAdmin) = await join(casino: Casino.demo(clock: () => t = t.add(const Duration(seconds: 1))));
+    admin.signIn('owner');
+    final p = await newPlayer(admin, 'asker', 'secret77', startSc: 10);
+    await sAdmin.syncNow();
+    final (_, sPhone, app) = await phone();
+    expect(await app.logIn('asker', 'secret77'), isNull);
+
+    expect(app.requestCoins(sc: 42), isNull);
+    app.setAvatar('ruby');
+    await sPhone.syncNow();
+    expect(sPhone.error, isNull);
+    await sAdmin.syncNow();
+    final r = admin.waitingRequests.single;
+    expect((r.playerId, r.sc), (p.id, 42));
+    expect(admin.avatars[p.id], 'ruby');
+
+    admin.approveRequest(r);
+    await sAdmin.syncNow();
+    await sPhone.syncNow();
+    expect(app.sc, 52);
+    expect(app.myRequests.single.status, RequestStatus.done);
+    expect(app.avatar, 'assets/app/avatars/ruby.webp');
+
+    // The player is told, until they mark it read (which syncs too).
+    final note = app.notes.firstWhere((n) => n.kind != NoteKind.bonus);
+    expect((note.title, note.body), ('Coins added', '42.00 DC put on your account by your agent.'));
+    expect(app.isUnread(note), isTrue);
+    app.markAllRead();
+    expect(app.isUnread(note), isFalse);
+    await sPhone.syncNow();
+    await sAdmin.syncNow();
+    expect(admin.notesRead[p.id], isNotNull);
+
+    expect(app.requestCoins(sc: 5), isNull);
+    await sPhone.syncNow();
+    await sAdmin.syncNow();
+    admin.declineRequest(admin.waitingRequests.single);
+    await sAdmin.syncNow();
+    await sPhone.syncNow();
+    expect(app.notes.where(app.isUnread).map((n) => n.title), contains('Request declined'));
+  });
 }

@@ -78,14 +78,17 @@ class HtmlGameHost {
         ],
       });
     }
-    final gc = bets(Currency.gc), dc = bets(Currency.sc);
+    // With Gold Coins switched off the game gets DC only.
+    final gcOn = app.shows('gc');
+    final gc = gcOn ? bets(Currency.gc) : const <double>[], dc = bets(Currency.sc);
     _sentBalances = balances();
     return {
       'demo': false,
-      'currency': 'GC',
+      'currency': gcOn ? 'GC' : 'DC',
+      'currencies': [if (gcOn) 'GC', 'DC'],
       'balances': _sentBalances,
       'bets': {'GC': gc, 'DC': dc},
-      'bet': {'GC': gc.first, 'DC': dc.first},
+      'bet': {if (gcOn) 'GC': gc.first, 'DC': dc.first},
       'options': options,
       'rtp': _cfg.targetRtp,
       'sound': soundSettings(),
@@ -112,6 +115,7 @@ class HtmlGameHost {
     if (option == null) return (null, 'option', 'No bet option "${req['option']}"');
     final c = currency(req['currency']);
     if (c == null) return (null, 'currency', 'Currency is GC or DC');
+    if (c == Currency.gc && !app.shows('gc')) return (null, 'currency', 'Gold Coins are switched off; play with DC');
     final bet = (req['bet'] as num?)?.toDouble();
     if (bet == null || !bets(c).any((b) => (b - bet).abs() < 1e-9)) return (null, 'bet', 'Pick one of the bets offered');
     if ((c == Currency.gc ? app.gc : app.sc) < bet - 1e-9) return (null, 'balance', 'Not enough ${label(c)}');
