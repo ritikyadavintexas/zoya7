@@ -287,6 +287,9 @@ void main() {
 
   testWidgets('log in, phone held upright: the game’s own keyboard, turned with the game, types, moves on and logs in', (tester) async {
     addTearDown(GameKeyboard.instance.debugReset);
+    // An iPhone: status bar and home bar (the keys keep clear of both).
+    tester.view.padding = const FakeViewPadding(top: 47, bottom: 34);
+    addTearDown(tester.view.resetPadding);
     await showLogin(tester, const Size(390, 844));
     final who = find.byType(EditableText).at(0), password = find.byType(EditableText).at(1);
     await tester.tap(who);

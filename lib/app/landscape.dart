@@ -76,7 +76,7 @@ class _ForceLandscapeState extends State<ForceLandscape> {
             systemGestureInsets: ForceLandscape._turn(mq.systemGestureInsets),
           )
         : mq;
-    final keys = upright && _keyboard.visible ? GameKeyboardView.heightFor(size.height) : 0.0;
+    final keys = upright && _keyboard.visible ? GameKeyboardView.heightFor(size.height, safeBottom: turned.padding.bottom) : 0.0;
     // The same tree either way, so turning the phone keeps the page as it was.
     return RotatedBox(
       quarterTurns: upright ? 1 : 0,

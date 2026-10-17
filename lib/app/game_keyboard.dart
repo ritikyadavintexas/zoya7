@@ -134,10 +134,20 @@ class GameKeyboardView extends StatelessWidget {
   final double height;
 
   /// How tall the keyboard is in a game this tall.
-  /// (Five rows, each with a gap above; the padding and the top border.)
-  static double heightFor(double height) => (keyHeightFor(height) + _gap) * 5 + 3 + 6 + 1;
-  static double keyHeightFor(double height) => (height * .085).clamp(28.0, 42.0);
-  static const _gap = 5.0;
+  /// (Five rows, each with a gap above; the padding, the top border, and
+  /// [safeBottom] for the phone's own edge.)
+  static double heightFor(double height, {double safeBottom = 0}) =>
+      (keyHeightFor(height) + _gap) * 5 + _padTop + padBottom(safeBottom) + 1;
+
+  static const _padTop = 6.0;
+
+  /// Room under the keys: clear of the phone's edge and home bar.
+  static double padBottom(double safeBottom) => safeBottom > 10 ? safeBottom : 10;
+
+  /// Room at the sides: clear of the rounded corners, notch and status bar.
+  static double padSide(double safe) => safe > 24 ? safe + 8 : 24;
+  static double keyHeightFor(double height) => (height * .078).clamp(26.0, 40.0);
+  static const _gap = 4.0;
 
   @override
   Widget build(BuildContext context) {
@@ -228,7 +238,12 @@ class GameKeyboardView extends StatelessWidget {
         // on the web would end the typing).
         return TextFieldTapRegion(
           child: Container(
-            padding: const EdgeInsets.fromLTRB(8, 3, 8, 6),
+            padding: EdgeInsets.fromLTRB(
+              padSide(MediaQuery.paddingOf(context).left),
+              _padTop,
+              padSide(MediaQuery.paddingOf(context).right),
+              padBottom(MediaQuery.paddingOf(context).bottom),
+            ),
             decoration: const BoxDecoration(
               color: Color(0xFF140D07),
               border: Border(top: BorderSide(color: Z.cardBorder)),
