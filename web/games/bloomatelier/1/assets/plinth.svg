@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="260" viewBox="0 0 800 260"><defs><radialGradient id="table"><stop stop-color="#719c82" stop-opacity=".35"/><stop offset="1" stop-color="#4a7664" stop-opacity="0"/></radialGradient><linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#f0d79d"/><stop offset=".48" stop-color="#9e8d67"/><stop offset="1" stop-color="#4a564d"/></linearGradient></defs>
+<ellipse cx="400" cy="145" rx="350" ry="90" fill="url(#table)"/>
+<ellipse cx="400" cy="142" rx="264" ry="47" fill="#081d1e" stroke="#ab9d7b" stroke-opacity=".75" stroke-width="4"/>
+<ellipse cx="400" cy="125" rx="247" ry="37" fill="#1c3c36" stroke="#6b9884" stroke-opacity=".54" stroke-width="3"/>
+<ellipse cx="400" cy="133" rx="217" ry="25" fill="#0e2927" opacity=".82"/>
+<path d="M158 141 v22 Q400 215 642 163 v-22 Q400 202 158 141Z" fill="url(#gold)" opacity=".54"/>
+<path d="M224 174 Q400 208 576 174" fill="none" stroke="#e7ce9b" stroke-width="2" opacity=".45"/>
+<circle cx="400" cy="180" r="5" fill="#dfd6a6" opacity=".72"/>
+</svg>
