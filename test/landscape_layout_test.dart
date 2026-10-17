@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:zoya7_gold/app/assets.dart';
+import 'package:zoya7_gold/app/game_keyboard.dart';
 import 'package:zoya7_gold/app/landscape.dart';
 import 'package:zoya7_gold/app/web_safe_area.dart';
 import 'package:zoya7_gold/app/nav.dart';
@@ -245,40 +246,79 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  for (final (held, size) in const [('sideways', Size(844, 390)), ('upright', Size(390, 844))]) {
-    testWidgets('log in, phone held $held: the keyboard stays up and the box shows above it', (tester) async {
-      addTearDown(() => debugKeyboard.value = 0);
-      tester.view.physicalSize = size;
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(AppScope(
-        state: AppState(),
-        child: MaterialApp(
-          navigatorKey: Nav.navigatorKey,
-          builder: (context, child) => WebSafeArea(turnsWhenUpright: true, child: ForceLandscape(child: child!)),
-          home: const LoginScreen(),
-        ),
-      ));
-      await tester.pump(const Duration(milliseconds: 500));
-      for (final i in [0, 1]) {
-        final field = find.byType(EditableText).at(i);
-        await tester.tap(field);
-        await tester.pump();
-        final typing = tester.state<EditableTextState>(field);
-        debugKeyboard.value = size.height * .55;
-        await tester.pumpAndSettle();
-        // The same box, still focused: nothing was rebuilt, so the keyboard stays.
-        expect(tester.state<EditableTextState>(field), same(typing));
-        expect(typing.widget.focusNode.hasFocus, isTrue);
-        final rect = MatrixUtils.transformRect(tester.renderObject<RenderBox>(field).getTransformTo(null), Offset.zero & tester.getSize(field));
-        expect(rect.bottom, lessThanOrEqualTo(size.height * .45), reason: 'box ${i + 1} above the keyboard');
-        expect(rect.top, greaterThanOrEqualTo(0));
-        debugKeyboard.value = 0;
-        await tester.pumpAndSettle();
-      }
-      await tester.pumpWidget(const SizedBox());
-    });
+  Future<void> showLogin(WidgetTester tester, Size size) async {
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(AppScope(
+      state: AppState(),
+      child: MaterialApp(
+        navigatorKey: Nav.navigatorKey,
+        builder: (context, child) => WebSafeArea(turnsWhenUpright: true, child: ForceLandscape(child: child!)),
+        home: const LoginScreen(),
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 500));
   }
+
+  Rect onScreen(WidgetTester tester, Finder f) =>
+      MatrixUtils.transformRect(tester.renderObject<RenderBox>(f).getTransformTo(null), Offset.zero & tester.getSize(f));
+
+  testWidgets('log in, phone held sideways: the keyboard stays up and the box shows above it', (tester) async {
+    addTearDown(() => debugKeyboard.value = 0);
+    await showLogin(tester, const Size(844, 390));
+    expect(find.bySemanticsLabel('Key q'), findsNothing, reason: 'the phone’s own keyboard');
+    for (final i in [0, 1]) {
+      final field = find.byType(EditableText).at(i);
+      await tester.tap(field);
+      await tester.pump();
+      final typing = tester.state<EditableTextState>(field);
+      debugKeyboard.value = 390 * .55;
+      await tester.pumpAndSettle();
+      // The same box, still focused: nothing was rebuilt, so the keyboard stays.
+      expect(tester.state<EditableTextState>(field), same(typing));
+      expect(typing.widget.focusNode.hasFocus, isTrue);
+      expect(onScreen(tester, field).bottom, lessThanOrEqualTo(390 * .45), reason: 'box ${i + 1} above the keyboard');
+      debugKeyboard.value = 0;
+      await tester.pumpAndSettle();
+    }
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('log in, phone held upright: the game’s own keyboard, turned with the game, types, moves on and logs in', (tester) async {
+    addTearDown(GameKeyboard.instance.debugReset);
+    await showLogin(tester, const Size(390, 844));
+    final who = find.byType(EditableText).at(0), password = find.byType(EditableText).at(1);
+    await tester.tap(who);
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Key q'), findsOneWidget);
+    // The keys run along the game's bottom edge (turned: the screen's left side).
+    expect(onScreen(tester, find.bySemanticsLabel('Key q')).left, lessThan(200));
+    expectFits(tester);
+    for (final k in ['p', 'l', 'a', 'y', '1']) {
+      await tester.tap(find.bySemanticsLabel('Key $k'));
+      await tester.pump();
+    }
+    expect(tester.widget<EditableText>(who).controller.text, 'play1');
+    await tester.tap(find.bySemanticsLabel('Backspace'));
+    await tester.pump();
+    expect(tester.widget<EditableText>(who).controller.text, 'play');
+    await tester.tap(find.bySemanticsLabel('NEXT'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<EditableText>(password).focusNode.hasFocus, isTrue);
+    expect(find.bySemanticsLabel('GO'), findsOneWidget);
+    for (final k in ['s', 'e', 'c']) {
+      await tester.tap(find.bySemanticsLabel('Key $k'));
+      await tester.pump();
+    }
+    expect(tester.widget<EditableText>(password).controller.text, 'sec');
+    // Both boxes stay in view above the keys.
+    expect(onScreen(tester, password).left, greaterThan(onScreen(tester, find.bySemanticsLabel('Key q')).right));
+    await tester.tap(find.bySemanticsLabel('Hide keyboard'));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Key q'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('the Gold table widens with the screen instead of leaving side bands', (tester) async {
     await show(tester, const Size(844, 390), const GoldScreen());
